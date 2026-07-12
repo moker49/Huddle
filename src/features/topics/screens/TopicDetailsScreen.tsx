@@ -1,6 +1,6 @@
 import { router } from "expo-router";
-import { useEffect } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useRef } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { ActivityIndicator, IconButton, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -18,6 +18,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
   const { getTopic, isLoading: topicsAreLoading } = useTopics();
   const { getError, getMessages, isLoading, loadMessages, sendMessage } = useMessages();
+  const scrollViewRef = useRef<ScrollView>(null);
   const topic = topicId ? getTopic(topicId) : undefined;
   const messages = topicId ? getMessages(topicId) : [];
   const messageError = topicId ? getError(topicId) : null;
@@ -28,6 +29,18 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       void loadMessages(topicId);
     }
   }, [loadMessages, topic, topicId]);
+
+  const scrollToLatestMessage = useCallback((animated = true) => {
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollToEnd({ animated });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToLatestMessage(false);
+    }
+  }, [messages.length, scrollToLatestMessage]);
 
   if (topicsAreLoading) {
     return (
@@ -61,7 +74,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
 
   return (
     <SafeAreaView
-      edges={["top", "right", "bottom", "left"]}
+      edges={["top", "right", "left"]}
       style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
     >
       <View style={styles.shell}>
@@ -89,25 +102,32 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           <IconButton icon="bell-outline" disabled accessibilityLabel="Notifications unavailable" />
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.conversationContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          behavior={Platform.select({ ios: "padding", default: undefined })}
+          style={styles.keyboardArea}
         >
-          <MessageList
-            messages={messages}
-            isLoading={messagesAreLoading}
-            errorMessage={messageError}
+          <ScrollView
+            ref={scrollViewRef}
+            contentContainerStyle={styles.conversationContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => scrollToLatestMessage(false)}
+          >
+            <MessageList
+              messages={messages}
+              isLoading={messagesAreLoading}
+              errorMessage={messageError}
+            />
+          </ScrollView>
+          <MessageComposer
+            onSend={(body) =>
+              sendMessage({
+                topicId: topic.id,
+                body
+              }).then(() => undefined)
+            }
           />
-        </ScrollView>
-        <MessageComposer
-          onSend={(body) =>
-            sendMessage({
-              topicId: topic.id,
-              body
-            }).then(() => undefined)
-          }
-        />
+        </KeyboardAvoidingView>
       </View>
     </SafeAreaView>
   );
@@ -152,6 +172,9 @@ const styles = StyleSheet.create({
   conversationContent: {
     flexGrow: 1,
     paddingBottom: spacing.md
+  },
+  keyboardArea: {
+    flex: 1
   },
   centerState: {
     flex: 1,
