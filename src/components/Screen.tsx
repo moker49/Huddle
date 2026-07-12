@@ -1,0 +1,58 @@
+import { PropsWithChildren } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Appbar, useTheme } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { layout, spacing } from "@/theme/tokens";
+
+interface ScreenProps extends PropsWithChildren {
+  title: string;
+  onBack?: () => void;
+  action?: React.ReactNode;
+  scroll?: boolean;
+}
+
+export function Screen({ title, onBack, action, scroll = true, children }: ScreenProps) {
+  const theme = useTheme();
+  const content = <View style={styles.content}>{children}</View>;
+
+  return (
+    <SafeAreaView
+      edges={["top", "left", "right"]}
+      style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
+    >
+      <Appbar.Header mode="small" elevated={false}>
+        {onBack ? <Appbar.BackAction onPress={onBack} /> : null}
+        <Appbar.Content title={title} />
+        {action}
+      </Appbar.Header>
+      {scroll ? (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {content}
+        </ScrollView>
+      ) : (
+        content
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1
+  },
+  scrollContent: {
+    flexGrow: 1
+  },
+  content: {
+    width: "100%",
+    maxWidth: layout.maxContentWidth,
+    alignSelf: "center",
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.lg
+  }
+});

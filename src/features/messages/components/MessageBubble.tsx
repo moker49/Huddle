@@ -1,0 +1,109 @@
+import { StyleSheet, View } from "react-native";
+import { Text, useTheme } from "react-native-paper";
+
+import { Message } from "@/models/message";
+import { layout, spacing } from "@/theme/tokens";
+
+interface MessageBubbleProps {
+  message: Message;
+}
+
+export function MessageBubble({ message }: MessageBubbleProps) {
+  const theme = useTheme();
+  const avatarTone = getAvatarTone(message.authorName);
+
+  return (
+    <View style={styles.row}>
+      <View
+        style={[
+          styles.avatar,
+          {
+            backgroundColor:
+              avatarTone === "primary"
+                ? theme.colors.primaryContainer
+                : theme.colors.secondaryContainer
+          }
+        ]}
+      >
+        <Text
+          variant="titleMedium"
+          style={{
+            color:
+              avatarTone === "primary"
+                ? theme.colors.onPrimaryContainer
+                : theme.colors.onSecondaryContainer
+          }}
+        >
+          {message.authorName.slice(0, 1).toUpperCase()}
+        </Text>
+        <View
+          style={[
+            styles.presenceDot,
+            {
+              backgroundColor: theme.colors.primary,
+              borderColor: theme.colors.background
+            }
+          ]}
+        />
+      </View>
+      <View style={styles.message}>
+        <View style={styles.metaRow}>
+          <Text variant="titleSmall">{message.authorName}</Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            {formatMessageTime(message.createdAt)}
+          </Text>
+        </View>
+        <Text variant="bodyLarge">{message.body}</Text>
+      </View>
+    </View>
+  );
+}
+
+function getAvatarTone(authorName: string): "primary" | "secondary" {
+  return authorName.length % 2 === 0 ? "primary" : "secondary";
+}
+
+function formatMessageTime(value: string): string {
+  const date = new Date(value);
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12;
+
+  return `${displayHours}:${minutes} ${period}`;
+}
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md
+  },
+  avatar: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    borderRadius: layout.minTouchTarget / 2,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  presenceDot: {
+    position: "absolute",
+    right: spacing.none,
+    bottom: spacing.none,
+    width: spacing.md,
+    height: spacing.md,
+    borderRadius: spacing.xs,
+    borderWidth: 2
+  },
+  message: {
+    flex: 1,
+    gap: spacing.xxs,
+    paddingBottom: spacing.md
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.xs,
+    flexWrap: "wrap"
+  }
+});

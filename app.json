@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Huddle",
+    "slug": "huddle",
+    "scheme": "huddle",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
