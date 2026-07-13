@@ -11,6 +11,8 @@ export const spacing = {
 export const layout = {
   maxContentWidth: 640,
   minTouchTarget: 48,
+  appBarHeight: 64,
+  appBarActionSize: 40,
   composerControlSize: 56,
   appBarAvatarSize: 32
 } as const;

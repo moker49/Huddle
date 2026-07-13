@@ -3,16 +3,25 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { Appbar, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AppTopBar } from "@/components/AppTopBar";
 import { layout, spacing } from "@/theme/tokens";
 
 interface ScreenProps extends PropsWithChildren {
   title: string;
   onBack?: () => void;
+  navigation?: React.ReactNode;
   action?: React.ReactNode;
   scroll?: boolean;
 }
 
-export function Screen({ title, onBack, action, scroll = true, children }: ScreenProps) {
+export function Screen({
+  title,
+  onBack,
+  navigation,
+  action,
+  scroll = true,
+  children
+}: ScreenProps) {
   const theme = useTheme();
   const content = <View style={styles.content}>{children}</View>;
 
@@ -21,11 +30,21 @@ export function Screen({ title, onBack, action, scroll = true, children }: Scree
       edges={["top", "left", "right"]}
       style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
     >
-      <Appbar.Header mode="small" elevated={false}>
-        {onBack ? <Appbar.BackAction onPress={onBack} /> : null}
-        <Appbar.Content title={title} />
-        {action}
-      </Appbar.Header>
+      <AppTopBar
+        navigation={
+          onBack ? (
+            <Appbar.Action
+              icon="arrow-left"
+              onPress={onBack}
+              accessibilityLabel="Go back"
+            />
+          ) : (
+            navigation
+          )
+        }
+        title={title}
+        action={action}
+      />
       {scroll ? (
         <ScrollView
           contentContainerStyle={styles.scrollContent}

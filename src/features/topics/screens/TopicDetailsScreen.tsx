@@ -1,9 +1,10 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
-import { ActivityIndicator, IconButton, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Appbar, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AppTopBar } from "@/components/AppTopBar";
 import { MessageComposer } from "@/features/messages/components/MessageComposer";
 import { MessageList } from "@/features/messages/components/MessageList";
 import { useMessages } from "@/features/messages/MessageProvider";
@@ -55,13 +56,15 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   if (!topic) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
-        <View style={styles.topBar}>
-          <IconButton
-            icon="arrow-left"
-            onPress={() => router.back()}
-            accessibilityLabel="Go back"
-          />
-        </View>
+        <AppTopBar
+          navigation={
+            <Appbar.Action
+              icon="arrow-left"
+              onPress={() => router.back()}
+              accessibilityLabel="Go back"
+            />
+          }
+        />
         <View style={styles.centerState}>
           <Text variant="titleMedium">Topic not found</Text>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
@@ -77,13 +80,15 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       edges={["top", "right", "left"]}
       style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
     >
-      <View style={styles.shell}>
-        <View style={styles.topBar}>
-          <IconButton
+      <AppTopBar
+        navigation={
+          <Appbar.Action
             icon="arrow-left"
             onPress={() => router.back()}
             accessibilityLabel="Go back"
           />
+        }
+        title={
           <View style={styles.appBarTitle}>
             <View
               style={[
@@ -95,13 +100,20 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
                 {topic.name.slice(0, 1).toUpperCase()}
               </Text>
             </View>
-            <Text variant="titleMedium" numberOfLines={1} style={styles.topicName}>
+            <Text variant="titleLarge" numberOfLines={1} style={styles.topicName}>
               {topic.name}
             </Text>
           </View>
-          <IconButton icon="bell-outline" disabled accessibilityLabel="Notifications unavailable" />
-        </View>
-
+        }
+        action={
+          <Appbar.Action
+            icon="bell-outline"
+            disabled
+            accessibilityLabel="Notifications unavailable"
+          />
+        }
+      />
+      <View style={styles.shell}>
         <KeyboardAvoidingView
           behavior={Platform.select({ ios: "padding", default: undefined })}
           style={styles.keyboardArea}
@@ -143,13 +155,6 @@ const styles = StyleSheet.create({
     maxWidth: layout.maxContentWidth,
     alignSelf: "center",
     paddingHorizontal: spacing.lg
-  },
-  topBar: {
-    minHeight: layout.minTouchTarget,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: -spacing.xs
   },
   appBarTitle: {
     flex: 1,

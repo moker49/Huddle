@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Divider, FAB, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Appbar, Divider, FAB, Text, useTheme } from "react-native-paper";
 
 import { Screen } from "@/components/Screen";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
@@ -12,7 +12,18 @@ export function TopicListScreen() {
   const { topics, isLoading, errorMessage } = useTopics();
 
   return (
-    <Screen title="Topics" scroll={false}>
+    <Screen
+      title="Topics"
+      scroll={false}
+      navigation={<Appbar.Action icon="menu" onPress={() => undefined} accessibilityLabel="Menu" />}
+      action={
+        <Appbar.Action
+          icon="account-circle-outline"
+          onPress={() => undefined}
+          accessibilityLabel="Profile"
+        />
+      }
+    >
       <View style={styles.container}>
         {isLoading ? (
           <View style={styles.centerContent}>
