@@ -6,6 +6,7 @@ import { Button, HelperText, Snackbar, TextInput, useTheme } from "react-native-
 import { Screen } from "@/components/Screen";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { layout, spacing } from "@/theme/tokens";
+import { goBackOrReplace } from "@/utils/navigation";
 
 const maxNameLength = 80;
 
@@ -43,7 +44,7 @@ export function CreateTopicScreen() {
   }
 
   return (
-    <Screen title="Create topic" onBack={() => router.back()}>
+    <Screen title="Create topic" onBack={() => goBackOrReplace("/")}>
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: "padding", default: undefined })}
         style={styles.keyboardAvoidingView}

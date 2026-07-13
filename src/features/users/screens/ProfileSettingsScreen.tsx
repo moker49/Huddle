@@ -1,4 +1,3 @@
-import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { ActivityIndicator, Button, Snackbar, Text, TextInput, useTheme } from "react-native-paper";
@@ -6,6 +5,7 @@ import { ActivityIndicator, Button, Snackbar, Text, TextInput, useTheme } from "
 import { Screen } from "@/components/Screen";
 import { useUser } from "@/features/users/UserProvider";
 import { spacing } from "@/theme/tokens";
+import { goBackOrReplace } from "@/utils/navigation";
 
 export function ProfileSettingsScreen() {
   const theme = useTheme();
@@ -32,7 +32,7 @@ export function ProfileSettingsScreen() {
 
     try {
       await updateDisplayName(trimmedDisplayName);
-      router.back();
+      goBackOrReplace("/");
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Display name could not be saved.");
     } finally {
@@ -41,7 +41,7 @@ export function ProfileSettingsScreen() {
   }
 
   return (
-    <Screen title="Profile" onBack={() => router.back()}>
+    <Screen title="Profile" onBack={() => goBackOrReplace("/")}>
       <View style={styles.container}>
         {isLoading ? (
           <View style={styles.centerContent}>

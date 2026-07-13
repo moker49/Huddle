@@ -11,6 +11,7 @@ import { useMessages } from "@/features/messages/MessageProvider";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
 import { layout, spacing } from "@/theme/tokens";
+import { goBackOrReplace } from "@/utils/navigation";
 
 interface TopicDetailsScreenProps {
   topicId?: string;
@@ -63,7 +64,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           navigation={
             <Appbar.Action
               icon="arrow-left"
-              onPress={() => router.back()}
+              onPress={() => goBackOrReplace("/")}
               accessibilityLabel="Go back"
             />
           }
@@ -87,7 +88,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
         navigation={
           <Appbar.Action
             icon="arrow-left"
-            onPress={() => router.back()}
+            onPress={() => goBackOrReplace("/")}
             accessibilityLabel="Go back"
           />
         }

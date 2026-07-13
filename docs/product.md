@@ -200,6 +200,12 @@ Avoid:
 
 These boundaries keep the product from becoming a Discord, Slack, or governance platform.
 
+## Implementation Scope
+
+Governance, proposals, blocking, continuation, account exit, and platform moderation describe product direction. They are not near-term implementation scope unless a roadmap item explicitly calls for them.
+
+Near-term work should prioritize the core loop in small vertical slices: find a topic, create a topic, open a topic, and chat.
+
 ## Mobile Strategy
 
 The product is mobile-first and mobile-browser-first. Mobile web matters because users should be able to join through a link without installing an app.

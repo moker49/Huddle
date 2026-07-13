@@ -15,6 +15,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Local in-topic messaging through a service interface.
 - Chat-style message list and Material-aligned composer.
 - Shared Material top app bar pattern.
+- Direct route-load back navigation fallback.
 
 ## Current
 
@@ -23,11 +24,10 @@ Features should generally be implemented as complete vertical slices rather than
 
 ## Next
 
-- Add topic and people search modes to the main screen.
-- Add contextual topic creation from search.
-- Introduce a small local network/contact model.
+- Add topic search mode to the main screen.
+- Filter topics by title as the user types.
+- Add contextual topic creation from topic search.
 - Add focused tests for topic and message services.
-- Replace placeholder authors with the local user model.
 - Add message delivery metadata suitable for a future backend.
 - Validate keyboard and safe-area behavior on physical Android and iOS devices.
 - Validate compact mobile-web layouts.
@@ -38,6 +38,8 @@ Features should generally be implemented as complete vertical slices rather than
 - Authentication.
 - Real-time messaging.
 - Push notifications.
+- People search mode with recipient chips.
+- Local network/contact model.
 - Host permissions.
 - Polls or voting.
 - Topic continuation.
