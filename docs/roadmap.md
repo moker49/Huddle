@@ -22,6 +22,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Local connection service and provider.
 - People search mode shell.
 - Filtered people list by name or handle.
+- Recipient chips for people search.
 
 ## Current
 
@@ -41,7 +42,6 @@ Features should generally be implemented as complete vertical slices rather than
 - Authentication.
 - Real-time messaging.
 - Push notifications.
-- Recipient chips for people search.
 - Shared-huddle filtering from selected people.
 - Host permissions.
 - Polls or voting.

@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Appbar,
   Button,
+  Chip,
   Divider,
   List,
   Text,
@@ -31,11 +32,20 @@ export function TopicListScreen() {
   } = useConnections();
   const [searchMode, setSearchMode] = useState<SearchMode>("huddles");
   const [query, setQuery] = useState("");
+  const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
   const isPeopleMode = searchMode === "people";
   const searchModeLabel = isPeopleMode ? "talk with" : "talk about";
+  const selectedConnectionIdSet = useMemo(
+    () => new Set(selectedConnectionIds),
+    [selectedConnectionIds]
+  );
+  const selectedConnections = useMemo(
+    () => connections.filter((connection) => selectedConnectionIdSet.has(connection.id)),
+    [connections, selectedConnectionIdSet]
+  );
   const filteredTopics = useMemo(() => {
     if (!normalizedQuery) {
       return topics;
@@ -46,18 +56,22 @@ export function TopicListScreen() {
     );
   }, [normalizedQuery, topics]);
   const filteredConnections = useMemo(() => {
-    if (!normalizedQuery) {
-      return connections;
-    }
-
     return connections.filter((connection) => {
+      if (selectedConnectionIdSet.has(connection.id)) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
       const handle = connection.handle ?? "";
       return (
         connection.displayName.toLocaleLowerCase().includes(normalizedQuery) ||
         handle.toLocaleLowerCase().includes(normalizedQuery)
       );
     });
-  }, [connections, normalizedQuery]);
+  }, [connections, normalizedQuery, selectedConnectionIdSet]);
   const hasExactMatch = topics.some(
     (topic) => topic.name.trim().toLocaleLowerCase() === normalizedQuery
   );
@@ -67,6 +81,51 @@ export function TopicListScreen() {
   function handleToggleMode() {
     setSearchMode((currentMode) => (currentMode === "huddles" ? "people" : "huddles"));
     setQuery("");
+  }
+
+  function handleSelectConnection(connection: Connection) {
+    setSelectedConnectionIds((currentIds) => {
+      if (currentIds.includes(connection.id)) {
+        return currentIds;
+      }
+
+      return [...currentIds, connection.id];
+    });
+    setQuery("");
+  }
+
+  function handleRemoveConnection(connectionId: string) {
+    setSelectedConnectionIds((currentIds) =>
+      currentIds.filter((currentId) => currentId !== connectionId)
+    );
+  }
+
+  function handleChangeQuery(nextQuery: string) {
+    if (isPeopleMode && nextQuery.endsWith(" ")) {
+      const nextNormalizedQuery = nextQuery.trim().toLocaleLowerCase();
+      const matchingConnections = connections.filter((connection) => {
+        if (selectedConnectionIdSet.has(connection.id)) {
+          return false;
+        }
+
+        if (!nextNormalizedQuery) {
+          return false;
+        }
+
+        const handle = connection.handle ?? "";
+        return (
+          connection.displayName.toLocaleLowerCase().includes(nextNormalizedQuery) ||
+          handle.toLocaleLowerCase().includes(nextNormalizedQuery)
+        );
+      });
+
+      if (matchingConnections.length === 1) {
+        handleSelectConnection(matchingConnections[0]);
+        return;
+      }
+    }
+
+    setQuery(nextQuery);
   }
 
   async function handleCreateFromQuery() {
@@ -109,7 +168,7 @@ export function TopicListScreen() {
             dense
             mode="flat"
             value={query}
-            onChangeText={setQuery}
+            onChangeText={handleChangeQuery}
             placeholder={isPeopleMode ? "Kevin" : "League"}
             accessibilityLabel={isPeopleMode ? "Search people" : "Search huddles"}
             underlineColor="transparent"
@@ -130,12 +189,40 @@ export function TopicListScreen() {
       }
     >
       <View style={styles.container}>
+        {isPeopleMode && selectedConnections.length > 0 ? (
+          <View style={styles.recipientArea}>
+            <View style={styles.chipRow}>
+              {selectedConnections.map((connection) => (
+                <Chip
+                  key={connection.id}
+                  mode="flat"
+                  closeIcon="close"
+                  onClose={() => handleRemoveConnection(connection.id)}
+                  accessibilityLabel={`Remove ${connection.displayName}`}
+                  closeIconAccessibilityLabel={`Remove ${connection.displayName}`}
+                  style={[
+                    styles.recipientChip,
+                    { backgroundColor: theme.colors.secondaryContainer }
+                  ]}
+                  textStyle={[
+                    styles.recipientChipText,
+                    { color: theme.colors.onSecondaryContainer }
+                  ]}
+                >
+                  {connection.displayName}
+                </Chip>
+              ))}
+            </View>
+          </View>
+        ) : null}
         {isPeopleMode ? (
           <PeopleSearchResults
             connections={filteredConnections}
             errorMessage={connectionErrorMessage}
             isLoading={connectionsAreLoading}
+            onSelectConnection={handleSelectConnection}
             query={trimmedQuery}
+            selectedConnectionCount={selectedConnections.length}
           />
         ) : isLoading ? (
           <View style={styles.centerContent}>
@@ -209,14 +296,18 @@ interface PeopleSearchResultsProps {
   connections: Connection[];
   errorMessage: string | null;
   isLoading: boolean;
+  onSelectConnection: (connection: Connection) => void;
   query: string;
+  selectedConnectionCount: number;
 }
 
 function PeopleSearchResults({
   connections,
   errorMessage,
   isLoading,
-  query
+  onSelectConnection,
+  query,
+  selectedConnectionCount
 }: PeopleSearchResultsProps) {
   const theme = useTheme();
 
@@ -239,13 +330,21 @@ function PeopleSearchResults({
   }
 
   if (connections.length === 0) {
+    const hasSelectedConnections = selectedConnectionCount > 0;
+
     return (
       <View style={styles.centerContent}>
         <Text variant="titleMedium">
-          {query ? "No matching people" : "No connections yet"}
+          {query
+            ? "No matching people"
+            : hasSelectedConnections
+              ? "All matching people selected"
+              : "No connections yet"}
         </Text>
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-          People selection and shared huddles come next.
+          {hasSelectedConnections
+            ? "Remove a chip to add that person again."
+            : "People selection and shared huddles come next."}
         </Text>
       </View>
     );
@@ -259,6 +358,8 @@ function PeopleSearchResults({
             title={connection.displayName}
             description={connection.handle ? `@${connection.handle}` : undefined}
             left={(props) => <List.Icon {...props} icon="account-outline" />}
+            right={(props) => <List.Icon {...props} icon="plus" />}
+            onPress={() => onSelectConnection(connection)}
             accessibilityLabel={`Connection ${connection.displayName}`}
           />
           {index < connections.length - 1 ? <Divider /> : null}
@@ -285,8 +386,22 @@ const styles = StyleSheet.create({
   modeButtonLabel: {
     marginHorizontal: spacing.none
   },
+  chipRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: spacing.xs
+  },
+  recipientChip: {
+    justifyContent: "center"
+  },
+  recipientChipText: {
+    lineHeight: 20,
+    textAlignVertical: "center"
+  },
   searchInput: {
     flex: 1,
+    minWidth: 88,
     backgroundColor: "transparent"
   },
   searchInputContent: {
@@ -296,6 +411,11 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1
+  },
+  recipientArea: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs
   },
   centerContent: {
     flex: 1,
