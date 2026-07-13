@@ -23,8 +23,11 @@ Features should generally be implemented as complete vertical slices rather than
 
 ## Next
 
+- Add topic and people search modes to the main screen.
+- Add contextual topic creation from search.
+- Introduce a small local network/contact model.
 - Add focused tests for topic and message services.
-- Replace placeholder authors with a small local user model.
+- Replace placeholder authors with the local user model.
 - Add message delivery metadata suitable for a future backend.
 - Validate keyboard and safe-area behavior on physical Android and iOS devices.
 - Validate compact mobile-web layouts.
@@ -37,6 +40,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Push notifications.
 - Host permissions.
 - Polls or voting.
+- Topic continuation.
 - Profiles.
 - Attachments.
 

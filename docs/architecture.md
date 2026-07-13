@@ -2,7 +2,9 @@
 
 ## Project Goals
 
-Huddle is a lightweight, mobile-first group discussion app. The project should grow through small, working vertical slices that are easy to understand, easy to verify, and easy to replace with real services later.
+Huddle is a lightweight, mobile-first group discussion app. The product model is network-first: people belong to a network, and conversations happen in topics. Product principles live in [Product](product.md).
+
+The project should grow through small, working vertical slices that are easy to understand, easy to verify, and easy to replace with real services later.
 
 The enduring priorities are:
 

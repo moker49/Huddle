@@ -13,6 +13,7 @@ Not implemented yet: authentication, backend APIs, real-time messaging, push not
 Long-term project guidance lives in `docs/`:
 
 - [Architecture](docs/architecture.md)
+- [Product](docs/product.md)
 - [Coding Standards](docs/coding-standards.md)
 - [Design System](docs/design-system.md)
 - [Roadmap](docs/roadmap.md)
