@@ -4,9 +4,9 @@ Huddle is a lightweight, mobile-first group discussion prototype built with Expo
 
 ## Current Scope
 
-The prototype includes a topic list, a create-topic flow, topic details, and local in-topic messaging with a chat-style list and Material composer. Newly created topics and messages are kept only for the current app session.
+The prototype includes a topic list, a create-topic flow, topic details, and local in-topic messaging with a chat-style list and Material composer. Newly created topics and messages persist locally on the device or browser.
 
-Not implemented yet: authentication, backend APIs, persistence, real-time messaging, push notifications, polls or voting, host permissions, profiles, contacts, file uploads, analytics, and complex animation.
+Not implemented yet: authentication, backend APIs, real-time messaging, push notifications, polls or voting, host permissions, profiles, contacts, file uploads, analytics, and complex animation.
 
 ## Prerequisites
 
@@ -52,7 +52,7 @@ npm run typecheck
 - `src/services/`: replaceable data-access implementations
 - `src/theme/`: Material theme configuration and shared tokens
 
-Route files are intentionally thin and connect Expo Router to feature screens. Topic data access is kept behind `TopicService`, currently implemented by `InMemoryTopicService`, so a later API-backed service can replace it without rewriting the screens. Message data follows the same pattern through `MessageService` and `InMemoryMessageService`.
+Route files are intentionally thin and connect Expo Router to feature screens. Topic data access is kept behind `TopicService`, currently implemented by `LocalTopicService`, so a later API-backed service can replace it without rewriting the screens. Message data follows the same pattern through `MessageService` and `LocalMessageService`. Local persistence uses a small JSON storage adapter backed by browser `localStorage` on web and Expo FileSystem on native platforms.
 
 ## Design System
 
@@ -66,7 +66,7 @@ To add a component, prefer an existing React Native Paper component, consume sem
 
 The project keeps dependencies close to the standard Expo stack. React Native Paper is included because Material Design 3 fidelity is a product requirement. `@expo/vector-icons` is included so Paper can render Material Community Icons consistently across Expo-supported platforms.
 
-No global state-management library, form library, database, analytics SDK, or second UI library is included.
+No global state-management library, form library, database, analytics SDK, or second UI library is included. `expo-file-system` is included for local JSON persistence on native platforms.
 
 ## Material Components Used
 
@@ -94,8 +94,8 @@ Official Material guidance was last reviewed on 2026-07-11 for:
 
 ## Limitations
 
-Topics and messages are stored in memory and disappear when the app reloads. Messaging is local-only; newly sent messages use the current placeholder author and have no delivery states, edits, deletes, attachments, reactions, or realtime sync. The theme uses a temporary teal seed-inspired color set until branding is defined. Broad automated UI tests are intentionally deferred.
+Topics and messages are stored locally on the current device or browser. Messaging is local-only; newly sent messages use the current placeholder author and have no delivery states, edits, deletes, attachments, reactions, or realtime sync. The theme uses a temporary teal seed-inspired color set until branding is defined. Broad automated UI tests are intentionally deferred.
 
 ## Next Steps
 
-Add focused unit tests for the topic and message services, introduce persistent storage or API-backed services, add multi-author message metadata and delivery states, and validate the interface on physical iOS and Android devices plus mobile web widths.
+Add focused unit tests for the topic and message services, introduce API-backed services, add multi-author message metadata and delivery states, and validate the interface on physical iOS and Android devices plus mobile web widths.
