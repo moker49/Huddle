@@ -12,7 +12,26 @@ const initialTopics: Topic[] = [
   {
     id: "welcome",
     name: "Weekend plans",
+    connectionIds: ["kevin", "alex"],
     createdAt: new Date("2026-07-11T12:00:00.000Z").toISOString()
+  },
+  {
+    id: "trail-run",
+    name: "Trail run crew",
+    connectionIds: ["dana", "sam"],
+    createdAt: new Date("2026-07-11T12:10:00.000Z").toISOString()
+  },
+  {
+    id: "recipe-swap",
+    name: "Recipe swap",
+    connectionIds: ["alex", "maria", "sam"],
+    createdAt: new Date("2026-07-11T12:20:00.000Z").toISOString()
+  },
+  {
+    id: "book-club",
+    name: "Book club picks",
+    connectionIds: ["kevin", "maria"],
+    createdAt: new Date("2026-07-11T12:30:00.000Z").toISOString()
   }
 ];
 
@@ -27,8 +46,22 @@ function isTopic(value: unknown): value is Topic {
     "createdAt" in value &&
     typeof value.id === "string" &&
     typeof value.name === "string" &&
-    typeof value.createdAt === "string"
+    typeof value.createdAt === "string" &&
+    (
+      !("connectionIds" in value) ||
+      (Array.isArray(value.connectionIds) &&
+        value.connectionIds.every((connectionId) => typeof connectionId === "string"))
+    )
   );
+}
+
+function normalizeTopic(topic: Topic): Topic {
+  const initialTopic = initialTopics.find((candidate) => candidate.id === topic.id);
+
+  return {
+    ...topic,
+    connectionIds: topic.connectionIds ?? initialTopic?.connectionIds ?? []
+  };
 }
 
 export class LocalTopicService implements TopicService {
@@ -57,6 +90,7 @@ export class LocalTopicService implements TopicService {
     const topic: Topic = {
       id: createId(),
       name,
+      connectionIds: input.connectionIds ?? [],
       createdAt: new Date().toISOString()
     };
 
@@ -71,7 +105,12 @@ export class LocalTopicService implements TopicService {
     if (!this.topicsPromise) {
       this.topicsPromise = this.storage.read<unknown>(topicStorageKey).then((storedTopics) => {
         if (Array.isArray(storedTopics) && storedTopics.every(isTopic)) {
-          this.topics = storedTopics;
+          const normalizedTopics = storedTopics.map(normalizeTopic);
+          const storedTopicIds = new Set(normalizedTopics.map((topic) => topic.id));
+          const missingInitialTopics = initialTopics.filter(
+            (topic) => !storedTopicIds.has(topic.id)
+          );
+          this.topics = [...normalizedTopics, ...missingInitialTopics];
         }
 
         return this.topics;

@@ -26,6 +26,20 @@ const initialConnections: Connection[] = [
     handle: "dana",
     source: "phone_contact",
     createdAt: new Date("2026-07-11T13:10:00.000Z").toISOString()
+  },
+  {
+    id: "maria",
+    displayName: "Maria",
+    handle: "maria",
+    source: "shared_huddle",
+    createdAt: new Date("2026-07-11T13:15:00.000Z").toISOString()
+  },
+  {
+    id: "sam",
+    displayName: "Sam",
+    handle: "sam",
+    source: "direct",
+    createdAt: new Date("2026-07-11T13:20:00.000Z").toISOString()
   }
 ];
 
@@ -64,7 +78,13 @@ export class LocalConnectionService implements ConnectionService {
         .read<unknown>(connectionStorageKey)
         .then((storedConnections) => {
           if (Array.isArray(storedConnections) && storedConnections.every(isConnection)) {
-            this.connections = storedConnections;
+            const storedConnectionIds = new Set(
+              storedConnections.map((connection) => connection.id)
+            );
+            const missingInitialConnections = initialConnections.filter(
+              (connection) => !storedConnectionIds.has(connection.id)
+            );
+            this.connections = [...storedConnections, ...missingInitialConnections];
           }
 
           return this.connections;

@@ -8,6 +8,7 @@ import {
   Chip,
   Divider,
   List,
+  Surface,
   Text,
   TextInput,
   useTheme
@@ -46,15 +47,30 @@ export function TopicListScreen() {
     () => connections.filter((connection) => selectedConnectionIdSet.has(connection.id)),
     [connections, selectedConnectionIdSet]
   );
+  const connectionNameById = useMemo(() => {
+    return connections.reduce<Record<string, string>>((nameById, connection) => {
+      nameById[connection.id] = connection.displayName;
+      return nameById;
+    }, {});
+  }, [connections]);
   const filteredTopics = useMemo(() => {
-    if (!normalizedQuery) {
+    if (isPeopleMode || !normalizedQuery) {
       return topics;
     }
 
     return topics.filter((topic) =>
       topic.name.toLocaleLowerCase().includes(normalizedQuery)
     );
-  }, [normalizedQuery, topics]);
+  }, [isPeopleMode, normalizedQuery, topics]);
+  const visibleTopics = useMemo(() => {
+    if (selectedConnectionIds.length === 0) {
+      return filteredTopics;
+    }
+
+    return filteredTopics.filter((topic) =>
+      selectedConnectionIds.every((connectionId) => topic.connectionIds.includes(connectionId))
+    );
+  }, [filteredTopics, selectedConnectionIds]);
   const filteredConnections = useMemo(() => {
     return connections.filter((connection) => {
       if (selectedConnectionIdSet.has(connection.id)) {
@@ -77,6 +93,7 @@ export function TopicListScreen() {
   );
   const canCreateFromQuery =
     !isPeopleMode && trimmedQuery.length > 0 && !hasExactMatch && !isCreating && !isLoading;
+  const peopleDropdownIsVisible = isPeopleMode && trimmedQuery.length > 0;
 
   function handleToggleMode() {
     setSearchMode((currentMode) => (currentMode === "huddles" ? "people" : "huddles"));
@@ -144,6 +161,14 @@ export function TopicListScreen() {
     }
   }
 
+  function getConnectionSummary(connectionIds: string[]) {
+    const names = connectionIds
+      .map((connectionId) => connectionNameById[connectionId])
+      .filter((name): name is string => Boolean(name));
+
+    return names.length > 0 ? names.join(", ") : "No people yet";
+  }
+
   return (
     <Screen
       title={
@@ -189,7 +214,15 @@ export function TopicListScreen() {
       }
     >
       <View style={styles.container}>
-        {isPeopleMode && selectedConnections.length > 0 ? (
+        {peopleDropdownIsVisible ? (
+          <PeopleDropdown
+            connections={filteredConnections}
+            errorMessage={connectionErrorMessage}
+            isLoading={connectionsAreLoading}
+            onSelectConnection={handleSelectConnection}
+          />
+        ) : null}
+        {selectedConnections.length > 0 ? (
           <View style={styles.recipientArea}>
             <View style={styles.chipRow}>
               {selectedConnections.map((connection) => (
@@ -215,16 +248,7 @@ export function TopicListScreen() {
             </View>
           </View>
         ) : null}
-        {isPeopleMode ? (
-          <PeopleSearchResults
-            connections={filteredConnections}
-            errorMessage={connectionErrorMessage}
-            isLoading={connectionsAreLoading}
-            onSelectConnection={handleSelectConnection}
-            query={trimmedQuery}
-            selectedConnectionCount={selectedConnections.length}
-          />
-        ) : isLoading ? (
+        {isLoading ? (
           <View style={styles.centerContent}>
             <ActivityIndicator accessibilityLabel="Loading huddles" />
           </View>
@@ -234,26 +258,32 @@ export function TopicListScreen() {
               {errorMessage}
             </Text>
           </View>
-        ) : topics.length === 0 && !trimmedQuery ? (
+        ) : topics.length === 0 && !trimmedQuery && selectedConnections.length === 0 ? (
           <View style={styles.centerContent}>
             <Text variant="titleMedium">No huddles yet</Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
               Search for what you want to talk about, then create the first huddle.
             </Text>
           </View>
-        ) : filteredTopics.length === 0 ? (
+        ) : visibleTopics.length === 0 ? (
           <View style={styles.centerContent}>
             <Text variant="titleMedium">No matching huddles</Text>
+            {selectedConnections.length > 0 ? (
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                Try removing a person or changing your search.
+              </Text>
+            ) : null}
           </View>
         ) : (
           <View style={styles.topicList}>
-            {filteredTopics.map((topic, index) => (
+            {visibleTopics.map((topic, index) => (
               <View key={topic.id}>
                 <TopicListItem
                   topic={topic}
+                  connectionSummary={getConnectionSummary(topic.connectionIds)}
                   onPress={() => router.push(`/topics/${topic.id}`)}
                 />
-                {index < filteredTopics.length - 1 ? <Divider /> : null}
+                {index < visibleTopics.length - 1 ? <Divider /> : null}
               </View>
             ))}
           </View>
@@ -292,66 +322,51 @@ export function TopicListScreen() {
   );
 }
 
-interface PeopleSearchResultsProps {
+interface PeopleDropdownProps {
   connections: Connection[];
   errorMessage: string | null;
   isLoading: boolean;
   onSelectConnection: (connection: Connection) => void;
-  query: string;
-  selectedConnectionCount: number;
 }
 
-function PeopleSearchResults({
+function PeopleDropdown({
   connections,
   errorMessage,
   isLoading,
-  onSelectConnection,
-  query,
-  selectedConnectionCount
-}: PeopleSearchResultsProps) {
+  onSelectConnection
+}: PeopleDropdownProps) {
   const theme = useTheme();
 
   if (isLoading) {
     return (
-      <View style={styles.centerContent}>
+      <Surface elevation={2} style={[styles.peopleDropdown, styles.peopleDropdownState]}>
         <ActivityIndicator accessibilityLabel="Loading connections" />
-      </View>
+      </Surface>
     );
   }
 
   if (errorMessage) {
     return (
-      <View style={styles.centerContent}>
+      <Surface elevation={2} style={[styles.peopleDropdown, styles.peopleDropdownState]}>
         <Text variant="bodyLarge" style={{ color: theme.colors.error }}>
           {errorMessage}
         </Text>
-      </View>
+      </Surface>
     );
   }
 
   if (connections.length === 0) {
-    const hasSelectedConnections = selectedConnectionCount > 0;
-
     return (
-      <View style={styles.centerContent}>
-        <Text variant="titleMedium">
-          {query
-            ? "No matching people"
-            : hasSelectedConnections
-              ? "All matching people selected"
-              : "No connections yet"}
-        </Text>
+      <Surface elevation={2} style={[styles.peopleDropdown, styles.peopleDropdownState]}>
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-          {hasSelectedConnections
-            ? "Remove a chip to add that person again."
-            : "People selection and shared huddles come next."}
+          No matching people
         </Text>
-      </View>
+      </Surface>
     );
   }
 
   return (
-    <View style={styles.topicList}>
+    <Surface elevation={2} style={styles.peopleDropdown}>
       {connections.map((connection, index) => (
         <View key={connection.id}>
           <List.Item
@@ -365,7 +380,7 @@ function PeopleSearchResults({
           {index < connections.length - 1 ? <Divider /> : null}
         </View>
       ))}
-    </View>
+    </Surface>
   );
 }
 
@@ -416,6 +431,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xs
+  },
+  peopleDropdown: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+    borderRadius: 12,
+    overflow: "hidden",
+    paddingVertical: spacing.xxs
+  },
+  peopleDropdownState: {
+    minHeight: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md
   },
   centerContent: {
     flex: 1,

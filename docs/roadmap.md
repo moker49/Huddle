@@ -23,6 +23,9 @@ Features should generally be implemented as complete vertical slices rather than
 - People search mode shell.
 - Filtered people list by name or handle.
 - Recipient chips for people search.
+- Huddle list subtitles showing connected people.
+- People search dropdown for selecting recipient chips.
+- Shared-huddle filtering from selected people.
 
 ## Current
 
@@ -42,7 +45,6 @@ Features should generally be implemented as complete vertical slices rather than
 - Authentication.
 - Real-time messaging.
 - Push notifications.
-- Shared-huddle filtering from selected people.
 - Host permissions.
 - Polls or voting.
 - Huddle continuation.
