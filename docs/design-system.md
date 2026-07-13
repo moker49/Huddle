@@ -16,6 +16,8 @@ Colors communicate hierarchy, state, and meaning. Use Material color roles for s
 
 Do not introduce one-off colors in components. If a new color role is needed, add it through the theme and document why the existing Material roles were insufficient.
 
+Main action buttons should use the same color standard as the Material FAB: `primaryContainer` for the button or icon-button container and `onPrimaryContainer` for text or icons. This applies to the primary action on a screen or workflow, such as create, save, profile setup, and send. Use disabled Material roles for unavailable actions.
+
 ## Typography
 
 Use Material typography roles through React Native Paper `Text` variants. Do not choose arbitrary font sizes, weights, or line heights.

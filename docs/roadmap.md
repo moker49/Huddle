@@ -18,7 +18,6 @@ Features should generally be implemented as complete vertical slices rather than
 
 ## Current
 
-- Tighten navigation behavior for direct route loads.
 - Continue aligning existing screens with Material Design 3 guidance.
 - Keep documentation current as UI and service patterns stabilize.
 

@@ -6,6 +6,7 @@ import { layout, spacing } from "@/theme/tokens";
 
 interface MessageComposerProps {
   onSend: (body: string) => Promise<void>;
+  disabled?: boolean;
 }
 
 interface FocusHandle {
@@ -27,7 +28,7 @@ const keepTextInputFocusedProps =
       }
     : undefined;
 
-export function MessageComposer({ onSend }: MessageComposerProps) {
+export function MessageComposer({ onSend, disabled = false }: MessageComposerProps) {
   const theme = useTheme();
   const inputRef = useRef<FocusHandle | null>(null);
   const [body, setBody] = useState("");
@@ -35,7 +36,7 @@ export function MessageComposer({ onSend }: MessageComposerProps) {
   const lineCount = Math.max(1, body.split(/\r\n|\r|\n/).length);
   const inputHeight =
     layout.composerControlSize + (lineCount - 1) * composerLineHeight;
-  const canSend = body.trim().length > 0 && !isSending;
+  const canSend = body.trim().length > 0 && !isSending && !disabled;
 
   async function handleSend() {
     if (!canSend) {
@@ -89,6 +90,7 @@ export function MessageComposer({ onSend }: MessageComposerProps) {
           placeholder="Message..."
           value={body}
           onChangeText={setBody}
+          disabled={disabled}
           multiline
           blurOnSubmit={false}
           accessibilityLabel="Message"
@@ -108,8 +110,8 @@ export function MessageComposer({ onSend }: MessageComposerProps) {
         onPress={handleSend}
         accessibilityLabel="Send message"
         focusable={false}
-        containerColor={canSend ? theme.colors.primary : theme.colors.surfaceVariant}
-        iconColor={canSend ? theme.colors.onPrimary : theme.colors.onSurfaceVariant}
+        containerColor={canSend ? theme.colors.primaryContainer : theme.colors.surfaceVariant}
+        iconColor={canSend ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant}
         style={styles.sendButton}
       />
     </View>

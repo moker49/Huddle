@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
-import { Button, HelperText, Snackbar, TextInput } from "react-native-paper";
+import { Button, HelperText, Snackbar, TextInput, useTheme } from "react-native-paper";
 
 import { Screen } from "@/components/Screen";
 import { useTopics } from "@/features/topics/TopicProvider";
@@ -10,6 +10,7 @@ import { layout, spacing } from "@/theme/tokens";
 const maxNameLength = 80;
 
 export function CreateTopicScreen() {
+  const theme = useTheme();
   const { createTopic } = useTopics();
   const [name, setName] = useState("");
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -72,6 +73,8 @@ export function CreateTopicScreen() {
             onPress={handleSubmit}
             loading={isSaving}
             disabled={isSaving}
+            buttonColor={theme.colors.primaryContainer}
+            textColor={theme.colors.onPrimaryContainer}
             contentStyle={styles.buttonContent}
           >
             Create topic

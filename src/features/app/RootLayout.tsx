@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { MessageProvider } from "@/features/messages/MessageProvider";
 import { TopicProvider } from "@/features/topics/TopicProvider";
+import { UserProvider } from "@/features/users/UserProvider";
 import { darkTheme, lightTheme } from "@/theme/theme";
 
 export function RootLayout() {
@@ -54,17 +55,19 @@ export function RootLayout() {
   return (
     <SafeAreaProvider>
       <PaperProvider theme={paperTheme}>
-        <TopicProvider>
-          <MessageProvider>
-            <StatusBar style={isDark ? "light" : "dark"} />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: paperTheme.colors.background }
-              }}
-            />
-          </MessageProvider>
-        </TopicProvider>
+        <UserProvider>
+          <TopicProvider>
+            <MessageProvider>
+              <StatusBar style={isDark ? "light" : "dark"} />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: paperTheme.colors.background }
+                }}
+              />
+            </MessageProvider>
+          </TopicProvider>
+        </UserProvider>
       </PaperProvider>
     </SafeAreaProvider>
   );

@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Appbar, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Appbar, Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppTopBar } from "@/components/AppTopBar";
@@ -9,6 +9,7 @@ import { MessageComposer } from "@/features/messages/components/MessageComposer"
 import { MessageList } from "@/features/messages/components/MessageList";
 import { useMessages } from "@/features/messages/MessageProvider";
 import { useTopics } from "@/features/topics/TopicProvider";
+import { useUser } from "@/features/users/UserProvider";
 import { layout, spacing } from "@/theme/tokens";
 
 interface TopicDetailsScreenProps {
@@ -19,11 +20,13 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
   const { getTopic, isLoading: topicsAreLoading } = useTopics();
   const { getError, getMessages, isLoading, loadMessages, sendMessage } = useMessages();
+  const { user } = useUser();
   const scrollViewRef = useRef<ScrollView>(null);
   const topic = topicId ? getTopic(topicId) : undefined;
   const messages = topicId ? getMessages(topicId) : [];
   const messageError = topicId ? getError(topicId) : null;
   const messagesAreLoading = topicId ? isLoading(topicId) : false;
+  const hasDisplayName = Boolean(user?.displayName);
 
   useEffect(() => {
     if (topicId && topic) {
@@ -107,9 +110,9 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
         }
         action={
           <Appbar.Action
-            icon="bell-outline"
-            disabled
-            accessibilityLabel="Notifications unavailable"
+            icon="account-circle-outline"
+            onPress={() => router.push("/profile")}
+            accessibilityLabel="Profile"
           />
         }
       />
@@ -131,12 +134,37 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               errorMessage={messageError}
             />
           </ScrollView>
+          {!hasDisplayName ? (
+            <View
+              style={[
+                styles.profilePrompt,
+                { backgroundColor: theme.colors.surface }
+              ]}
+            >
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+                Set your display name to send messages.
+              </Text>
+              <Button
+                mode="contained"
+                buttonColor={theme.colors.primaryContainer}
+                textColor={theme.colors.onPrimaryContainer}
+                onPress={() => router.push("/profile")}
+              >
+                Profile
+              </Button>
+            </View>
+          ) : null}
           <MessageComposer
+            disabled={!hasDisplayName}
             onSend={(body) =>
-              sendMessage({
-                topicId: topic.id,
-                body
-              }).then(() => undefined)
+              user
+                ? sendMessage({
+                    topicId: topic.id,
+                    body,
+                    authorId: user.id,
+                    authorName: user.displayName
+                  }).then(() => undefined)
+                : Promise.resolve()
             }
           />
         </KeyboardAvoidingView>
@@ -180,6 +208,12 @@ const styles = StyleSheet.create({
   },
   keyboardArea: {
     flex: 1
+  },
+  profilePrompt: {
+    gap: spacing.sm,
+    borderRadius: spacing.xs,
+    padding: spacing.md,
+    marginBottom: spacing.sm
   },
   centerState: {
     flex: 1,

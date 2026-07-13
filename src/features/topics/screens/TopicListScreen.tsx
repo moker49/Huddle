@@ -19,7 +19,7 @@ export function TopicListScreen() {
       action={
         <Appbar.Action
           icon="account-circle-outline"
-          onPress={() => undefined}
+          onPress={() => router.push("/profile")}
           accessibilityLabel="Profile"
         />
       }

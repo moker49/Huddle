@@ -1,0 +1,84 @@
+import {
+  PropsWithChildren,
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState
+} from "react";
+
+import { LocalUser } from "@/models/user";
+import { UserService, userService } from "@/services/userService";
+
+interface UserContextValue {
+  user: LocalUser | null;
+  isLoading: boolean;
+  errorMessage: string | null;
+  updateDisplayName(displayName: string): Promise<LocalUser>;
+}
+
+const UserContext = createContext<UserContextValue | null>(null);
+
+interface UserProviderProps extends PropsWithChildren {
+  service?: UserService;
+}
+
+export function UserProvider({ children, service = userService }: UserProviderProps) {
+  const [user, setUser] = useState<LocalUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    service
+      .getUser()
+      .then((nextUser) => {
+        if (isActive) {
+          setUser(nextUser);
+          setErrorMessage(null);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setErrorMessage("Profile could not be loaded.");
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [service]);
+
+  const value = useMemo<UserContextValue>(
+    () => ({
+      user,
+      isLoading,
+      errorMessage,
+      async updateDisplayName(displayName) {
+        const nextUser = await service.updateDisplayName(displayName);
+        setUser(nextUser);
+        setErrorMessage(null);
+        return nextUser;
+      }
+    }),
+    [errorMessage, isLoading, service, user]
+  );
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
+}
+
+export function useUser() {
+  const context = useContext(UserContext);
+
+  if (!context) {
+    throw new Error("useUser must be used inside UserProvider.");
+  }
+
+  return context;
+}

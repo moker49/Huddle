@@ -7,8 +7,6 @@ export interface MessageService {
   createMessage(input: CreateMessageInput): Promise<Message>;
 }
 
-const localAuthorName = "You";
-
 const initialMessages: Message[] = [
   {
     id: "welcome-message-1",
@@ -76,7 +74,8 @@ export class LocalMessageService implements MessageService {
       id: createId(),
       topicId: input.topicId,
       body,
-      authorName: localAuthorName,
+      authorId: input.authorId,
+      authorName: input.authorName,
       createdAt: new Date().toISOString()
     };
 
