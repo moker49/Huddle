@@ -16,7 +16,7 @@ export function EmptyMessageState() {
         variant="bodyMedium"
         style={[styles.description, { color: theme.colors.onSurfaceVariant }]}
       >
-        Send the first message to start the conversation.
+        Send the first message to start the huddle.
       </Text>
     </View>
   );

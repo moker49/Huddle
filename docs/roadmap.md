@@ -16,6 +16,9 @@ Features should generally be implemented as complete vertical slices rather than
 - Chat-style message list and Material-aligned composer.
 - Shared Material top app bar pattern.
 - Direct route-load back navigation fallback.
+- Topic search mode in the main app bar.
+- Filtered topic list by title.
+- Contextual topic creation from topic search.
 
 ## Current
 
@@ -24,9 +27,6 @@ Features should generally be implemented as complete vertical slices rather than
 
 ## Next
 
-- Add topic search mode to the main screen.
-- Filter topics by title as the user types.
-- Add contextual topic creation from topic search.
 - Add focused tests for topic and message services.
 - Add message delivery metadata suitable for a future backend.
 - Validate keyboard and safe-area behavior on physical Android and iOS devices.

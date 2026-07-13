@@ -4,7 +4,7 @@ Huddle is a lightweight, mobile-first group discussion prototype built with Expo
 
 ## Current Scope
 
-The app includes a topic list, create-topic flow, topic detail screen, and local in-topic messaging. Topics and messages are stored locally for the current app environment through replaceable service interfaces.
+The app includes topic search, contextual topic creation, topic details, profile setup, and local in-topic messaging. Topics and messages are stored locally for the current app environment through replaceable service interfaces.
 
 Not implemented yet: authentication, backend APIs, real-time messaging, push notifications, polls or voting, host permissions, profiles, contacts, file uploads, analytics, and complex animation.
 

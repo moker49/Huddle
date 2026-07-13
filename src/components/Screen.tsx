@@ -1,4 +1,4 @@
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Appbar, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -7,10 +7,10 @@ import { AppTopBar } from "@/components/AppTopBar";
 import { layout, spacing } from "@/theme/tokens";
 
 interface ScreenProps extends PropsWithChildren {
-  title: string;
+  title: ReactNode;
   onBack?: () => void;
-  navigation?: React.ReactNode;
-  action?: React.ReactNode;
+  navigation?: ReactNode;
+  action?: ReactNode;
   scroll?: boolean;
 }
 
