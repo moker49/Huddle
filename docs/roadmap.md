@@ -11,7 +11,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Huddle list.
 - Create-huddle flow.
 - Huddle detail screen.
-- Local huddle storage through a service interface.
+- Session-local huddles through a service interface.
 - Local in-huddle messaging through a service interface.
 - Chat-style message list and Material-aligned composer.
 - Shared Material top app bar pattern.
@@ -19,13 +19,13 @@ Features should generally be implemented as complete vertical slices rather than
 - Huddle search mode in the main app bar.
 - Filtered huddle list by title.
 - Contextual huddle creation from huddle search.
-- Local connection service and provider.
-- People search mode shell.
-- Filtered people list by name or handle.
-- Recipient chips for people search.
-- Huddle list subtitles showing connected people.
-- People search dropdown for selecting recipient chips.
-- Shared-huddle filtering from selected people.
+- Local network service and provider.
+- Network search mode shell.
+- Filtered network member list by name or handle.
+- Member chips for network search.
+- Huddle list subtitles showing members.
+- Network search dropdown for selecting member chips.
+- Member-based huddle filtering.
 
 ## Current
 

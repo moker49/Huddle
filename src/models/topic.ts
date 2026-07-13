@@ -1,11 +1,11 @@
 export interface Topic {
   id: string;
   name: string;
-  connectionIds: string[];
+  memberIds: string[];
   createdAt: string;
 }
 
 export interface CreateTopicInput {
   name: string;
-  connectionIds?: string[];
+  memberIds?: string[];
 }

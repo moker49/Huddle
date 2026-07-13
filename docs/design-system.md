@@ -46,6 +46,16 @@ Motion should be subtle, purposeful, and consistent with Material guidance. Resp
 
 Interactive elements need accessible labels when their purpose is not clear from text. Preserve Material touch targets, contrast, focus visibility, disabled states, loading states, hover states on web, and keyboard behavior.
 
+## Text Input Focus
+
+Member search is a typing-first flow. When the user is typing members, focus should stay on the member text field as much as possible.
+
+Interactions that are part of member search should not steal focus from the text field. This includes selecting a member from the network dropdown, removing a member chip, and using adjacent controls that directly support the member search flow. Preserving focus prevents keyboard flicker on mobile web and keeps repeated member entry fast.
+
+The current convention is to prevent press-start events from moving focus before the action runs. On web, controls related to the member text field use `onMouseDown`, `onPointerDown`, and `onTouchStart` with `event.preventDefault()`, plus `focusable={false}` where the component supports it. This is the same convention used by the chat composer send and attachment buttons.
+
+Do not replace this with blur-then-refocus behavior. Calling `focus()` after a button press can still hide and reshow the on-screen keyboard, which feels broken. If a new member-search control is added, preserve text-field focus at the press-start level.
+
 ## Responsive Behavior
 
 Design for phones first. Layouts should work on Android, iOS, narrow mobile browsers, and wider mobile-web windows without stretching content excessively.

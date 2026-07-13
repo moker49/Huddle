@@ -4,9 +4,9 @@
 
 Huddle is a network-first huddle messenger for real friend groups.
 
-Traditional messaging apps turn every overlap of people into a separate permanent group chat. Huddle is built around a different model:
+Traditional messaging apps turn every overlap of users into a separate permanent group chat. Huddle is built around a different model:
 
-> People belong to a network. Conversations happen in huddles.
+> Users belong to a personal network. Conversations happen in huddles with members.
 
 The app should feel as simple as a normal chat app while making it easier to find the right conversation, avoid duplicate overlapping group chats, and let huddles evolve naturally.
 
@@ -25,11 +25,12 @@ Product complexity should stay behind this loop.
 
 ### Network
 
-Users have a personal network, not fixed friend groups, servers, or communities. Network language should prefer terms such as:
+Users have a personal network, not fixed friend groups, servers, or communities. A user's network contains users they manually add and users automatically available because they share a huddle.
+
+Network language should prefer terms such as:
 
 - Network
-- Connection
-- Connect
+- Network member
 - Add to network
 
 Avoid making "friend group" the primary product model.
@@ -38,7 +39,7 @@ Avoid making "friend group" the primary product model.
 
 A huddle is the primary conversation space. It is a persistent discussion around a subject, event, audience, or shared context.
 
-Huddles are intentionally loose. A huddle can be renamed, archived, revived, continued elsewhere, or evolve as people join and leave. A huddle is not a server, channel, or rigid group.
+Huddles are intentionally loose. A huddle can be renamed, archived, revived, continued elsewhere, or evolve as members join and leave. A huddle is not a server, channel, or rigid group.
 
 Examples:
 
@@ -60,20 +61,20 @@ This lets a huddle explain its own history without separate administrative scree
 The main screen should help users find huddles in two natural ways:
 
 - By subject: "What do I want to talk about?"
-- By people: "Who do I want to talk with?"
+- By network member: "Who do I want to talk with?"
 
-The long-term main-screen model is a search selector plus a search field. Huddle search filters by text. People search behaves like a recipient field with selected people as chips, then shows huddles shared by those people.
+The long-term main-screen model is a search selector plus a search field. Huddle search filters by text. Network search finds users in the current user's network, represents selected users as member chips, then shows huddles shared by those members.
 
-This people-first discovery flow is central to the product. Users should not need to remember which overlapping group chat contains the people they want.
+This network-first discovery flow is central to the product. Users should not need to remember which overlapping group chat contains the members they want.
 
 ## Creating Huddles
 
 Huddle creation should be contextual:
 
 - From huddle search, the search text can become the huddle title.
-- From people search, selected people can become the initial members.
+- From network search, selected network users can become the initial members.
 
-Huddle title is required. Members can be added during or after creation.
+Huddle title and at least one member are required. Members are added from the user's network.
 
 The app should warn about likely duplicate huddles with similar title and similar members, but duplicates should remain possible. Huddles are loose, so uniqueness should not be enforced as a hard rule.
 
@@ -170,7 +171,7 @@ The product should be honest and socially understandable:
 - Blocks are personal.
 - Huddle-level decisions are visible in the timeline.
 
-If users want to exclude people, they should create a different huddle.
+If users want to exclude other users, they should create a different huddle.
 
 ## Platform Moderation
 

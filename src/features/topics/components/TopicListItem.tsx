@@ -4,15 +4,15 @@ import { Topic } from "@/models/topic";
 
 interface TopicListItemProps {
   topic: Topic;
-  connectionSummary?: string;
+  memberSummary?: string;
   onPress: () => void;
 }
 
-export function TopicListItem({ topic, connectionSummary, onPress }: TopicListItemProps) {
+export function TopicListItem({ topic, memberSummary, onPress }: TopicListItemProps) {
   return (
     <List.Item
       title={topic.name}
-      description={connectionSummary}
+      description={memberSummary}
       left={(props) => <List.Icon {...props} icon="forum-outline" />}
       right={(props) => <List.Icon {...props} icon="chevron-right" />}
       onPress={onPress}

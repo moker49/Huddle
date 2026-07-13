@@ -56,6 +56,8 @@ Use local state for local state. Keep effects focused and dependency-safe. Avoid
 
 Prefer simple props and callbacks over deep prop structures. Keep render logic readable.
 
+For member search controls, preserve text input focus at the press-start event level. Follow the existing `preventDefault()` plus `focusable={false}` convention used by member chips, member dropdown rows, and the chat composer controls.
+
 ## Service Patterns
 
 Define small service interfaces around feature operations. Keep implementation details behind the interface. Do not let screens directly own persistence or network details.
@@ -80,6 +82,7 @@ Refactor when it reduces real complexity or clarifies a stable concept. Avoid br
 - Keep feature code close to the feature.
 - Use semantic theme roles and shared tokens.
 - Keep services replaceable.
+- Keep member-search focus on the text field when interacting with related chips and dropdown rows.
 - Run typecheck and lint after meaningful changes.
 - Prefer complete vertical slices.
 
@@ -91,5 +94,6 @@ Refactor when it reduces real complexity or clarifies a stable concept. Avoid br
 - Raw visual values scattered through UI
 - Speculative abstractions
 - Dependency-heavy solutions
+- Blur-then-refocus fixes for member search controls
 - Recreating standard Material components
 - Mixing component libraries

@@ -36,7 +36,7 @@ export function ConnectionProvider({
       })
       .catch(() => {
         if (isActive) {
-          setErrorMessage("Connections could not be loaded.");
+          setErrorMessage("Network could not be loaded.");
         }
       })
       .finally(() => {
