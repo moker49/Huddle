@@ -7,6 +7,7 @@ interface TopicContextValue {
   topics: Topic[];
   isLoading: boolean;
   errorMessage: string | null;
+  lastCreatedTopicId: string | null;
   createTopic(input: CreateTopicInput): Promise<Topic>;
   getTopic(id: string): Topic | undefined;
 }
@@ -21,6 +22,7 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastCreatedTopicId, setLastCreatedTopicId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -54,16 +56,18 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
       topics,
       isLoading,
       errorMessage,
+      lastCreatedTopicId,
       async createTopic(input) {
         const topic = await service.createTopic(input);
         setTopics(await service.listTopics());
+        setLastCreatedTopicId(topic.id);
         return topic;
       },
       getTopic(id) {
         return topics.find((topic) => topic.id === id);
       }
     }),
-    [errorMessage, isLoading, service, topics]
+    [errorMessage, isLoading, lastCreatedTopicId, service, topics]
   );
 
   return <TopicContext.Provider value={value}>{children}</TopicContext.Provider>;

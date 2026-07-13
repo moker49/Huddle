@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
@@ -42,13 +42,14 @@ const keepSearchInputFocusedProps =
 
 export function TopicListScreen() {
   const theme = useTheme();
-  const { createTopic, topics, isLoading, errorMessage } = useTopics();
+  const { createTopic, errorMessage, isLoading, lastCreatedTopicId, topics } = useTopics();
   const {
     connections,
     errorMessage: connectionErrorMessage,
     isLoading: connectionsAreLoading
   } = useConnections();
   const searchInputRef = useRef<FocusHandle | null>(null);
+  const observedCreatedTopicIdRef = useRef(lastCreatedTopicId);
   const [searchMode, setSearchMode] = useState<SearchMode>("huddles");
   const [query, setQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
@@ -92,12 +93,11 @@ export function TopicListScreen() {
 
       const handle = connection.handle ?? "";
       return (
-        connection.displayName.toLocaleLowerCase().includes(normalizedQuery) ||
-        handle.toLocaleLowerCase().includes(normalizedQuery)
+        connection.displayName.toLocaleLowerCase().startsWith(normalizedQuery) ||
+        handle.toLocaleLowerCase().startsWith(normalizedQuery)
       );
     });
   }, [connections, normalizedQuery, selectedConnectionIdSet]);
-  const networkDropdownIsVisible = isNetworkMode && trimmedQuery.length > 0;
   const inferredConnectionIds = useMemo(() => {
     if (!isNetworkMode || trimmedQuery.length === 0 || filteredConnections.length !== 1) {
       return [];
@@ -105,6 +105,9 @@ export function TopicListScreen() {
 
     return [filteredConnections[0].id];
   }, [filteredConnections, isNetworkMode, trimmedQuery.length]);
+  const inferredConnection = inferredConnectionIds.length === 1 ? filteredConnections[0] : null;
+  const networkDropdownIsVisible =
+    isNetworkMode && trimmedQuery.length > 0 && !inferredConnection;
   const activeConnectionIds = useMemo(() => {
     return Array.from(new Set([...selectedConnectionIds, ...inferredConnectionIds]));
   }, [inferredConnectionIds, selectedConnectionIds]);
@@ -120,7 +123,18 @@ export function TopicListScreen() {
   const impliedTopicTitle = isNetworkMode ? "" : trimmedQuery;
   const createHasTitle = impliedTopicTitle.length > 0;
   const createHasMembers = activeConnectionIds.length > 0;
+  const canShowCreateOption = createHasTitle || createHasMembers;
   const canCreateImmediately = createHasTitle && createHasMembers && !isCreating && !isLoading;
+
+  useEffect(() => {
+    if (!lastCreatedTopicId || observedCreatedTopicIdRef.current === lastCreatedTopicId) {
+      return;
+    }
+
+    observedCreatedTopicIdRef.current = lastCreatedTopicId;
+    setQuery("");
+    setSelectedConnectionIds([]);
+  }, [lastCreatedTopicId]);
 
   function handleToggleMode() {
     setSearchMode((currentMode) => (currentMode === "huddles" ? "network" : "huddles"));
@@ -165,8 +179,8 @@ export function TopicListScreen() {
 
         const handle = connection.handle ?? "";
         return (
-          connection.displayName.toLocaleLowerCase().includes(nextNormalizedQuery) ||
-          handle.toLocaleLowerCase().includes(nextNormalizedQuery)
+          connection.displayName.toLocaleLowerCase().startsWith(nextNormalizedQuery) ||
+          handle.toLocaleLowerCase().startsWith(nextNormalizedQuery)
         );
       });
 
@@ -203,6 +217,7 @@ export function TopicListScreen() {
         memberIds: activeConnectionIds
       });
       setQuery("");
+      setSelectedConnectionIds([]);
       router.push(`/topics/${topic.id}`);
     } finally {
       setIsCreating(false);
@@ -284,7 +299,7 @@ export function TopicListScreen() {
             onSelectConnection={handleSelectConnection}
           />
         ) : null}
-        {selectedConnections.length > 0 ? (
+        {selectedConnections.length > 0 || inferredConnection ? (
           <View style={styles.recipientArea}>
             <View style={styles.chipRow}>
               {selectedConnections.map((connection) => (
@@ -309,6 +324,28 @@ export function TopicListScreen() {
                   {connection.displayName}
                 </Chip>
               ))}
+              {inferredConnection ? (
+                <Chip
+                  {...keepSearchInputFocusedProps}
+                  key={`inferred-${inferredConnection.id}`}
+                  mode="outlined"
+                  icon="account-outline"
+                  onPress={() => handleSelectConnection(inferredConnection)}
+                  accessibilityLabel={`Inferred member ${inferredConnection.displayName}`}
+                  focusable={false}
+                  style={[
+                    styles.recipientChip,
+                    styles.inferredRecipientChip,
+                    { borderColor: theme.colors.primary }
+                  ]}
+                  textStyle={[
+                    styles.recipientChipText,
+                    { color: theme.colors.primary }
+                  ]}
+                >
+                  {inferredConnection.displayName}
+                </Chip>
+              ) : null}
             </View>
           </View>
         ) : null}
@@ -333,19 +370,21 @@ export function TopicListScreen() {
                 />
               </View>
             ))}
-            <List.Item
-              title={createHasTitle ? `Create huddle "${impliedTopicTitle}"` : "Create huddle"}
-              description={
-                createHasMembers
-                  ? getMemberSummary(activeConnectionIds)
-                  : ""
-              }
-              left={(props) => <List.Icon {...props} icon="plus" />}
-              right={(props) => <List.Icon {...props} icon="arrow-right" />}
-              onPress={handleCreateHuddle}
-              disabled={isCreating || isLoading}
-              accessibilityLabel="Create huddle"
-            />
+            {canShowCreateOption ? (
+              <List.Item
+                title={createHasTitle ? `Create huddle "${impliedTopicTitle}"` : "Create huddle"}
+                description={
+                  createHasMembers
+                    ? getMemberSummary(activeConnectionIds)
+                    : ""
+                }
+                left={(props) => <List.Icon {...props} icon="plus" />}
+                right={(props) => <List.Icon {...props} icon="arrow-right" />}
+                onPress={handleCreateHuddle}
+                disabled={isCreating || isLoading}
+                accessibilityLabel="Create huddle"
+              />
+            ) : null}
           </View>
         )}
       </View>
@@ -442,6 +481,10 @@ const styles = StyleSheet.create({
   },
   recipientChip: {
     justifyContent: "center"
+  },
+  inferredRecipientChip: {
+    backgroundColor: "transparent",
+    borderStyle: "dashed"
   },
   recipientChipText: {
     lineHeight: 20,

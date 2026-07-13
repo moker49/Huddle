@@ -88,8 +88,8 @@ export function CreateTopicScreen() {
 
       const handle = connection.handle ?? "";
       return (
-        connection.displayName.toLocaleLowerCase().includes(normalizedNetworkQuery) ||
-        handle.toLocaleLowerCase().includes(normalizedNetworkQuery)
+        connection.displayName.toLocaleLowerCase().startsWith(normalizedNetworkQuery) ||
+        handle.toLocaleLowerCase().startsWith(normalizedNetworkQuery)
       );
     });
   }, [connections, normalizedNetworkQuery, selectedConnectionIdSet]);
@@ -125,8 +125,8 @@ export function CreateTopicScreen() {
 
         const handle = connection.handle ?? "";
         return (
-          connection.displayName.toLocaleLowerCase().includes(nextNormalizedQuery) ||
-          handle.toLocaleLowerCase().includes(nextNormalizedQuery)
+          connection.displayName.toLocaleLowerCase().startsWith(nextNormalizedQuery) ||
+          handle.toLocaleLowerCase().startsWith(nextNormalizedQuery)
         );
       });
 

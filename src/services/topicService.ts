@@ -11,25 +11,25 @@ const initialTopics: Topic[] = [
   {
     id: "welcome",
     name: "Weekend plans",
-    memberIds: ["kevin", "alex"],
+    memberIds: ["erik", "hanna", "kevo"],
     createdAt: new Date("2026-07-11T12:00:00.000Z").toISOString()
   },
   {
     id: "trail-run",
     name: "Trail run crew",
-    memberIds: ["dana", "sam"],
+    memberIds: ["andre", "karina"],
     createdAt: new Date("2026-07-11T12:10:00.000Z").toISOString()
   },
   {
     id: "recipe-swap",
     name: "Recipe swap",
-    memberIds: ["alex", "maria", "sam"],
+    memberIds: ["hanna", "karina", "russel"],
     createdAt: new Date("2026-07-11T12:20:00.000Z").toISOString()
   },
   {
     id: "book-club",
     name: "Book club picks",
-    memberIds: ["kevin", "maria"],
+    memberIds: ["erik", "andre", "russel"],
     createdAt: new Date("2026-07-11T12:30:00.000Z").toISOString()
   }
 ];
