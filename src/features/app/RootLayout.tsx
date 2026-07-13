@@ -5,6 +5,7 @@ import { Platform, useColorScheme } from "react-native";
 import { PaperProvider } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { ConnectionProvider } from "@/features/connections/ConnectionProvider";
 import { MessageProvider } from "@/features/messages/MessageProvider";
 import { TopicProvider } from "@/features/topics/TopicProvider";
 import { UserProvider } from "@/features/users/UserProvider";
@@ -56,17 +57,19 @@ export function RootLayout() {
     <SafeAreaProvider>
       <PaperProvider theme={paperTheme}>
         <UserProvider>
-          <TopicProvider>
-            <MessageProvider>
-              <StatusBar style={isDark ? "light" : "dark"} />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: paperTheme.colors.background }
-                }}
-              />
-            </MessageProvider>
-          </TopicProvider>
+          <ConnectionProvider>
+            <TopicProvider>
+              <MessageProvider>
+                <StatusBar style={isDark ? "light" : "dark"} />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: paperTheme.colors.background }
+                  }}
+                />
+              </MessageProvider>
+            </TopicProvider>
+          </ConnectionProvider>
         </UserProvider>
       </PaperProvider>
     </SafeAreaProvider>

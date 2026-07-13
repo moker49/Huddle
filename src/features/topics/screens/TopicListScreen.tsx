@@ -13,17 +13,29 @@ import {
 } from "react-native-paper";
 
 import { Screen } from "@/components/Screen";
+import { useConnections } from "@/features/connections/ConnectionProvider";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { useTopics } from "@/features/topics/TopicProvider";
+import { Connection } from "@/models/connection";
 import { layout, spacing } from "@/theme/tokens";
+
+type SearchMode = "huddles" | "people";
 
 export function TopicListScreen() {
   const theme = useTheme();
   const { createTopic, topics, isLoading, errorMessage } = useTopics();
+  const {
+    connections,
+    errorMessage: connectionErrorMessage,
+    isLoading: connectionsAreLoading
+  } = useConnections();
+  const [searchMode, setSearchMode] = useState<SearchMode>("huddles");
   const [query, setQuery] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
+  const isPeopleMode = searchMode === "people";
+  const searchModeLabel = isPeopleMode ? "talk with" : "talk about";
   const filteredTopics = useMemo(() => {
     if (!normalizedQuery) {
       return topics;
@@ -33,11 +45,29 @@ export function TopicListScreen() {
       topic.name.toLocaleLowerCase().includes(normalizedQuery)
     );
   }, [normalizedQuery, topics]);
+  const filteredConnections = useMemo(() => {
+    if (!normalizedQuery) {
+      return connections;
+    }
+
+    return connections.filter((connection) => {
+      const handle = connection.handle ?? "";
+      return (
+        connection.displayName.toLocaleLowerCase().includes(normalizedQuery) ||
+        handle.toLocaleLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [connections, normalizedQuery]);
   const hasExactMatch = topics.some(
     (topic) => topic.name.trim().toLocaleLowerCase() === normalizedQuery
   );
   const canCreateFromQuery =
-    trimmedQuery.length > 0 && !hasExactMatch && !isCreating && !isLoading;
+    !isPeopleMode && trimmedQuery.length > 0 && !hasExactMatch && !isCreating && !isLoading;
+
+  function handleToggleMode() {
+    setSearchMode((currentMode) => (currentMode === "huddles" ? "people" : "huddles"));
+    setQuery("");
+  }
 
   async function handleCreateFromQuery() {
     if (!canCreateFromQuery) {
@@ -70,18 +100,18 @@ export function TopicListScreen() {
             textColor={theme.colors.onSurfaceVariant}
             contentStyle={styles.modeButtonContent}
             labelStyle={styles.modeButtonLabel}
-            onPress={() => undefined}
-            accessibilityLabel="Huddle search mode"
+            onPress={handleToggleMode}
+            accessibilityLabel={`Search mode: ${searchModeLabel}`}
           >
-            talk about
+            {searchModeLabel}
           </Button>
           <TextInput
             dense
             mode="flat"
             value={query}
             onChangeText={setQuery}
-            placeholder="League"
-            accessibilityLabel="Search huddles"
+            placeholder={isPeopleMode ? "Kevin" : "League"}
+            accessibilityLabel={isPeopleMode ? "Search people" : "Search huddles"}
             underlineColor="transparent"
             activeUnderlineColor="transparent"
             style={styles.searchInput}
@@ -100,7 +130,14 @@ export function TopicListScreen() {
       }
     >
       <View style={styles.container}>
-        {isLoading ? (
+        {isPeopleMode ? (
+          <PeopleSearchResults
+            connections={filteredConnections}
+            errorMessage={connectionErrorMessage}
+            isLoading={connectionsAreLoading}
+            query={trimmedQuery}
+          />
+        ) : isLoading ? (
           <View style={styles.centerContent}>
             <ActivityIndicator accessibilityLabel="Loading huddles" />
           </View>
@@ -134,35 +171,100 @@ export function TopicListScreen() {
             ))}
           </View>
         )}
-        <View style={styles.createArea}>
-          <Divider />
-          {trimmedQuery ? (
-            hasExactMatch ? (
-              <View style={styles.exactMatchRow}>
+        {isPeopleMode ? null : (
+          <View style={styles.createArea}>
+            <Divider />
+            {trimmedQuery ? (
+              hasExactMatch ? (
+                <View style={styles.exactMatchRow}>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    A huddle with this name already exists.
+                  </Text>
+                </View>
+              ) : (
+                <List.Item
+                  title={`Create huddle "${trimmedQuery}"`}
+                  left={(props) => <List.Icon {...props} icon="plus" />}
+                  right={(props) => <List.Icon {...props} icon="arrow-right" />}
+                  onPress={handleCreateFromQuery}
+                  disabled={!canCreateFromQuery}
+                  accessibilityLabel={`Create huddle ${trimmedQuery}`}
+                />
+              )
+            ) : (
+              <View style={styles.createHintRow}>
                 <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                  A huddle with this name already exists.
+                  Start typing to create a huddle.
                 </Text>
               </View>
-            ) : (
-              <List.Item
-                title={`Create huddle "${trimmedQuery}"`}
-                left={(props) => <List.Icon {...props} icon="plus" />}
-                right={(props) => <List.Icon {...props} icon="arrow-right" />}
-                onPress={handleCreateFromQuery}
-                disabled={!canCreateFromQuery}
-                accessibilityLabel={`Create huddle ${trimmedQuery}`}
-              />
-            )
-          ) : (
-            <View style={styles.createHintRow}>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                Start typing to create a huddle.
-              </Text>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
+        )}
       </View>
     </Screen>
+  );
+}
+
+interface PeopleSearchResultsProps {
+  connections: Connection[];
+  errorMessage: string | null;
+  isLoading: boolean;
+  query: string;
+}
+
+function PeopleSearchResults({
+  connections,
+  errorMessage,
+  isLoading,
+  query
+}: PeopleSearchResultsProps) {
+  const theme = useTheme();
+
+  if (isLoading) {
+    return (
+      <View style={styles.centerContent}>
+        <ActivityIndicator accessibilityLabel="Loading connections" />
+      </View>
+    );
+  }
+
+  if (errorMessage) {
+    return (
+      <View style={styles.centerContent}>
+        <Text variant="bodyLarge" style={{ color: theme.colors.error }}>
+          {errorMessage}
+        </Text>
+      </View>
+    );
+  }
+
+  if (connections.length === 0) {
+    return (
+      <View style={styles.centerContent}>
+        <Text variant="titleMedium">
+          {query ? "No matching people" : "No connections yet"}
+        </Text>
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+          People selection and shared huddles come next.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.topicList}>
+      {connections.map((connection, index) => (
+        <View key={connection.id}>
+          <List.Item
+            title={connection.displayName}
+            description={connection.handle ? `@${connection.handle}` : undefined}
+            left={(props) => <List.Icon {...props} icon="account-outline" />}
+            accessibilityLabel={`Connection ${connection.displayName}`}
+          />
+          {index < connections.length - 1 ? <Divider /> : null}
+        </View>
+      ))}
+    </View>
   );
 }
 
