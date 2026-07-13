@@ -37,14 +37,14 @@ export function CreateTopicScreen() {
       const topic = await createTopic({ name });
       router.replace(`/topics/${topic.id}`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Topic could not be created.");
+      setErrorMessage(error instanceof Error ? error.message : "Huddle could not be created.");
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <Screen title="Create topic" onBack={() => goBackOrReplace("/")}>
+    <Screen title="Create huddle" onBack={() => goBackOrReplace("/")}>
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: "padding", default: undefined })}
         style={styles.keyboardAvoidingView}
@@ -52,7 +52,7 @@ export function CreateTopicScreen() {
         <View style={styles.form}>
           <TextInput
             mode="outlined"
-            label="Topic name"
+            label="Huddle name"
             value={name}
             onChangeText={setName}
             autoFocus
@@ -60,11 +60,11 @@ export function CreateTopicScreen() {
             returnKeyType="next"
             error={nameError || isOverNameLimit}
             maxLength={maxNameLength + 1}
-            accessibilityLabel="Topic name"
+            accessibilityLabel="Huddle name"
           />
           <HelperText type={nameError || isOverNameLimit ? "error" : "info"} visible>
             {nameError
-              ? "Topic name is required."
+              ? "Huddle name is required."
               : `${name.length}/${maxNameLength}`}
           </HelperText>
 
@@ -78,7 +78,7 @@ export function CreateTopicScreen() {
             textColor={theme.colors.onPrimaryContainer}
             contentStyle={styles.buttonContent}
           >
-            Create topic
+            Create huddle
           </Button>
         </View>
       </KeyboardAvoidingView>

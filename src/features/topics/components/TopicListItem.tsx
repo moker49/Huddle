@@ -14,7 +14,7 @@ export function TopicListItem({ topic, onPress }: TopicListItemProps) {
       left={(props) => <List.Icon {...props} icon="forum-outline" />}
       right={(props) => <List.Icon {...props} icon="chevron-right" />}
       onPress={onPress}
-      accessibilityLabel={`Open topic ${topic.name}`}
+      accessibilityLabel={`Open huddle ${topic.name}`}
     />
   );
 }

@@ -51,7 +51,7 @@ export class LocalTopicService implements TopicService {
     const name = input.name.trim();
 
     if (!name) {
-      throw new Error("Topic name is required.");
+      throw new Error("Huddle name is required.");
     }
 
     const topic: Topic = {

@@ -35,7 +35,7 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
       })
       .catch(() => {
         if (isMounted) {
-          setErrorMessage("Topics could not be loaded.");
+          setErrorMessage("Huddles could not be loaded.");
         }
       })
       .finally(() => {

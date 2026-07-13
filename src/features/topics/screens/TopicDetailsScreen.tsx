@@ -51,7 +51,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
         <View style={styles.centerState}>
-          <ActivityIndicator accessibilityLabel="Loading topic" />
+          <ActivityIndicator accessibilityLabel="Loading huddle" />
         </View>
       </SafeAreaView>
     );
@@ -70,9 +70,9 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           }
         />
         <View style={styles.centerState}>
-          <Text variant="titleMedium">Topic not found</Text>
+          <Text variant="titleMedium">Huddle not found</Text>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            This topic may no longer be available in the current app session.
+            This huddle may no longer be available in the current app session.
           </Text>
         </View>
       </SafeAreaView>

@@ -71,7 +71,7 @@ export function TopicListScreen() {
             contentStyle={styles.modeButtonContent}
             labelStyle={styles.modeButtonLabel}
             onPress={() => undefined}
-            accessibilityLabel="Topic search mode"
+            accessibilityLabel="Huddle search mode"
           >
             talk about
           </Button>
@@ -81,7 +81,7 @@ export function TopicListScreen() {
             value={query}
             onChangeText={setQuery}
             placeholder="League"
-            accessibilityLabel="Search topics"
+            accessibilityLabel="Search huddles"
             underlineColor="transparent"
             activeUnderlineColor="transparent"
             style={styles.searchInput}
@@ -102,7 +102,7 @@ export function TopicListScreen() {
       <View style={styles.container}>
         {isLoading ? (
           <View style={styles.centerContent}>
-            <ActivityIndicator accessibilityLabel="Loading topics" />
+            <ActivityIndicator accessibilityLabel="Loading huddles" />
           </View>
         ) : errorMessage ? (
           <View style={styles.centerContent}>
@@ -112,14 +112,14 @@ export function TopicListScreen() {
           </View>
         ) : topics.length === 0 && !trimmedQuery ? (
           <View style={styles.centerContent}>
-            <Text variant="titleMedium">No topics yet</Text>
+            <Text variant="titleMedium">No huddles yet</Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              Search for what you want to talk about, then create the first topic.
+              Search for what you want to talk about, then create the first huddle.
             </Text>
           </View>
         ) : filteredTopics.length === 0 ? (
           <View style={styles.centerContent}>
-            <Text variant="titleMedium">No matching topics</Text>
+            <Text variant="titleMedium">No matching huddles</Text>
           </View>
         ) : (
           <View style={styles.topicList}>
@@ -140,23 +140,23 @@ export function TopicListScreen() {
             hasExactMatch ? (
               <View style={styles.exactMatchRow}>
                 <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                  A topic with this name already exists.
+                  A huddle with this name already exists.
                 </Text>
               </View>
             ) : (
               <List.Item
-                title={`Create "${trimmedQuery}"`}
+                title={`Create huddle "${trimmedQuery}"`}
                 left={(props) => <List.Icon {...props} icon="plus" />}
                 right={(props) => <List.Icon {...props} icon="arrow-right" />}
                 onPress={handleCreateFromQuery}
                 disabled={!canCreateFromQuery}
-                accessibilityLabel={`Create topic ${trimmedQuery}`}
+                accessibilityLabel={`Create huddle ${trimmedQuery}`}
               />
             )
           ) : (
             <View style={styles.createHintRow}>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                Start typing to create a topic.
+                Start typing to create a huddle.
               </Text>
             </View>
           )}
@@ -177,7 +177,8 @@ const styles = StyleSheet.create({
   },
   modeButtonContent: {
     minHeight: layout.appBarActionSize,
-    paddingHorizontal: spacing.xs
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs
   },
   modeButtonLabel: {
     marginHorizontal: spacing.none

@@ -8,17 +8,17 @@ Features should generally be implemented as complete vertical slices rather than
 
 - Expo, Expo Router, React Native, TypeScript, and React Native Paper foundation.
 - Centralized Material theme and shared visual tokens.
-- Topic list.
-- Create-topic flow.
-- Topic detail screen.
-- Local topic storage through a service interface.
-- Local in-topic messaging through a service interface.
+- Huddle list.
+- Create-huddle flow.
+- Huddle detail screen.
+- Local huddle storage through a service interface.
+- Local in-huddle messaging through a service interface.
 - Chat-style message list and Material-aligned composer.
 - Shared Material top app bar pattern.
 - Direct route-load back navigation fallback.
-- Topic search mode in the main app bar.
-- Filtered topic list by title.
-- Contextual topic creation from topic search.
+- Huddle search mode in the main app bar.
+- Filtered huddle list by title.
+- Contextual huddle creation from huddle search.
 
 ## Current
 
@@ -27,14 +27,14 @@ Features should generally be implemented as complete vertical slices rather than
 
 ## Next
 
-- Add focused tests for topic and message services.
+- Add focused tests for huddle and message services.
 - Add message delivery metadata suitable for a future backend.
 - Validate keyboard and safe-area behavior on physical Android and iOS devices.
 - Validate compact mobile-web layouts.
 
 ## Future
 
-- API-backed topic and message services.
+- API-backed huddle and message services.
 - Authentication.
 - Real-time messaging.
 - Push notifications.
@@ -42,7 +42,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Local network/contact model.
 - Host permissions.
 - Polls or voting.
-- Topic continuation.
+- Huddle continuation.
 - Profiles.
 - Attachments.
 
