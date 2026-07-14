@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Appbar,
   IconButton,
-  List,
   Text,
   TextInput,
   useTheme
@@ -254,40 +253,54 @@ export function TopicListScreen() {
               </View>
             ))}
             {canShowCreateOption ? (
-              <View
+              <Pressable
+                onPress={handleCreateHuddle}
+                disabled={isCreating || isLoading}
+                accessibilityLabel="Create huddle"
+                accessibilityRole="button"
                 style={[
                   styles.createCard,
-                  { backgroundColor: theme.colors.elevation.level2 }
+                  { backgroundColor: theme.colors.elevation.level1 }
                 ]}
               >
-                <List.Item
-                  title={createHasTitle ? `Create huddle "${impliedTopicTitle}"` : "Create huddle"}
-                  titleStyle={{ color: theme.colors.onSurfaceVariant }}
-                  description={
-                    createHasMembers
-                      ? getMemberSummary(selectedConnectionIds)
-                      : ""
-                  }
-                  descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
-                  left={(props) => (
-                    <List.Icon
-                      {...props}
-                      color={theme.colors.onSurfaceVariant}
-                      icon="plus"
-                    />
-                  )}
-                  right={(props) => (
-                    <List.Icon
-                      {...props}
-                      color={theme.colors.onSurfaceVariant}
-                      icon="arrow-right"
-                    />
-                  )}
-                  onPress={handleCreateHuddle}
-                  disabled={isCreating || isLoading}
-                  accessibilityLabel="Create huddle"
+                <View
+                  style={[
+                    styles.createThumbnail,
+                    { backgroundColor: theme.colors.surfaceVariant }
+                  ]}
+                >
+                  <IconButton
+                    icon="plus"
+                    size={24}
+                    iconColor={theme.colors.onSurfaceVariant}
+                    style={styles.createIcon}
+                  />
+                </View>
+                <View style={styles.createCopy}>
+                  <Text
+                    variant="titleSmall"
+                    numberOfLines={1}
+                    style={{ color: theme.colors.onSurfaceVariant }}
+                  >
+                    Create huddle
+                  </Text>
+                  {createHasMembers ? (
+                    <Text
+                      variant="bodySmall"
+                      numberOfLines={1}
+                      style={[styles.createMembers, { color: theme.colors.onSurfaceVariant }]}
+                    >
+                      {getMemberSummary(selectedConnectionIds)}
+                    </Text>
+                  ) : null}
+                </View>
+                <IconButton
+                  icon="arrow-right"
+                  size={24}
+                  iconColor={theme.colors.onSurfaceVariant}
+                  style={styles.createArrow}
                 />
-              </View>
+              </Pressable>
             ) : null}
           </View>
         )}
@@ -491,7 +504,36 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm
   },
   createCard: {
-    borderRadius: 12,
-    overflow: "hidden"
+    minHeight: 76,
+    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs
+  },
+  createThumbnail: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  createIcon: {
+    width: 48,
+    height: 48,
+    margin: spacing.none
+  },
+  createCopy: {
+    flex: 1,
+    minWidth: 0
+  },
+  createMembers: {
+    marginTop: spacing.xxs
+  },
+  createArrow: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    margin: spacing.none
   }
 });
