@@ -9,7 +9,6 @@ import {
   Portal,
   Snackbar,
   Text,
-  TextInput,
   useTheme
 } from "react-native-paper";
 
@@ -18,6 +17,7 @@ import { Screen } from "@/components/Screen";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
+import { TopicFormLayout } from "@/features/topics/components/TopicFormLayout";
 import { useTopics } from "@/features/topics/TopicProvider";
 import {
   arraysMatch,
@@ -209,61 +209,33 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
         style={styles.keyboardAvoidingView}
       >
         <View style={styles.form}>
-          <View style={styles.titleRow}>
-            <TextInput
-              mode="outlined"
-              label="Title"
-              value={title}
-              onChangeText={setTitle}
-              autoCapitalize="sentences"
-              returnKeyType="next"
-              error={titleError || isOverTitleLimit}
-              maxLength={maxTopicTitleLength + 1}
-              accessibilityLabel="Huddle title"
-              style={styles.titleField}
-              right={
-                title ? (
-                  <TextInput.Icon
-                    icon="close"
-                    onPress={() => setTitle("")}
-                    accessibilityLabel="Clear title"
-                  />
-                ) : undefined
-              }
-            />
-            <AutoArchiveDateField
-              error={autoArchiveError}
-              value={autoArchiveDate}
-              onChange={setAutoArchiveDate}
-            />
-          </View>
-
-          <TextInput
-            mode="outlined"
-            label="Search members"
-            value={networkQuery}
-            onChangeText={setNetworkQuery}
-            autoCapitalize="words"
-            accessibilityLabel="Search your network"
-            error={memberError}
-            right={
-              networkQuery ? (
-                <TextInput.Icon
-                  icon="close"
-                  onPress={() => setNetworkQuery("")}
-                  accessibilityLabel="Clear member search"
-                />
-              ) : undefined
+          <TopicFormLayout
+            autoArchiveField={
+              <AutoArchiveDateField
+                error={autoArchiveError}
+                value={autoArchiveDate}
+                onChange={setAutoArchiveDate}
+              />
             }
-          />
-          <MemberGrid
-            connections={filteredConnections}
-            errorMessage={connectionErrorMessage}
-            isLoading={connectionsAreLoading}
-            onScroll={handleGridScroll}
-            onToggleConnection={handleToggleConnection}
-            selectedConnectionIds={selectedConnectionIds}
-          />
+            memberError={memberError}
+            memberSearchValue={networkQuery}
+            onChangeMemberSearch={setNetworkQuery}
+            onChangeTitle={setTitle}
+            onClearMemberSearch={() => setNetworkQuery("")}
+            selectedMemberCount={selectedConnectionIds.length}
+            titleError={titleError || isOverTitleLimit}
+            titleMaxLength={maxTopicTitleLength + 1}
+            titleValue={title}
+          >
+            <MemberGrid
+              connections={filteredConnections}
+              errorMessage={connectionErrorMessage}
+              isLoading={connectionsAreLoading}
+              onScroll={handleGridScroll}
+              onToggleConnection={handleToggleConnection}
+              selectedConnectionIds={selectedConnectionIds}
+            />
+          </TopicFormLayout>
           <View style={styles.fab}>
             <HuddleFab
               icon="check"
@@ -326,13 +298,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: spacing.sm,
     gap: spacing.xs
-  },
-  titleRow: {
-    flexDirection: "row",
-    gap: spacing.xs
-  },
-  titleField: {
-    flex: 1
   },
   fab: {
     position: "absolute",
