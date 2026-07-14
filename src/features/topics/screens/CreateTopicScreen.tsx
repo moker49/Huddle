@@ -39,6 +39,7 @@ export function CreateTopicScreen() {
   const titleError = hasSubmitted && trimmedTitle.length === 0;
   const memberError = hasSubmitted && selectedConnectionIds.length === 0;
   const isOverTitleLimit = title.length > maxTitleLength;
+  const hasRequiredSubmitFields = trimmedTitle.length > 0 && selectedConnectionIds.length > 0;
   const canSubmit = trimmedTitle.length > 0 && selectedConnectionIds.length > 0 && !isOverTitleLimit;
   const normalizedNetworkQuery = networkQuery.trim().toLocaleLowerCase();
   const filteredConnections = useMemo(() => {
@@ -144,8 +145,8 @@ export function CreateTopicScreen() {
             label="Create huddle"
             extended={fabIsExtended}
             onPress={handleSubmit}
-            visible
-            disabled={isSaving}
+            visible={hasRequiredSubmitFields}
+            disabled={isSaving || !canSubmit}
             animateFrom="right"
             accessibilityLabel="Create huddle"
             style={styles.fab}

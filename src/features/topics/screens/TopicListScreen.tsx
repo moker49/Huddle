@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Appbar,
@@ -235,7 +235,11 @@ export function TopicListScreen() {
             </Text>
           </View>
         ) : (
-          <View style={styles.topicList}>
+          <ScrollView
+            style={styles.topicScroller}
+            contentContainerStyle={styles.topicList}
+            keyboardShouldPersistTaps="handled"
+          >
             {visibleTopics.map((topic, index) => (
               <View key={topic.id}>
                 <TopicListItem
@@ -299,7 +303,7 @@ export function TopicListScreen() {
                 </View>
               </Pressable>
             ) : null}
-          </View>
+          </ScrollView>
         )}
       </View>
     </Screen>
@@ -375,9 +379,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md
   },
+  topicScroller: {
+    flex: 1
+  },
   topicList: {
-    flexShrink: 1,
-    gap: spacing.xxs
+    gap: spacing.xxs,
+    paddingBottom: spacing.lg
   },
   createCard: {
     minHeight: 76,

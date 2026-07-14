@@ -49,6 +49,7 @@ export function MemberGrid({
   const theme = useTheme();
   const [gridWidth, setGridWidth] = useState(0);
   const selectedConnectionIdSet = new Set(selectedConnectionIds);
+  const gridIsMeasured = gridWidth > 0;
   const itemWidth = getResponsiveItemWidth(gridWidth);
 
   if (isLoading) {
@@ -84,11 +85,18 @@ export function MemberGrid({
       style={styles.scroller}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
-      onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}
+      onLayout={(event) => {
+        const nextWidth = event.nativeEvent.layout.width;
+
+        setGridWidth((currentWidth) => (
+          currentWidth === nextWidth ? currentWidth : nextWidth
+        ));
+      }}
       onScroll={(event) => onScroll(event.nativeEvent.contentOffset.y)}
       scrollEventThrottle={16}
+      showsVerticalScrollIndicator={false}
     >
-      {connections.map((connection, index) => {
+      {gridIsMeasured ? connections.map((connection, index) => {
         const isSelected = selectedConnectionIdSet.has(connection.id);
 
         return (
@@ -129,7 +137,7 @@ export function MemberGrid({
             </Text>
           </Pressable>
         );
-      })}
+      }) : null}
     </ScrollView>
   );
 }
