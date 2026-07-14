@@ -1,6 +1,6 @@
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from "react";
 
-import { CreateTopicInput, Topic } from "@/models/topic";
+import { CreateTopicInput, Topic, UpdateTopicInput } from "@/models/topic";
 import { TopicService, topicService } from "@/services/topicService";
 
 interface TopicContextValue {
@@ -9,6 +9,7 @@ interface TopicContextValue {
   errorMessage: string | null;
   lastCreatedTopicId: string | null;
   createTopic(input: CreateTopicInput): Promise<Topic>;
+  updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
   getTopic(id: string): Topic | undefined;
 }
 
@@ -61,6 +62,11 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
         const topic = await service.createTopic(input);
         setTopics(await service.listTopics());
         setLastCreatedTopicId(topic.id);
+        return topic;
+      },
+      async updateTopic(id, input) {
+        const topic = await service.updateTopic(id, input);
+        setTopics(await service.listTopics());
         return topic;
       },
       getTopic(id) {

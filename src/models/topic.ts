@@ -11,3 +11,9 @@ export interface CreateTopicInput {
   memberIds?: string[];
   autoArchiveAt?: string;
 }
+
+export interface UpdateTopicInput {
+  title: string;
+  memberIds?: string[];
+  autoArchiveAt?: string;
+}

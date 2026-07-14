@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
-import { AnimatedFAB, Snackbar, TextInput } from "react-native-paper";
+import { Snackbar, TextInput } from "react-native-paper";
 
+import { HuddleFab } from "@/components/HuddleFab";
 import { Screen } from "@/components/Screen";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import { useConnections } from "@/features/connections/ConnectionProvider";
@@ -175,17 +176,17 @@ export function CreateTopicScreen() {
             onToggleConnection={handleToggleConnection}
             selectedConnectionIds={selectedConnectionIds}
           />
-          <AnimatedFAB
-            icon="check"
-            label="Create huddle"
-            extended={fabIsExtended}
-            onPress={handleSubmit}
-            visible={hasRequiredSubmitFields}
-            disabled={isSaving || !canSubmit}
-            animateFrom="right"
-            accessibilityLabel="Create huddle"
-            style={styles.fab}
-          />
+          <View style={styles.fab}>
+            <HuddleFab
+              icon="check"
+              label="Create huddle"
+              extended={fabIsExtended}
+              onPress={handleSubmit}
+              visible={hasRequiredSubmitFields}
+              disabled={isSaving || !canSubmit}
+              accessibilityLabel="Create huddle"
+            />
+          </View>
         </View>
       </KeyboardAvoidingView>
       <Snackbar visible={Boolean(errorMessage)} onDismiss={() => setErrorMessage("")}>
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    right: spacing.md,
-    bottom: spacing.lg
+    right: spacing.none,
+    bottom: spacing.none
   }
 });

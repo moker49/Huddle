@@ -1,10 +1,11 @@
-import { CreateTopicInput, Topic } from "@/models/topic";
+import { CreateTopicInput, Topic, UpdateTopicInput } from "@/models/topic";
 import { createId } from "@/utils/createId";
 
 export interface TopicService {
   listTopics(): Promise<Topic[]>;
   getTopic(id: string): Promise<Topic | null>;
   createTopic(input: CreateTopicInput): Promise<Topic>;
+  updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
 }
 
 const initialTopics: Topic[] = [
@@ -93,6 +94,37 @@ export class LocalTopicService implements TopicService {
     };
 
     this.topics = [topic, ...this.topics];
+
+    return topic;
+  }
+
+  async updateTopic(id: string, input: UpdateTopicInput): Promise<Topic> {
+    const title = input.title.trim();
+
+    if (!title) {
+      throw new Error("Huddle title is required.");
+    }
+
+    if (!input.memberIds || input.memberIds.length === 0) {
+      throw new Error("At least one member is required.");
+    }
+
+    const topicIndex = this.topics.findIndex((topic) => topic.id === id);
+
+    if (topicIndex === -1) {
+      throw new Error("Huddle could not be found.");
+    }
+
+    const topic: Topic = {
+      ...this.topics[topicIndex],
+      title,
+      memberIds: input.memberIds,
+      autoArchiveAt: input.autoArchiveAt
+    };
+
+    this.topics = this.topics.map((currentTopic) => (
+      currentTopic.id === id ? topic : currentTopic
+    ));
 
     return topic;
   }
