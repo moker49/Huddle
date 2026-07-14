@@ -1,14 +1,11 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Appbar,
-  Button,
-  Chip,
-  Divider,
+  IconButton,
   List,
-  Surface,
   Text,
   TextInput,
   useTheme
@@ -20,8 +17,6 @@ import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { Connection } from "@/models/connection";
 import { layout, spacing } from "@/theme/tokens";
-
-type SearchMode = "huddles" | "network";
 
 interface FocusHandle {
   focus(): void;
@@ -40,6 +35,15 @@ const keepSearchInputFocusedProps =
     }
     : undefined;
 
+const avatarColors = [
+  "#6D8F6F",
+  "#8D6E63",
+  "#6C7EA6",
+  "#A56C82",
+  "#8A7C5A",
+  "#5F8E95"
+] as const;
+
 export function TopicListScreen() {
   const theme = useTheme();
   const { createTopic, errorMessage, isLoading, lastCreatedTopicId, topics } = useTopics();
@@ -50,22 +54,11 @@ export function TopicListScreen() {
   } = useConnections();
   const searchInputRef = useRef<FocusHandle | null>(null);
   const observedCreatedTopicIdRef = useRef(lastCreatedTopicId);
-  const [searchMode, setSearchMode] = useState<SearchMode>("huddles");
   const [query, setQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
-  const isNetworkMode = searchMode === "network";
-  const searchModeLabel = isNetworkMode ? "talk with" : "talk about";
-  const selectedConnectionIdSet = useMemo(
-    () => new Set(selectedConnectionIds),
-    [selectedConnectionIds]
-  );
-  const selectedConnections = useMemo(
-    () => connections.filter((connection) => selectedConnectionIdSet.has(connection.id)),
-    [connections, selectedConnectionIdSet]
-  );
   const connectionNameById = useMemo(() => {
     return connections.reduce<Record<string, string>>((nameById, connection) => {
       nameById[connection.id] = connection.displayName;
@@ -73,18 +66,18 @@ export function TopicListScreen() {
     }, {});
   }, [connections]);
   const filteredTopics = useMemo(() => {
-    if (isNetworkMode || !normalizedQuery) {
+    if (!normalizedQuery) {
       return topics;
     }
 
     return topics.filter((topic) =>
       topic.name.toLocaleLowerCase().includes(normalizedQuery)
     );
-  }, [isNetworkMode, normalizedQuery, topics]);
+  }, [normalizedQuery, topics]);
   const filteredConnections = useMemo(() => {
-    return connections.filter((connection) => {
-      if (selectedConnectionIdSet.has(connection.id)) {
-        return false;
+    const matchingConnections = connections.filter((connection) => {
+      if (selectedConnectionIds.includes(connection.id)) {
+        return true;
       }
 
       if (!normalizedQuery) {
@@ -97,32 +90,23 @@ export function TopicListScreen() {
         handle.toLocaleLowerCase().startsWith(normalizedQuery)
       );
     });
-  }, [connections, normalizedQuery, selectedConnectionIdSet]);
-  const inferredConnectionIds = useMemo(() => {
-    if (!isNetworkMode || trimmedQuery.length === 0 || filteredConnections.length !== 1) {
-      return [];
-    }
 
-    return [filteredConnections[0].id];
-  }, [filteredConnections, isNetworkMode, trimmedQuery.length]);
-  const inferredConnection = inferredConnectionIds.length === 1 ? filteredConnections[0] : null;
-  const networkDropdownIsVisible =
-    isNetworkMode && trimmedQuery.length > 0 && !inferredConnection;
-  const activeConnectionIds = useMemo(() => {
-    return Array.from(new Set([...selectedConnectionIds, ...inferredConnectionIds]));
-  }, [inferredConnectionIds, selectedConnectionIds]);
+    return normalizedQuery && matchingConnections.length === 0
+      ? connections
+      : matchingConnections;
+  }, [connections, normalizedQuery, selectedConnectionIds]);
   const visibleTopics = useMemo(() => {
-    if (activeConnectionIds.length === 0) {
+    if (selectedConnectionIds.length === 0) {
       return filteredTopics;
     }
 
     return filteredTopics.filter((topic) =>
-      activeConnectionIds.every((connectionId) => topic.memberIds.includes(connectionId))
+      selectedConnectionIds.every((connectionId) => topic.memberIds.includes(connectionId))
     );
-  }, [activeConnectionIds, filteredTopics]);
-  const impliedTopicTitle = isNetworkMode ? "" : trimmedQuery;
+  }, [filteredTopics, selectedConnectionIds]);
+  const impliedTopicTitle = trimmedQuery;
   const createHasTitle = impliedTopicTitle.length > 0;
-  const createHasMembers = activeConnectionIds.length > 0;
+  const createHasMembers = selectedConnectionIds.length > 0;
   const canShowCreateOption = createHasTitle || createHasMembers;
   const canCreateImmediately = createHasTitle && createHasMembers && !isCreating && !isLoading;
 
@@ -136,11 +120,6 @@ export function TopicListScreen() {
     setSelectedConnectionIds([]);
   }, [lastCreatedTopicId]);
 
-  function handleToggleMode() {
-    setSearchMode((currentMode) => (currentMode === "huddles" ? "network" : "huddles"));
-    setQuery("");
-  }
-
   function handleClearQuery() {
     setQuery("");
     requestAnimationFrame(() => {
@@ -148,10 +127,10 @@ export function TopicListScreen() {
     });
   }
 
-  function handleSelectConnection(connection: Connection) {
+  function handleToggleConnection(connection: Connection) {
     setSelectedConnectionIds((currentIds) => {
       if (currentIds.includes(connection.id)) {
-        return currentIds;
+        return currentIds.filter((currentId) => currentId !== connection.id);
       }
 
       return [...currentIds, connection.id];
@@ -159,37 +138,7 @@ export function TopicListScreen() {
     setQuery("");
   }
 
-  function handleRemoveConnection(connectionId: string) {
-    setSelectedConnectionIds((currentIds) =>
-      currentIds.filter((currentId) => currentId !== connectionId)
-    );
-  }
-
   function handleChangeQuery(nextQuery: string) {
-    if (isNetworkMode && nextQuery.endsWith(" ")) {
-      const nextNormalizedQuery = nextQuery.trim().toLocaleLowerCase();
-      const matchingConnections = connections.filter((connection) => {
-        if (selectedConnectionIdSet.has(connection.id)) {
-          return false;
-        }
-
-        if (!nextNormalizedQuery) {
-          return false;
-        }
-
-        const handle = connection.handle ?? "";
-        return (
-          connection.displayName.toLocaleLowerCase().startsWith(nextNormalizedQuery) ||
-          handle.toLocaleLowerCase().startsWith(nextNormalizedQuery)
-        );
-      });
-
-      if (matchingConnections.length === 1) {
-        handleSelectConnection(matchingConnections[0]);
-        return;
-      }
-    }
-
     setQuery(nextQuery);
   }
 
@@ -198,7 +147,7 @@ export function TopicListScreen() {
       pathname: "/topics/new",
       params: {
         name: impliedTopicTitle,
-        memberIds: activeConnectionIds.join(",")
+        memberIds: selectedConnectionIds.join(",")
       }
     });
   }
@@ -214,7 +163,7 @@ export function TopicListScreen() {
     try {
       const topic = await createTopic({
         name: impliedTopicTitle,
-        memberIds: activeConnectionIds
+        memberIds: selectedConnectionIds
       });
       setQuery("");
       setSelectedConnectionIds([]);
@@ -241,19 +190,6 @@ export function TopicListScreen() {
             { backgroundColor: theme.colors.surfaceVariant }
           ]}
         >
-          <Button
-            {...keepSearchInputFocusedProps}
-            compact
-            mode="text"
-            textColor={theme.colors.onSurfaceVariant}
-            contentStyle={styles.modeButtonContent}
-            labelStyle={styles.modeButtonLabel}
-            onPress={handleToggleMode}
-            accessibilityLabel={`Search mode: ${searchModeLabel}`}
-            focusable={false}
-          >
-            {searchModeLabel}
-          </Button>
           <TextInput
             ref={(instance: FocusHandle | null) => {
               searchInputRef.current = instance;
@@ -262,93 +198,37 @@ export function TopicListScreen() {
             mode="flat"
             value={query}
             onChangeText={handleChangeQuery}
-            placeholder={isNetworkMode ? "Kevin" : "League"}
-            accessibilityLabel={isNetworkMode ? "Search network" : "Search huddles"}
+            placeholder="Search huddles and members"
+            accessibilityLabel="Search huddles and members"
             underlineColor="transparent"
             activeUnderlineColor="transparent"
-            right={
-              query ? (
-                <TextInput.Icon
-                  icon="close"
-                  onPress={handleClearQuery}
-                  accessibilityLabel="Clear search"
-                />
-              ) : undefined
-            }
             style={styles.searchInput}
             contentStyle={styles.searchInputContent}
+          />
+          <IconButton
+            {...keepSearchInputFocusedProps}
+            icon={query ? "close" : "account-circle-outline"}
+            size={24}
+            onPress={query ? handleClearQuery : () => router.push("/profile")}
+            accessibilityLabel={query ? "Clear search" : "Profile"}
+            focusable={false}
+            iconColor={theme.colors.onSurfaceVariant}
+            style={styles.searchAdornment}
           />
         </View>
       }
       scroll={false}
       navigation={<Appbar.Action icon="menu" onPress={() => undefined} accessibilityLabel="Menu" />}
-      action={
-        <Appbar.Action
-          icon="account-circle-outline"
-          onPress={() => router.push("/profile")}
-          accessibilityLabel="Profile"
-        />
-      }
+      action={<View style={styles.trailingSearchInset} />}
     >
       <View style={styles.container}>
-        {networkDropdownIsVisible ? (
-          <NetworkDropdown
-            connections={filteredConnections}
-            errorMessage={connectionErrorMessage}
-            isLoading={connectionsAreLoading}
-            onSelectConnection={handleSelectConnection}
-          />
-        ) : null}
-        {selectedConnections.length > 0 || inferredConnection ? (
-          <View style={styles.recipientArea}>
-            <View style={styles.chipRow}>
-              {selectedConnections.map((connection) => (
-                <Chip
-                  {...keepSearchInputFocusedProps}
-                  key={connection.id}
-                  mode="flat"
-                  closeIcon="close"
-                  onClose={() => handleRemoveConnection(connection.id)}
-                  accessibilityLabel={`Remove member ${connection.displayName}`}
-                  closeIconAccessibilityLabel={`Remove ${connection.displayName}`}
-                  focusable={false}
-                  style={[
-                    styles.recipientChip,
-                    { backgroundColor: theme.colors.secondaryContainer }
-                  ]}
-                  textStyle={[
-                    styles.recipientChipText,
-                    { color: theme.colors.onSecondaryContainer }
-                  ]}
-                >
-                  {connection.displayName}
-                </Chip>
-              ))}
-              {inferredConnection ? (
-                <Chip
-                  {...keepSearchInputFocusedProps}
-                  key={`inferred-${inferredConnection.id}`}
-                  mode="outlined"
-                  icon="account-outline"
-                  onPress={() => handleSelectConnection(inferredConnection)}
-                  accessibilityLabel={`Inferred member ${inferredConnection.displayName}`}
-                  focusable={false}
-                  style={[
-                    styles.recipientChip,
-                    styles.inferredRecipientChip,
-                    { borderColor: theme.colors.primary }
-                  ]}
-                  textStyle={[
-                    styles.recipientChipText,
-                    { color: theme.colors.primary }
-                  ]}
-                >
-                  {inferredConnection.displayName}
-                </Chip>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
+        <MemberRail
+          connections={filteredConnections}
+          errorMessage={connectionErrorMessage}
+          isLoading={connectionsAreLoading}
+          onToggleConnection={handleToggleConnection}
+          selectedConnectionIds={selectedConnectionIds}
+        />
         {isLoading ? (
           <View style={styles.centerContent}>
             <ActivityIndicator accessibilityLabel="Loading huddles" />
@@ -375,7 +255,7 @@ export function TopicListScreen() {
                 title={createHasTitle ? `Create huddle "${impliedTopicTitle}"` : "Create huddle"}
                 description={
                   createHasMembers
-                    ? getMemberSummary(activeConnectionIds)
+                    ? getMemberSummary(selectedConnectionIds)
                     : ""
                 }
                 left={(props) => <List.Icon {...props} icon="plus" />}
@@ -392,67 +272,103 @@ export function TopicListScreen() {
   );
 }
 
-interface NetworkDropdownProps {
+interface MemberRailProps {
   connections: Connection[];
   errorMessage: string | null;
   isLoading: boolean;
-  onSelectConnection: (connection: Connection) => void;
+  onToggleConnection: (connection: Connection) => void;
+  selectedConnectionIds: string[];
 }
 
-function NetworkDropdown({
+function MemberRail({
   connections,
   errorMessage,
   isLoading,
-  onSelectConnection
-}: NetworkDropdownProps) {
+  onToggleConnection,
+  selectedConnectionIds
+}: MemberRailProps) {
   const theme = useTheme();
+  const selectedConnectionIdSet = useMemo(
+    () => new Set(selectedConnectionIds),
+    [selectedConnectionIds]
+  );
 
   if (isLoading) {
     return (
-      <Surface elevation={2} style={[styles.networkDropdown, styles.networkDropdownState]}>
-        <ActivityIndicator accessibilityLabel="Loading connections" />
-      </Surface>
+      <View style={styles.memberRailState}>
+        <ActivityIndicator accessibilityLabel="Loading network" />
+      </View>
     );
   }
 
   if (errorMessage) {
     return (
-      <Surface elevation={2} style={[styles.networkDropdown, styles.networkDropdownState]}>
+      <View style={styles.memberRailState}>
         <Text variant="bodyLarge" style={{ color: theme.colors.error }}>
           {errorMessage}
         </Text>
-      </Surface>
+      </View>
     );
   }
 
   if (connections.length === 0) {
     return (
-      <Surface elevation={2} style={[styles.networkDropdown, styles.networkDropdownState]}>
+      <View style={styles.memberRailState}>
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
           No matching network members
         </Text>
-      </Surface>
+      </View>
     );
   }
 
   return (
-    <Surface elevation={2} style={styles.networkDropdown}>
-      {connections.map((connection, index) => (
-        <View key={connection.id}>
-          <List.Item
-            {...keepSearchInputFocusedProps}
-            title={connection.displayName}
-            description={connection.handle ? `@${connection.handle}` : undefined}
-            left={(props) => <List.Icon {...props} icon="account-outline" />}
-            right={(props) => <List.Icon {...props} icon="plus" />}
-            onPress={() => onSelectConnection(connection)}
-            accessibilityLabel={`Network member ${connection.displayName}`}
-            focusable={false}
-          />
-          {index < connections.length - 1 ? <Divider /> : null}
-        </View>
-      ))}
-    </Surface>
+    <View style={styles.memberRailArea}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.memberRailContent}
+      >
+        {connections.map((connection, index) => {
+          const isSelected = selectedConnectionIdSet.has(connection.id);
+          return (
+            <Pressable
+              {...keepSearchInputFocusedProps}
+              key={connection.id}
+              onPress={() => onToggleConnection(connection)}
+              accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${connection.displayName}`}
+              accessibilityRole="button"
+              focusable={false}
+              style={styles.memberRailItem}
+            >
+              <View
+                style={[
+                  styles.memberAvatar,
+                  {
+                    backgroundColor: avatarColors[index % avatarColors.length],
+                    borderColor: isSelected ? theme.colors.primary : "transparent"
+                  }
+                ]}
+              >
+                <Text variant="titleMedium" style={styles.memberAvatarText}>
+                  {connection.displayName.slice(0, 1).toLocaleUpperCase()}
+                </Text>
+              </View>
+              <Text
+                variant="labelLarge"
+                numberOfLines={1}
+                style={[
+                  styles.memberLabel,
+                  { color: isSelected ? theme.colors.primary : theme.colors.onSurface }
+                ]}
+              >
+                {connection.displayName}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -465,31 +381,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden"
   },
-  modeButtonContent: {
-    minHeight: layout.appBarActionSize,
-    paddingLeft: spacing.md,
-    paddingRight: spacing.xs
-  },
-  modeButtonLabel: {
-    marginHorizontal: spacing.none
-  },
-  chipRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: spacing.xs
-  },
-  recipientChip: {
-    justifyContent: "center"
-  },
-  inferredRecipientChip: {
-    backgroundColor: "transparent",
-    borderStyle: "dashed"
-  },
-  recipientChipText: {
-    lineHeight: 20,
-    textAlignVertical: "center"
-  },
   searchInput: {
     flex: 1,
     minWidth: 88,
@@ -497,31 +388,55 @@ const styles = StyleSheet.create({
   },
   searchInputContent: {
     minHeight: layout.minTouchTarget,
-    paddingLeft: spacing.xs,
-    paddingRight: spacing.md
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs
+  },
+  searchAdornment: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    marginTop: spacing.none,
+    marginRight: spacing.none,
+    marginBottom: spacing.none,
+    marginLeft: spacing.none
+  },
+  trailingSearchInset: {
+    width: spacing.xs
   },
   container: {
     flex: 1
   },
-  recipientArea: {
-    paddingHorizontal: spacing.md,
+  memberRailArea: {
     paddingTop: spacing.sm,
-    paddingBottom: spacing.xs
+    paddingBottom: spacing.sm
   },
-  networkDropdown: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.xs,
-    marginBottom: spacing.xs,
-    borderRadius: 12,
-    overflow: "hidden",
-    paddingVertical: spacing.xxs
+  memberRailContent: {
+    gap: spacing.md,
+    paddingHorizontal: spacing.md
   },
-  networkDropdownState: {
-    minHeight: 56,
+  memberRailItem: {
+    width: 72,
     alignItems: "center",
+    gap: spacing.xs
+  },
+  memberRailState: {
+    minHeight: 104,
     justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md
+    paddingHorizontal: spacing.md
+  },
+  memberAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  memberAvatarText: {
+    color: "#FFFFFF"
+  },
+  memberLabel: {
+    maxWidth: 72,
+    textAlign: "center"
   },
   centerContent: {
     flex: 1,

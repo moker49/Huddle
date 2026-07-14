@@ -82,6 +82,14 @@ Prefer React Native Paper components such as:
 
 Choose the simplest Material variant that fits the use case.
 
+## Search and Member Rail
+
+The main screen uses a single search field for huddles and network members. Do not add a mode toggle, segmented button, connected button group, dropdown, or ghost chip to the main search flow unless the product model changes.
+
+Network members are shown in a horizontal member rail below the search field. They should look like contact shortcuts: circular avatar or avatar-like icon, label underneath, and no chip container. Selected members use an outline on the avatar and a highlighted label color.
+
+The search text filters both the huddle list and the visible member rail. Tapping a member toggles that member as an active filter. Preserve the text-input focus convention for member rail interactions.
+
 ## Custom Components
 
 Custom components are appropriate when:

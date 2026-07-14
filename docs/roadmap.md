@@ -20,13 +20,11 @@ Features should generally be implemented as complete vertical slices rather than
 - Filtered huddle list by title.
 - Contextual huddle creation from huddle search.
 - Local network service and provider.
-- Network search mode shell.
-- Prefix-filtered network member list by name or handle.
-- Member chips for network search.
+- Single search field for huddles and network members.
+- Horizontal network member rail.
+- Prefix-filtered network member rail by name or handle.
 - Huddle list subtitles showing members.
-- Network search dropdown for selecting member chips.
 - Member-based huddle filtering.
-- Inferred member chips for single-match network search.
 
 ## Current
 
