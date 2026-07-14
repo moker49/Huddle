@@ -17,7 +17,7 @@ import { useConnections } from "@/features/connections/ConnectionProvider";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { Connection } from "@/models/connection";
-import { layout, spacing } from "@/theme/tokens";
+import { layout, shape, spacing } from "@/theme/tokens";
 
 type TopicListItemPosition = "single" | "first" | "middle" | "last";
 
@@ -103,6 +103,7 @@ export function TopicListScreen() {
   const createHasMembers = selectedConnectionIds.length > 0;
   const canShowCreateOption = createHasTitle || createHasMembers;
   const canCreateImmediately = createHasTitle && createHasMembers && !isCreating && !isLoading;
+  const listItemCount = visibleTopics.length + (canShowCreateOption ? 1 : 0);
 
   useEffect(() => {
     if (!lastCreatedTopicId || observedCreatedTopicIdRef.current === lastCreatedTopicId) {
@@ -240,7 +241,7 @@ export function TopicListScreen() {
                 <TopicListItem
                   topic={topic}
                   memberSummary={getMemberSummary(topic.memberIds)}
-                  position={getTopicListItemPosition(index, visibleTopics.length)}
+                  position={getTopicListItemPosition(index, listItemCount)}
                   onPress={() => router.push(`/topics/${topic.id}`)}
                 />
               </View>
@@ -253,7 +254,10 @@ export function TopicListScreen() {
                 accessibilityRole="button"
                 style={[
                   styles.createCard,
-                  { backgroundColor: theme.colors.elevation.level1 }
+                  getTopicListItemCornerStyle(
+                    getTopicListItemPosition(visibleTopics.length, listItemCount)
+                  ),
+                  { borderColor: theme.colors.outlineVariant }
                 ]}
               >
                 <View
@@ -272,7 +276,7 @@ export function TopicListScreen() {
                   <Text
                     variant="titleSmall"
                     numberOfLines={1}
-                    style={{ color: theme.colors.onSurfaceVariant }}
+                    style={{ color: theme.colors.onSurface }}
                   >
                     Create huddle
                   </Text>
@@ -316,6 +320,19 @@ function getTopicListItemPosition(index: number, itemCount: number): TopicListIt
   }
 
   return "middle";
+}
+
+function getTopicListItemCornerStyle(position: TopicListItemPosition) {
+  switch (position) {
+    case "single":
+      return styles.singleCard;
+    case "first":
+      return styles.firstCard;
+    case "last":
+      return styles.lastCard;
+    case "middle":
+      return styles.middleCard;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -365,12 +382,31 @@ const styles = StyleSheet.create({
   },
   createCard: {
     minHeight: 76,
-    borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+    borderStyle: "dashed"
+  },
+  singleCard: {
+    borderRadius: shape.large
+  },
+  firstCard: {
+    borderTopLeftRadius: shape.large,
+    borderTopRightRadius: shape.large,
+    borderBottomLeftRadius: spacing.xxs,
+    borderBottomRightRadius: spacing.xxs
+  },
+  middleCard: {
+    borderRadius: spacing.xxs
+  },
+  lastCard: {
+    borderTopLeftRadius: spacing.xxs,
+    borderTopRightRadius: spacing.xxs,
+    borderBottomLeftRadius: shape.large,
+    borderBottomRightRadius: shape.large
   },
   createThumbnail: {
     width: 48,
