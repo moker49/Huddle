@@ -189,7 +189,7 @@ export function TopicListScreen() {
         <View
           style={[
             styles.searchShell,
-            { backgroundColor: theme.colors.surfaceVariant }
+            { backgroundColor: theme.colors.elevation.level2 }
           ]}
         >
           <TextInput
@@ -257,7 +257,7 @@ export function TopicListScreen() {
               <View
                 style={[
                   styles.createCard,
-                  { backgroundColor: theme.colors.surfaceVariant }
+                  { backgroundColor: theme.colors.elevation.level2 }
                 ]}
               >
                 <List.Item

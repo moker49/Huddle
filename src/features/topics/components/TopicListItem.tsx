@@ -35,7 +35,7 @@ export function TopicListItem({
         styles.card,
         getCardCornerStyle(position),
         {
-          backgroundColor: theme.colors.surfaceVariant,
+          backgroundColor: theme.colors.elevation.level2,
           opacity: pressed ? 0.88 : 1
         }
       ]}
