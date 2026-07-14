@@ -31,6 +31,30 @@ const initialTopics: Topic[] = [
     title: "Book club picks",
     memberIds: ["erik", "andre", "russel"],
     createdAt: new Date("2026-07-11T12:30:00.000Z").toISOString()
+  },
+  {
+    id: "coffee-walks",
+    title: "Coffee walks",
+    memberIds: ["jay", "kayla", "hanna"],
+    createdAt: new Date("2026-07-11T12:40:00.000Z").toISOString()
+  },
+  {
+    id: "movie-night",
+    title: "Movie night",
+    memberIds: ["kevo", "glenn", "russel", "karina"],
+    createdAt: new Date("2026-07-11T12:50:00.000Z").toISOString()
+  },
+  {
+    id: "pickup-games",
+    title: "Pickup games",
+    memberIds: ["andre", "kleb", "jay"],
+    createdAt: new Date("2026-07-11T13:00:00.000Z").toISOString()
+  },
+  {
+    id: "project-ideas",
+    title: "Project ideas",
+    memberIds: ["erik", "glenn", "kayla", "kleb"],
+    createdAt: new Date("2026-07-11T13:10:00.000Z").toISOString()
   }
 ];
 

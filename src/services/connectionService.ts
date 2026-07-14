@@ -46,6 +46,34 @@ const initialConnections: Connection[] = [
     handle: "russel",
     source: "shared_huddle",
     createdAt: new Date("2026-07-11T13:25:00.000Z").toISOString()
+  },
+  {
+    id: "kleb",
+    displayName: "kleb",
+    handle: "kleb",
+    source: "direct",
+    createdAt: new Date("2026-07-11T13:30:00.000Z").toISOString()
+  },
+  {
+    id: "jay",
+    displayName: "jay",
+    handle: "jay",
+    source: "shared_huddle",
+    createdAt: new Date("2026-07-11T13:35:00.000Z").toISOString()
+  },
+  {
+    id: "glenn",
+    displayName: "glenn",
+    handle: "glenn",
+    source: "phone_contact",
+    createdAt: new Date("2026-07-11T13:40:00.000Z").toISOString()
+  },
+  {
+    id: "kayla",
+    displayName: "kayla",
+    handle: "kayla",
+    source: "shared_huddle",
+    createdAt: new Date("2026-07-11T13:45:00.000Z").toISOString()
   }
 ];
 
