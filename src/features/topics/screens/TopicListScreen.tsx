@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Appbar,
+  Icon,
   IconButton,
   Text,
   TextInput,
@@ -261,11 +262,10 @@ export function TopicListScreen() {
                     { backgroundColor: theme.colors.surfaceVariant }
                   ]}
                 >
-                  <IconButton
-                    icon="plus"
+                  <Icon
+                    source="plus"
                     size={24}
-                    iconColor={theme.colors.onSurfaceVariant}
-                    style={styles.createIcon}
+                    color={theme.colors.onSurfaceVariant}
                   />
                 </View>
                 <View style={styles.createCopy}>
@@ -286,12 +286,13 @@ export function TopicListScreen() {
                     </Text>
                   ) : null}
                 </View>
-                <IconButton
-                  icon="arrow-right"
-                  size={24}
-                  iconColor={theme.colors.onSurfaceVariant}
-                  style={styles.createArrow}
-                />
+                <View style={styles.createArrow}>
+                  <Icon
+                    source="arrow-right"
+                    size={24}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </View>
               </Pressable>
             ) : null}
           </View>
@@ -378,11 +379,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
-  createIcon: {
-    width: 48,
-    height: 48,
-    margin: spacing.none
-  },
   createCopy: {
     flex: 1,
     minWidth: 0
@@ -393,6 +389,7 @@ const styles = StyleSheet.create({
   createArrow: {
     width: layout.minTouchTarget,
     height: layout.minTouchTarget,
-    margin: spacing.none
+    alignItems: "center",
+    justifyContent: "center"
   }
 });
