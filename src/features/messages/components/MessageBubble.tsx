@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 
+import { getMemberAvatarColor, getMemberInitial } from "@/features/connections/memberAvatar";
 import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 
@@ -10,31 +11,20 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const theme = useTheme();
-  const avatarTone = getAvatarTone(message.authorName);
 
   return (
     <View style={styles.row}>
       <View
         style={[
           styles.avatar,
-          {
-            backgroundColor:
-              avatarTone === "primary"
-                ? theme.colors.primaryContainer
-                : theme.colors.secondaryContainer
-          }
+          { backgroundColor: getMemberAvatarColor(message.authorName) }
         ]}
       >
         <Text
           variant="titleMedium"
-          style={{
-            color:
-              avatarTone === "primary"
-                ? theme.colors.onPrimaryContainer
-                : theme.colors.onSecondaryContainer
-          }}
+          style={styles.avatarText}
         >
-          {message.authorName.slice(0, 1).toUpperCase()}
+          {getMemberInitial(message.authorName)}
         </Text>
         <View
           style={[
@@ -59,10 +49,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   );
 }
 
-function getAvatarTone(authorName: string): "primary" | "secondary" {
-  return authorName.length % 2 === 0 ? "primary" : "secondary";
-}
-
 function formatMessageTime(value: string): string {
   const date = new Date(value);
   const hours = date.getHours();
@@ -85,6 +71,9 @@ const styles = StyleSheet.create({
     borderRadius: layout.minTouchTarget / 2,
     alignItems: "center",
     justifyContent: "center"
+  },
+  avatarText: {
+    color: "#FFFFFF"
   },
   presenceDot: {
     position: "absolute",

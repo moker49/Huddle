@@ -1,6 +1,7 @@
 import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 
+import { getMemberAvatarColor, getMemberInitial } from "@/features/connections/memberAvatar";
 import { Connection } from "@/models/connection";
 import { shape, spacing } from "@/theme/tokens";
 
@@ -15,15 +16,6 @@ interface MemberRailProps {
 interface PreventableEvent {
   preventDefault(): void;
 }
-
-const avatarColors = [
-  "#6D8F6F",
-  "#8D6E63",
-  "#6C7EA6",
-  "#A56C82",
-  "#8A7C5A",
-  "#5F8E95"
-] as const;
 
 const keepInputFocusedProps =
   Platform.OS === "web"
@@ -80,7 +72,7 @@ export function MemberRail({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.content}
       >
-        {connections.map((connection, index) => {
+        {connections.map((connection) => {
           const isSelected = selectedConnectionIdSet.has(connection.id);
 
           return (
@@ -102,12 +94,12 @@ export function MemberRail({
                 style={[
                   styles.avatar,
                   {
-                    backgroundColor: avatarColors[index % avatarColors.length]
+                    backgroundColor: getMemberAvatarColor(connection.displayName)
                   }
                 ]}
               >
                 <Text variant="titleSmall" style={styles.avatarText}>
-                  {connection.displayName.slice(0, 1).toLocaleUpperCase()}
+                  {getMemberInitial(connection.displayName)}
                 </Text>
               </View>
               <Text
