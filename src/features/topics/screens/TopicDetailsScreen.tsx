@@ -101,11 +101,11 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               ]}
             >
               <Text variant="titleSmall" style={{ color: theme.colors.onPrimaryContainer }}>
-                {topic.name.slice(0, 1).toUpperCase()}
+                {topic.title.slice(0, 1).toUpperCase()}
               </Text>
             </View>
             <Text variant="titleLarge" numberOfLines={1} style={styles.topicName}>
-              {topic.name}
+              {topic.title}
             </Text>
           </View>
         }

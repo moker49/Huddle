@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
-import { Button, HelperText, Snackbar, TextInput, useTheme } from "react-native-paper";
+import { Button, Snackbar, TextInput, useTheme } from "react-native-paper";
 
 import { Screen } from "@/components/Screen";
 import { MemberRail } from "@/features/connections/components/MemberRail";
@@ -11,11 +11,11 @@ import { Connection } from "@/models/connection";
 import { layout, spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
-const maxNameLength = 80;
+const maxTitleLength = 80;
 
 export function CreateTopicScreen() {
   const theme = useTheme();
-  const params = useLocalSearchParams<{ name?: string; memberIds?: string }>();
+  const params = useLocalSearchParams<{ title?: string; memberIds?: string }>();
   const { createTopic } = useTopics();
   const {
     connections,
@@ -27,18 +27,18 @@ export function CreateTopicScreen() {
       ? params.memberIds.split(",").filter(Boolean)
       : [];
   }, [params.memberIds]);
-  const [name, setName] = useState(params.name ?? "");
+  const [title, setTitle] = useState(params.title ?? "");
   const [networkQuery, setNetworkQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>(initialConnectionIds);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const trimmedName = name.trim();
-  const nameError = hasSubmitted && trimmedName.length === 0;
+  const trimmedTitle = title.trim();
+  const titleError = hasSubmitted && trimmedTitle.length === 0;
   const memberError = hasSubmitted && selectedConnectionIds.length === 0;
-  const isOverNameLimit = name.length > maxNameLength;
-  const canSubmit = trimmedName.length > 0 && selectedConnectionIds.length > 0 && !isOverNameLimit;
+  const isOverTitleLimit = title.length > maxTitleLength;
+  const canSubmit = trimmedTitle.length > 0 && selectedConnectionIds.length > 0 && !isOverTitleLimit;
   const normalizedNetworkQuery = networkQuery.trim().toLocaleLowerCase();
   const filteredConnections = useMemo(() => {
     const matchingConnections = connections.filter((connection) => {
@@ -84,7 +84,7 @@ export function CreateTopicScreen() {
     setErrorMessage("");
 
     try {
-      const topic = await createTopic({ name, memberIds: selectedConnectionIds });
+      const topic = await createTopic({ title, memberIds: selectedConnectionIds });
       router.replace(`/topics/${topic.id}`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Huddle could not be created.");
@@ -102,15 +102,15 @@ export function CreateTopicScreen() {
         <View style={styles.form}>
           <TextInput
             mode="outlined"
-            label="Name"
-            value={name}
-            onChangeText={setName}
+            label="Title"
+            value={title}
+            onChangeText={setTitle}
             autoFocus
             autoCapitalize="sentences"
             returnKeyType="next"
-            error={nameError || isOverNameLimit}
-            maxLength={maxNameLength + 1}
-            accessibilityLabel="Huddle name"
+            error={titleError || isOverTitleLimit}
+            maxLength={maxTitleLength + 1}
+            accessibilityLabel="Huddle title"
           />
 
           <TextInput

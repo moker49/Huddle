@@ -29,7 +29,7 @@ export function TopicListItem({
   return (
     <Pressable
       onPress={onPress}
-      accessibilityLabel={`Open huddle ${topic.name}`}
+      accessibilityLabel={`Open huddle ${topic.title}`}
       accessibilityRole="button"
       style={({ pressed }) => [
         styles.card,
@@ -42,12 +42,12 @@ export function TopicListItem({
     >
       <View style={[styles.thumbnail, { backgroundColor: theme.colors.primaryContainer }]}>
         <Text variant="titleSmall" style={{ color: theme.colors.onPrimaryContainer }}>
-          {topic.name.slice(0, 1).toLocaleUpperCase()}
+          {topic.title.slice(0, 1).toLocaleUpperCase()}
         </Text>
       </View>
       <View style={styles.copy}>
         <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
-          {topic.name}
+          {topic.title}
         </Text>
         <Text
           variant="bodySmall"

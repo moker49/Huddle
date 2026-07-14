@@ -10,25 +10,25 @@ export interface TopicService {
 const initialTopics: Topic[] = [
   {
     id: "welcome",
-    name: "Weekend plans",
+    title: "Weekend plans",
     memberIds: ["erik", "hanna", "kevo"],
     createdAt: new Date("2026-07-11T12:00:00.000Z").toISOString()
   },
   {
     id: "trail-run",
-    name: "Trail run crew",
+    title: "Trail run crew",
     memberIds: ["andre", "karina"],
     createdAt: new Date("2026-07-11T12:10:00.000Z").toISOString()
   },
   {
     id: "recipe-swap",
-    name: "Recipe swap",
+    title: "Recipe swap",
     memberIds: ["hanna", "karina", "russel"],
     createdAt: new Date("2026-07-11T12:20:00.000Z").toISOString()
   },
   {
     id: "book-club",
-    name: "Book club picks",
+    title: "Book club picks",
     memberIds: ["erik", "andre", "russel"],
     createdAt: new Date("2026-07-11T12:30:00.000Z").toISOString()
   }
@@ -46,10 +46,10 @@ export class LocalTopicService implements TopicService {
   }
 
   async createTopic(input: CreateTopicInput): Promise<Topic> {
-    const name = input.name.trim();
+    const title = input.title.trim();
 
-    if (!name) {
-      throw new Error("Huddle name is required.");
+    if (!title) {
+      throw new Error("Huddle title is required.");
     }
 
     if (!input.memberIds || input.memberIds.length === 0) {
@@ -58,7 +58,7 @@ export class LocalTopicService implements TopicService {
 
     const topic: Topic = {
       id: createId(),
-      name,
+      title,
       memberIds: input.memberIds,
       createdAt: new Date().toISOString()
     };

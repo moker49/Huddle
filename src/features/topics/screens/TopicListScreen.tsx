@@ -64,7 +64,7 @@ export function TopicListScreen() {
     }
 
     return topics.filter((topic) =>
-      topic.name.toLocaleLowerCase().includes(normalizedQuery)
+      topic.title.toLocaleLowerCase().includes(normalizedQuery)
     );
   }, [normalizedQuery, topics]);
   const filteredConnections = useMemo(() => {
@@ -139,7 +139,7 @@ export function TopicListScreen() {
     router.push({
       pathname: "/topics/new",
       params: {
-        name: impliedTopicTitle,
+        title: impliedTopicTitle,
         memberIds: selectedConnectionIds.join(",")
       }
     });
@@ -155,7 +155,7 @@ export function TopicListScreen() {
 
     try {
       const topic = await createTopic({
-        name: impliedTopicTitle,
+        title: impliedTopicTitle,
         memberIds: selectedConnectionIds
       });
       setQuery("");
