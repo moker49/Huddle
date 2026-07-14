@@ -9,12 +9,16 @@ import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
 import { useTopics } from "@/features/topics/TopicProvider";
+import {
+  collapseFabScrollOffset,
+  filterConnectionsForTopicForm,
+  getTopicFormValidation,
+  maxTopicTitleLength,
+  toggleConnectionId
+} from "@/features/topics/topicForm";
 import { Connection } from "@/models/connection";
 import { spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
-
-const maxTitleLength = 80;
-const collapseFabScrollOffset = 24;
 
 export function CreateTopicScreen() {
   const params = useLocalSearchParams<{ title?: string; memberIds?: string }>();
@@ -38,46 +42,28 @@ export function CreateTopicScreen() {
   const [fabIsExtended, setFabIsExtended] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const trimmedTitle = title.trim();
+  const {
+    autoArchiveIsInvalid,
+    hasRequiredSubmitFields,
+    isOverTitleLimit,
+    parsedAutoArchiveAt,
+    trimmedTitle
+  } = getTopicFormValidation({ autoArchiveDate, selectedConnectionIds, title });
   const titleError = hasSubmitted && trimmedTitle.length === 0;
   const memberError = hasSubmitted && selectedConnectionIds.length === 0;
-  const isOverTitleLimit = title.length > maxTitleLength;
-  const parsedAutoArchiveAt = parseAutoArchiveDate(autoArchiveDate);
-  const autoArchiveIsInvalid = autoArchiveDate.trim().length > 0 && !parsedAutoArchiveAt;
   const autoArchiveError = hasSubmitted && autoArchiveIsInvalid;
-  const hasRequiredSubmitFields = trimmedTitle.length > 0 && selectedConnectionIds.length > 0;
   const canSubmit = hasRequiredSubmitFields && !isOverTitleLimit && !autoArchiveIsInvalid;
-  const normalizedNetworkQuery = networkQuery.trim().toLocaleLowerCase();
-  const filteredConnections = useMemo(() => {
-    const matchingConnections = connections.filter((connection) => {
-      if (selectedConnectionIds.includes(connection.id)) {
-        return true;
-      }
-
-      if (!normalizedNetworkQuery) {
-        return true;
-      }
-
-      const handle = connection.handle ?? "";
-      return (
-        connection.displayName.toLocaleLowerCase().startsWith(normalizedNetworkQuery) ||
-        handle.toLocaleLowerCase().startsWith(normalizedNetworkQuery)
-      );
-    });
-
-    return normalizedNetworkQuery && matchingConnections.length === 0
-      ? connections
-      : matchingConnections;
-  }, [connections, normalizedNetworkQuery, selectedConnectionIds]);
+  const filteredConnections = useMemo(
+    () => filterConnectionsForTopicForm({
+      connections,
+      query: networkQuery,
+      selectedConnectionIds
+    }),
+    [connections, networkQuery, selectedConnectionIds]
+  );
 
   function handleToggleConnection(connection: Connection) {
-    setSelectedConnectionIds((currentIds) => {
-      if (currentIds.includes(connection.id)) {
-        return currentIds.filter((currentId) => currentId !== connection.id);
-      }
-
-      return [...currentIds, connection.id];
-    });
+    setSelectedConnectionIds((currentIds) => toggleConnectionId(currentIds, connection.id));
     setNetworkQuery("");
   }
 
@@ -130,7 +116,7 @@ export function CreateTopicScreen() {
               autoCapitalize="sentences"
               returnKeyType="next"
               error={titleError || isOverTitleLimit}
-              maxLength={maxTitleLength + 1}
+              maxLength={maxTopicTitleLength + 1}
               accessibilityLabel="Huddle title"
               style={styles.titleField}
               right={
@@ -194,22 +180,6 @@ export function CreateTopicScreen() {
       </Snackbar>
     </Screen>
   );
-}
-
-function parseAutoArchiveDate(value: string) {
-  const trimmedValue = value.trim();
-
-  if (!trimmedValue) {
-    return undefined;
-  }
-
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
-    return null;
-  }
-
-  const date = new Date(`${trimmedValue}T23:59:59.999Z`);
-
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 const styles = StyleSheet.create({

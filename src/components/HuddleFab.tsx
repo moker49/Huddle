@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text, useTheme } from "react-native-paper";
 
 interface HuddleFabProps {
@@ -43,16 +43,29 @@ export function HuddleFab({
         extended ? styles.extendedFab : styles.iconFab,
         {
           backgroundColor,
-          opacity: pressed ? 0.88 : 1
+          opacity: disabled ? 0.38 : 1
         }
       ]}
     >
-      <Icon source={icon} size={iconSize} color={foregroundColor} />
+      {({ pressed, hovered }) => (
+        <>
+          <View
+            pointerEvents="none"
+            style={[
+              styles.stateLayer,
+              (pressed || hovered) && !disabled
+                ? { backgroundColor: foregroundColor, opacity: pressed ? 0.12 : 0.08 }
+                : undefined
+            ]}
+          />
+          <Icon source={icon} size={iconSize} color={foregroundColor} />
       {extended ? (
         <Text variant="labelLarge" numberOfLines={1} style={{ color: foregroundColor }}>
           {label}
         </Text>
       ) : null}
+        </>
+      )}
     </Pressable>
   );
 }
@@ -64,7 +77,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    elevation: 3
+    elevation: 3,
+    overflow: "hidden"
   },
   iconFab: {
     width: fabSize,
@@ -75,5 +89,8 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     paddingRight: 20,
     gap: 12
+  },
+  stateLayer: {
+    ...StyleSheet.absoluteFill
   }
 });

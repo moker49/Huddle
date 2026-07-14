@@ -86,7 +86,7 @@ Choose the simplest Material variant that fits the use case.
 
 The main screen uses a single search field for huddles and network members. Do not add a mode toggle, segmented button, connected button group, dropdown, or ghost chip to the main search flow unless the product model changes.
 
-Network members are shown in a horizontal member rail below the search field. They should look like contact shortcuts: circular avatar or avatar-like icon, label underneath, and no chip container. Selected members use an outline on the avatar and a highlighted label color.
+Network members are shown in a horizontal member rail below the search field. They should look like contact shortcuts: circular avatar or avatar-like icon, label underneath, and no chip container. Selected members use a filled card background with `secondaryContainer` / `onSecondaryContainer` roles so the selected state is visible beyond the avatar.
 
 The search text filters both the huddle list and the visible member rail. Tapping a member toggles that member as an active filter. Preserve the text-input focus convention for member rail interactions.
 
@@ -99,6 +99,8 @@ Custom components are appropriate when:
 - The implementation still follows Material tokens, states, and accessibility behavior.
 
 Do not recreate standard Material components solely to change their appearance.
+
+`HuddleFab` is the project FAB implementation for create/save workflows because React Native Paper's animated FAB layout did not match the Material 3 extended FAB geometry in this app. Keep it aligned with Material 3 FAB specs: 56dp height, 24dp icon, 16dp leading padding, 12dp icon-label gap, 20dp trailing padding, primary container roles, disabled roles, and visible pressed/hover/focus state layers. Do not replace it with a one-off button or a second FAB implementation without first verifying the Material geometry and documenting the reason.
 
 ## New Visual Styles
 
