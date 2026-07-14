@@ -68,6 +68,14 @@ export function TopicListScreen() {
     );
   }, [normalizedQuery, topics]);
   const filteredConnections = useMemo(() => {
+    const queryMatchesConnections = normalizedQuery
+      ? connections.some((connection) => connectionMatchesQuery(connection, normalizedQuery))
+      : false;
+
+    if (normalizedQuery && !queryMatchesConnections) {
+      return connections;
+    }
+
     const matchingConnections = connections.filter((connection) => {
       if (selectedConnectionIds.includes(connection.id)) {
         return true;
@@ -77,16 +85,10 @@ export function TopicListScreen() {
         return true;
       }
 
-      const handle = connection.handle ?? "";
-      return (
-        connection.displayName.toLocaleLowerCase().startsWith(normalizedQuery) ||
-        handle.toLocaleLowerCase().startsWith(normalizedQuery)
-      );
+      return connectionMatchesQuery(connection, normalizedQuery);
     });
 
-    return normalizedQuery && matchingConnections.length === 0
-      ? connections
-      : matchingConnections;
+    return matchingConnections;
   }, [connections, normalizedQuery, selectedConnectionIds]);
   const visibleTopics = useMemo(() => {
     if (selectedConnectionIds.length === 0) {
@@ -123,9 +125,6 @@ export function TopicListScreen() {
 
   function handleClearQuery() {
     setQuery("");
-    requestAnimationFrame(() => {
-      searchInputRef.current?.focus();
-    });
   }
 
   function handleClearSelectedConnections() {
@@ -140,7 +139,10 @@ export function TopicListScreen() {
 
       return [...currentIds, connection.id];
     });
-    setQuery("");
+
+    if (connectionMatchesQuery(connection, normalizedQuery)) {
+      setQuery("");
+    }
   }
 
   function handleChangeQuery(nextQuery: string) {
@@ -369,6 +371,19 @@ function topicIsArchived(autoArchiveAt: string | undefined) {
   const archiveDate = new Date(autoArchiveAt);
 
   return !Number.isNaN(archiveDate.getTime()) && archiveDate.getTime() <= Date.now();
+}
+
+function connectionMatchesQuery(connection: Connection, normalizedQuery: string) {
+  if (!normalizedQuery) {
+    return false;
+  }
+
+  const handle = connection.handle ?? "";
+
+  return (
+    connection.displayName.toLocaleLowerCase().startsWith(normalizedQuery) ||
+    handle.toLocaleLowerCase().startsWith(normalizedQuery)
+  );
 }
 
 const styles = StyleSheet.create({

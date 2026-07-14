@@ -16,7 +16,6 @@ import { HuddleFab } from "@/components/HuddleFab";
 import { Screen } from "@/components/Screen";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import { useConnections } from "@/features/connections/ConnectionProvider";
-import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
 import { TopicFormLayout } from "@/features/topics/components/TopicFormLayout";
 import { useTopics } from "@/features/topics/TopicProvider";
 import {
@@ -210,20 +209,16 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
       >
         <View style={styles.form}>
           <TopicFormLayout
-            autoArchiveField={
-              <AutoArchiveDateField
-                error={autoArchiveError}
-                value={autoArchiveDate}
-                onChange={setAutoArchiveDate}
-              />
-            }
+            autoArchiveError={autoArchiveError}
+            autoArchiveValue={autoArchiveDate}
             memberError={memberError}
             memberSearchValue={networkQuery}
+            onChangeAutoArchive={setAutoArchiveDate}
             onChangeMemberSearch={setNetworkQuery}
             onChangeTitle={setTitle}
             onClearMemberSearch={() => setNetworkQuery("")}
-            selectedMemberCount={selectedConnectionIds.length}
             titleError={titleError || isOverTitleLimit}
+            titleAutoFocus={false}
             titleMaxLength={maxTopicTitleLength + 1}
             titleValue={title}
           >

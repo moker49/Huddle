@@ -82,7 +82,6 @@ export function MemberGrid({
 
   return (
     <ScrollView
-      style={styles.scroller}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       onLayout={(event) => {
@@ -156,15 +155,11 @@ function getResponsiveItemWidth(gridWidth: number) {
 }
 
 const styles = StyleSheet.create({
-  scroller: {
-    flex: 1
-  },
   content: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.xxs,
-    paddingTop: spacing.xs,
-    paddingBottom: 96
+    paddingTop: spacing.xs
   },
   item: {
     minHeight: 84,
@@ -176,7 +171,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs
   },
   state: {
-    flex: 1,
+    minHeight: 104,
     justifyContent: "center",
     paddingHorizontal: spacing.md
   },

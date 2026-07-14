@@ -7,12 +7,12 @@ import { HuddleFab } from "@/components/HuddleFab";
 import { Screen } from "@/components/Screen";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import { useConnections } from "@/features/connections/ConnectionProvider";
-import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
 import { TopicFormLayout } from "@/features/topics/components/TopicFormLayout";
 import { useTopics } from "@/features/topics/TopicProvider";
 import {
   collapseFabScrollOffset,
   filterConnectionsForTopicForm,
+  formatDateInputValue,
   getTopicFormValidation,
   maxTopicTitleLength,
   toggleConnectionId
@@ -35,13 +35,20 @@ export function CreateTopicScreen() {
       : [];
   }, [params.memberIds]);
   const [title, setTitle] = useState(params.title ?? "");
-  const [autoArchiveDate, setAutoArchiveDate] = useState("");
+  const [autoArchiveDate, setAutoArchiveDate] = useState(() => {
+    const defaultAutoArchiveDate = new Date();
+
+    defaultAutoArchiveDate.setDate(defaultAutoArchiveDate.getDate() + 7);
+
+    return formatDateInputValue(defaultAutoArchiveDate);
+  });
   const [networkQuery, setNetworkQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>(initialConnectionIds);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [fabIsExtended, setFabIsExtended] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const titleShouldAutoFocus = !params.title;
 
   const {
     autoArchiveIsInvalid,
@@ -108,20 +115,16 @@ export function CreateTopicScreen() {
       >
         <View style={styles.form}>
           <TopicFormLayout
-            autoArchiveField={
-              <AutoArchiveDateField
-                error={autoArchiveError}
-                value={autoArchiveDate}
-                onChange={setAutoArchiveDate}
-              />
-            }
+            autoArchiveError={autoArchiveError}
+            autoArchiveValue={autoArchiveDate}
             memberError={memberError}
             memberSearchValue={networkQuery}
+            onChangeAutoArchive={setAutoArchiveDate}
             onChangeMemberSearch={setNetworkQuery}
             onChangeTitle={setTitle}
             onClearMemberSearch={() => setNetworkQuery("")}
-            selectedMemberCount={selectedConnectionIds.length}
             titleError={titleError || isOverTitleLimit}
+            titleAutoFocus={titleShouldAutoFocus}
             titleMaxLength={maxTopicTitleLength + 1}
             titleValue={title}
           >

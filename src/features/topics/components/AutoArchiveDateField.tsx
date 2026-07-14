@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { ComponentProps, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import {
   Button,
@@ -15,6 +15,7 @@ import { spacing } from "@/theme/tokens";
 interface AutoArchiveDateFieldProps {
   error: boolean;
   onChange: (value: string) => void;
+  themeOverride?: ComponentProps<typeof TextInput>["theme"];
   value: string;
 }
 
@@ -33,6 +34,7 @@ const fieldWidth = 168;
 export function AutoArchiveDateField({
   error,
   onChange,
+  themeOverride,
   value
 }: AutoArchiveDateFieldProps) {
   const theme = useTheme();
@@ -74,6 +76,7 @@ export function AutoArchiveDateField({
           error={error}
           accessibilityLabel="Auto-archive date"
           style={styles.field}
+          theme={themeOverride}
           right={
             value ? (
               <TextInput.Icon

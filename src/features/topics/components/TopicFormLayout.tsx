@@ -1,37 +1,49 @@
 import { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
-import { Text, TextInput, useTheme } from "react-native-paper";
+import { TextInput, useTheme } from "react-native-paper";
 
+import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
 import { spacing, shape } from "@/theme/tokens";
 
 interface TopicFormLayoutProps {
-  autoArchiveField: ReactNode;
+  autoArchiveError: boolean;
+  autoArchiveValue: string;
   children: ReactNode;
+  titleAutoFocus?: boolean;
   memberError: boolean;
   memberSearchValue: string;
   onChangeMemberSearch: (value: string) => void;
+  onChangeAutoArchive: (value: string) => void;
   onClearMemberSearch: () => void;
   onChangeTitle: (value: string) => void;
-  selectedMemberCount: number;
   titleError: boolean;
   titleMaxLength: number;
   titleValue: string;
 }
 
 export function TopicFormLayout({
-  autoArchiveField,
+  autoArchiveError,
+  autoArchiveValue,
   children,
+  titleAutoFocus = true,
   memberError,
   memberSearchValue,
   onChangeMemberSearch,
+  onChangeAutoArchive,
   onClearMemberSearch,
   onChangeTitle,
-  selectedMemberCount,
   titleError,
   titleMaxLength,
   titleValue
 }: TopicFormLayoutProps) {
   const theme = useTheme();
+  const propertyCardColor = theme.colors.elevation.level2;
+  const propertyFieldTheme = {
+    colors: {
+      background: propertyCardColor,
+      surfaceVariant: propertyCardColor
+    }
+  };
 
   return (
     <>
@@ -40,7 +52,7 @@ export function TopicFormLayout({
           style={[
             styles.card,
             styles.firstCard,
-            { backgroundColor: theme.colors.elevation.level2 }
+            { backgroundColor: propertyCardColor }
           ]}
         >
           <TextInput
@@ -48,13 +60,14 @@ export function TopicFormLayout({
             label="Title"
             value={titleValue}
             onChangeText={onChangeTitle}
-            autoFocus
+            autoFocus={titleAutoFocus}
             autoCapitalize="sentences"
             returnKeyType="next"
             error={titleError}
             maxLength={titleMaxLength}
             accessibilityLabel="Huddle title"
             style={styles.titleField}
+            theme={propertyFieldTheme}
             right={
               titleValue ? (
                 <TextInput.Icon
@@ -65,7 +78,12 @@ export function TopicFormLayout({
               ) : undefined
             }
           />
-          {autoArchiveField}
+          <AutoArchiveDateField
+            error={autoArchiveError}
+            value={autoArchiveValue}
+            onChange={onChangeAutoArchive}
+            themeOverride={propertyFieldTheme}
+          />
         </View>
         <View
           style={[
@@ -74,14 +92,6 @@ export function TopicFormLayout({
             { backgroundColor: theme.colors.elevation.level2 }
           ]}
         >
-          <View style={styles.membersHeader}>
-            <Text variant="labelLarge" style={{ color: theme.colors.onSurface }}>
-              Members
-            </Text>
-            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              {selectedMemberCount} selected
-            </Text>
-          </View>
           <View style={[styles.memberSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
             <TextInput
               mode="flat"
@@ -120,7 +130,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxs
   },
   card: {
-    padding: spacing.sm
+    padding: spacing.md
   },
   firstCard: {
     borderTopLeftRadius: shape.large,
@@ -131,7 +141,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   lastCard: {
-    flex: 1,
     borderTopLeftRadius: spacing.xxs,
     borderTopRightRadius: spacing.xxs,
     borderBottomLeftRadius: shape.large,
@@ -140,11 +149,6 @@ const styles = StyleSheet.create({
   },
   titleField: {
     flex: 1
-  },
-  membersHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
   },
   memberSearchShell: {
     height: 56,
