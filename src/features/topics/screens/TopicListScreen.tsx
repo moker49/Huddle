@@ -18,6 +18,8 @@ import { useTopics } from "@/features/topics/TopicProvider";
 import { Connection } from "@/models/connection";
 import { layout, spacing } from "@/theme/tokens";
 
+type TopicListItemPosition = "single" | "first" | "middle" | "last";
+
 interface FocusHandle {
   focus(): void;
 }
@@ -241,35 +243,73 @@ export function TopicListScreen() {
           </View>
         ) : (
           <View style={styles.topicList}>
-            {visibleTopics.map((topic) => (
+            {visibleTopics.map((topic, index) => (
               <View key={topic.id}>
                 <TopicListItem
                   topic={topic}
                   memberSummary={getMemberSummary(topic.memberIds)}
+                  position={getTopicListItemPosition(index, visibleTopics.length)}
                   onPress={() => router.push(`/topics/${topic.id}`)}
                 />
               </View>
             ))}
             {canShowCreateOption ? (
-              <List.Item
-                title={createHasTitle ? `Create huddle "${impliedTopicTitle}"` : "Create huddle"}
-                description={
-                  createHasMembers
-                    ? getMemberSummary(selectedConnectionIds)
-                    : ""
-                }
-                left={(props) => <List.Icon {...props} icon="plus" />}
-                right={(props) => <List.Icon {...props} icon="arrow-right" />}
-                onPress={handleCreateHuddle}
-                disabled={isCreating || isLoading}
-                accessibilityLabel="Create huddle"
-              />
+              <View
+                style={[
+                  styles.createCard,
+                  { backgroundColor: theme.colors.surfaceVariant }
+                ]}
+              >
+                <List.Item
+                  title={createHasTitle ? `Create huddle "${impliedTopicTitle}"` : "Create huddle"}
+                  titleStyle={{ color: theme.colors.onSurfaceVariant }}
+                  description={
+                    createHasMembers
+                      ? getMemberSummary(selectedConnectionIds)
+                      : ""
+                  }
+                  descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+                  left={(props) => (
+                    <List.Icon
+                      {...props}
+                      color={theme.colors.onSurfaceVariant}
+                      icon="plus"
+                    />
+                  )}
+                  right={(props) => (
+                    <List.Icon
+                      {...props}
+                      color={theme.colors.onSurfaceVariant}
+                      icon="arrow-right"
+                    />
+                  )}
+                  onPress={handleCreateHuddle}
+                  disabled={isCreating || isLoading}
+                  accessibilityLabel="Create huddle"
+                />
+              </View>
             ) : null}
           </View>
         )}
       </View>
     </Screen>
   );
+}
+
+function getTopicListItemPosition(index: number, itemCount: number): TopicListItemPosition {
+  if (itemCount === 1) {
+    return "single";
+  }
+
+  if (index === 0) {
+    return "first";
+  }
+
+  if (index === itemCount - 1) {
+    return "last";
+  }
+
+  return "middle";
 }
 
 interface MemberRailProps {
@@ -447,6 +487,11 @@ const styles = StyleSheet.create({
   },
   topicList: {
     flexShrink: 1,
+    gap: spacing.xxs,
     paddingTop: spacing.sm
+  },
+  createCard: {
+    borderRadius: 12,
+    overflow: "hidden"
   }
 });
