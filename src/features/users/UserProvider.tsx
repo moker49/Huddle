@@ -1,6 +1,7 @@
 import {
   PropsWithChildren,
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -14,6 +15,7 @@ interface UserContextValue {
   user: LocalUser | null;
   isLoading: boolean;
   errorMessage: string | null;
+  reloadUser(): Promise<void>;
   updateDisplayName(displayName: string): Promise<LocalUser>;
 }
 
@@ -27,6 +29,19 @@ export function UserProvider({ children, service = userService }: UserProviderPr
   const [user, setUser] = useState<LocalUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadUser = useCallback(async () => {
+    setIsLoading(true);
+
+    try {
+      setUser(await service.getUser());
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage("Profile could not be loaded.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [service]);
 
   useEffect(() => {
     let isActive = true;
@@ -60,6 +75,7 @@ export function UserProvider({ children, service = userService }: UserProviderPr
       user,
       isLoading,
       errorMessage,
+      reloadUser: loadUser,
       async updateDisplayName(displayName) {
         const nextUser = await service.updateDisplayName(displayName);
         setUser(nextUser);
@@ -67,7 +83,7 @@ export function UserProvider({ children, service = userService }: UserProviderPr
         return nextUser;
       }
     }),
-    [errorMessage, isLoading, service, user]
+    [errorMessage, isLoading, loadUser, service, user]
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

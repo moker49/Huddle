@@ -5,6 +5,7 @@ import { createId } from "@/utils/createId";
 export interface UserService {
   getUser(): Promise<LocalUser>;
   updateDisplayName(displayName: string): Promise<LocalUser>;
+  resetLocalData(): Promise<void>;
 }
 
 const userStorageKey = "huddle:local-user";
@@ -50,6 +51,11 @@ export class LocalUserService implements UserService {
     await this.storage.write(userStorageKey, nextUser);
 
     return nextUser;
+  }
+
+  async resetLocalData(): Promise<void> {
+    this.userPromise = null;
+    await this.storage.remove(userStorageKey);
   }
 
   private async loadUser(): Promise<LocalUser> {

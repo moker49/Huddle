@@ -1,11 +1,24 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from "react-native";
 import {
   ActivityIndicator,
   Appbar,
+  Button,
+  Dialog,
+  Drawer,
   Icon,
   IconButton,
+  Portal,
+  Snackbar,
   Text,
   TextInput,
   useTheme
@@ -14,9 +27,12 @@ import {
 import { Screen } from "@/components/Screen";
 import { MemberRail } from "@/features/connections/components/MemberRail";
 import { useConnections } from "@/features/connections/ConnectionProvider";
+import { useMessages } from "@/features/messages/MessageProvider";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { useTopics } from "@/features/topics/TopicProvider";
+import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
+import { clearLocalAppData } from "@/services/localDataService";
 import { layout, shape, spacing } from "@/theme/tokens";
 
 type TopicListItemPosition = "single" | "first" | "middle" | "last";
@@ -37,19 +53,28 @@ const keepSearchInputFocusedProps =
       onTouchStart: (event: PreventableEvent) => event.preventDefault()
     }
     : undefined;
+const drawerWidth = 304;
 
 export function TopicListScreen() {
   const theme = useTheme();
-  const { errorMessage, isLoading, lastCreatedTopicId, topics } = useTopics();
+  const { errorMessage, isLoading, lastCreatedTopicId, reloadTopics, topics } = useTopics();
   const {
     connections,
     errorMessage: connectionErrorMessage,
-    isLoading: connectionsAreLoading
+    isLoading: connectionsAreLoading,
+    reloadConnections
   } = useConnections();
+  const { clearLoadedMessages } = useMessages();
+  const { reloadUser } = useUser();
   const searchInputRef = useRef<FocusHandle | null>(null);
   const observedCreatedTopicIdRef = useRef(lastCreatedTopicId);
+  const drawerAnimation = useRef(new Animated.Value(0)).current;
   const [query, setQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
+  const [drawerIsMounted, setDrawerIsMounted] = useState(false);
+  const [clearDialogIsVisible, setClearDialogIsVisible] = useState(false);
+  const [isClearingLocalData, setIsClearingLocalData] = useState(false);
+  const [localDataMessage, setLocalDataMessage] = useState("");
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
   const connectionNameById = useMemo(() => {
@@ -159,6 +184,51 @@ export function TopicListScreen() {
     });
   }
 
+  function openSideMenu() {
+    setDrawerIsMounted(true);
+    requestAnimationFrame(() => {
+      Animated.timing(drawerAnimation, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true
+      }).start();
+    });
+  }
+
+  function closeSideMenu() {
+    Animated.timing(drawerAnimation, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true
+    }).start(({ finished }) => {
+      if (finished) {
+        setDrawerIsMounted(false);
+      }
+    });
+  }
+
+  async function handleClearLocalData() {
+    setIsClearingLocalData(true);
+    setLocalDataMessage("");
+
+    try {
+      await clearLocalAppData();
+      clearLoadedMessages();
+      await Promise.all([reloadConnections(), reloadTopics(), reloadUser()]);
+      setQuery("");
+      setSelectedConnectionIds([]);
+      setClearDialogIsVisible(false);
+      closeSideMenu();
+      setLocalDataMessage("Local data cleared.");
+    } catch {
+      setLocalDataMessage("Local data could not be cleared.");
+    } finally {
+      setIsClearingLocalData(false);
+    }
+  }
+
   function getMemberSummary(memberIds: string[]) {
     const names = memberIds
       .map((memberId) => connectionNameById[memberId])
@@ -213,7 +283,11 @@ export function TopicListScreen() {
             accessibilityLabel="Clear selected members"
           />
         ) : (
-          <Appbar.Action icon="menu" onPress={() => undefined} accessibilityLabel="Menu" />
+          <Appbar.Action
+            icon="menu"
+            onPress={openSideMenu}
+            accessibilityLabel="Open menu"
+          />
         )
       }
       action={<View style={styles.trailingSearchInset} />}
@@ -330,6 +404,90 @@ export function TopicListScreen() {
           </ScrollView>
         )}
       </View>
+      <Portal>
+        {drawerIsMounted ? (
+          <View style={styles.drawerLayer}>
+            <Animated.View
+              style={[
+                styles.drawerScrim,
+                { opacity: drawerAnimation }
+              ]}
+            >
+              <Pressable
+                accessibilityLabel="Close menu"
+                accessibilityRole="button"
+                onPress={closeSideMenu}
+                style={styles.drawerScrimPressable}
+              />
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.drawer,
+                {
+                  backgroundColor: theme.colors.elevation.level2,
+                  transform: [
+                    {
+                      translateX: drawerAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-drawerWidth, 0]
+                      })
+                    }
+                  ]
+                }
+              ]}
+            >
+              <Text
+                variant="titleMedium"
+                style={[styles.drawerTitle, { color: theme.colors.onSurface }]}
+              >
+                Huddle
+              </Text>
+              <Drawer.Item
+                icon="delete-outline"
+                label="Clear local storage"
+                onPress={() => setClearDialogIsVisible(true)}
+                accessibilityLabel="Clear local storage"
+              />
+            </Animated.View>
+          </View>
+        ) : null}
+        <Dialog
+          visible={clearDialogIsVisible}
+          onDismiss={() => {
+            if (!isClearingLocalData) {
+              setClearDialogIsVisible(false);
+            }
+          }}
+        >
+          <Dialog.Title>Clear local storage?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              This resets huddles, messages, network members, and profile data stored on this device.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button
+              onPress={() => setClearDialogIsVisible(false)}
+              disabled={isClearingLocalData}
+            >
+              Cancel
+            </Button>
+            <Button
+              onPress={handleClearLocalData}
+              loading={isClearingLocalData}
+              disabled={isClearingLocalData}
+            >
+              Clear
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Snackbar
+        visible={Boolean(localDataMessage)}
+        onDismiss={() => setLocalDataMessage("")}
+      >
+        {localDataMessage}
+      </Snackbar>
     </Screen>
   );
 }
@@ -492,5 +650,34 @@ const styles = StyleSheet.create({
     height: layout.minTouchTarget,
     alignItems: "center",
     justifyContent: "center"
+  },
+  drawerLayer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    flexDirection: "row"
+  },
+  drawerScrim: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.32)"
+  },
+  drawerScrimPressable: {
+    flex: 1
+  },
+  drawer: {
+    width: drawerWidth,
+    maxWidth: "86%",
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.xs
+  },
+  drawerTitle: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xs
   }
 });

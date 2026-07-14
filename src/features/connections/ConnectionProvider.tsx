@@ -1,4 +1,12 @@
-import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState
+} from "react";
 
 import { Connection } from "@/models/connection";
 import { ConnectionService, connectionService } from "@/services/connectionService";
@@ -7,6 +15,7 @@ interface ConnectionContextValue {
   connections: Connection[];
   isLoading: boolean;
   errorMessage: string | null;
+  reloadConnections(): Promise<void>;
 }
 
 const ConnectionContext = createContext<ConnectionContextValue | null>(null);
@@ -22,6 +31,19 @@ export function ConnectionProvider({
   const [connections, setConnections] = useState<Connection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadConnections = useCallback(async () => {
+    setIsLoading(true);
+
+    try {
+      setConnections(await service.listConnections());
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage("Network could not be loaded.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [service]);
 
   useEffect(() => {
     let isActive = true;
@@ -54,9 +76,10 @@ export function ConnectionProvider({
     () => ({
       connections,
       isLoading,
-      errorMessage
+      errorMessage,
+      reloadConnections: loadConnections
     }),
-    [connections, errorMessage, isLoading]
+    [connections, errorMessage, isLoading, loadConnections]
   );
 
   return <ConnectionContext.Provider value={value}>{children}</ConnectionContext.Provider>;

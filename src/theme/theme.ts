@@ -22,6 +22,10 @@ const fontConfig = {
   labelSmall: { fontFamily: "System" }
 } as const;
 
+const animation = {
+  scale: 0.45
+} as const;
+
 export const lightTheme = {
   ...MD3LightTheme,
   colors: {
@@ -35,7 +39,8 @@ export const lightTheme = {
     secondaryContainer: "#CCE8E2",
     onSecondaryContainer: "#05201C"
   },
-  fonts: configureFonts({ config: fontConfig })
+  fonts: configureFonts({ config: fontConfig }),
+  animation
 };
 
 export const darkTheme = {
@@ -51,5 +56,6 @@ export const darkTheme = {
     secondaryContainer: "#334B47",
     onSecondaryContainer: "#CCE8E2"
   },
-  fonts: configureFonts({ config: fontConfig })
+  fonts: configureFonts({ config: fontConfig }),
+  animation
 };

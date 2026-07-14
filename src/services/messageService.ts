@@ -5,6 +5,7 @@ import { createId } from "@/utils/createId";
 export interface MessageService {
   listMessages(topicId: string): Promise<Message[]>;
   createMessage(input: CreateMessageInput): Promise<Message>;
+  resetLocalData(): Promise<void>;
 }
 
 const initialMessages: Message[] = [
@@ -84,6 +85,12 @@ export class LocalMessageService implements MessageService {
     await this.storage.write(messageStorageKey, this.messages);
 
     return message;
+  }
+
+  async resetLocalData(): Promise<void> {
+    this.messages = [...initialMessages];
+    this.messagesPromise = Promise.resolve(this.messages);
+    await this.storage.remove(messageStorageKey);
   }
 
   private async loadMessages(): Promise<Message[]> {

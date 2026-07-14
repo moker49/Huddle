@@ -1,4 +1,12 @@
-import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  PropsWithChildren,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState
+} from "react";
 
 import { CreateTopicInput, Topic, UpdateTopicInput } from "@/models/topic";
 import { TopicService, topicService } from "@/services/topicService";
@@ -8,6 +16,7 @@ interface TopicContextValue {
   isLoading: boolean;
   errorMessage: string | null;
   lastCreatedTopicId: string | null;
+  reloadTopics(): Promise<void>;
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
   deleteTopic(id: string): Promise<void>;
@@ -26,9 +35,23 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastCreatedTopicId, setLastCreatedTopicId] = useState<string | null>(null);
 
+  const loadTopics = useCallback(async () => {
+    setIsLoading(true);
+
+    try {
+      setTopics(await service.listTopics());
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage("Huddles could not be loaded.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [service]);
+
   useEffect(() => {
     let isMounted = true;
 
+    setIsLoading(true);
     service
       .listTopics()
       .then((nextTopics) => {
@@ -59,6 +82,7 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
       isLoading,
       errorMessage,
       lastCreatedTopicId,
+      reloadTopics: loadTopics,
       async createTopic(input) {
         const topic = await service.createTopic(input);
         setTopics(await service.listTopics());
@@ -78,7 +102,7 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
         return topics.find((topic) => topic.id === id);
       }
     }),
-    [errorMessage, isLoading, lastCreatedTopicId, service, topics]
+    [errorMessage, isLoading, lastCreatedTopicId, loadTopics, service, topics]
   );
 
   return <TopicContext.Provider value={value}>{children}</TopicContext.Provider>;

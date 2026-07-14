@@ -1,7 +1,9 @@
 import { Connection } from "@/models/connection";
+import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
 
 export interface ConnectionService {
   listConnections(): Promise<Connection[]>;
+  resetLocalData(): Promise<void>;
 }
 
 const initialConnections: Connection[] = [
@@ -77,11 +79,58 @@ const initialConnections: Connection[] = [
   }
 ];
 
+const connectionStorageKey = "huddle:connections";
+
+function isConnection(value: unknown): value is Connection {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "displayName" in value &&
+    "source" in value &&
+    "createdAt" in value &&
+    typeof value.id === "string" &&
+    typeof value.displayName === "string" &&
+    (!("handle" in value) || typeof value.handle === "string") &&
+    (value.source === "direct" ||
+      value.source === "phone_contact" ||
+      value.source === "shared_huddle") &&
+    typeof value.createdAt === "string"
+  );
+}
+
 export class LocalConnectionService implements ConnectionService {
   private connections = [...initialConnections];
+  private connectionsPromise: Promise<Connection[]> | null = null;
+
+  constructor(private readonly storage: JsonStorage = localJsonStorage) {}
 
   async listConnections(): Promise<Connection[]> {
-    return [...this.connections].sort((a, b) => a.displayName.localeCompare(b.displayName));
+    const connections = await this.loadConnections();
+
+    return [...connections].sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }
+
+  async resetLocalData(): Promise<void> {
+    this.connections = [...initialConnections];
+    this.connectionsPromise = Promise.resolve(this.connections);
+    await this.storage.remove(connectionStorageKey);
+  }
+
+  private async loadConnections(): Promise<Connection[]> {
+    if (!this.connectionsPromise) {
+      this.connectionsPromise = this.storage
+        .read<unknown>(connectionStorageKey)
+        .then((storedConnections) => {
+          if (Array.isArray(storedConnections) && storedConnections.every(isConnection)) {
+            this.connections = storedConnections;
+          }
+
+          return this.connections;
+        });
+    }
+
+    return this.connectionsPromise;
   }
 }
 

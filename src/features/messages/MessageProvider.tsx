@@ -14,6 +14,7 @@ interface MessageContextValue {
   getMessages(topicId: string): Message[];
   loadMessages(topicId: string): Promise<void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
+  clearLoadedMessages(): void;
   isLoading(topicId: string): boolean;
   getError(topicId: string): string | null;
 }
@@ -67,6 +68,11 @@ export function MessageProvider({ children, service = messageService }: MessageP
       },
       loadMessages,
       sendMessage,
+      clearLoadedMessages() {
+        setMessagesByTopicId({});
+        setLoadingTopicIds({});
+        setErrorsByTopicId({});
+      },
       isLoading(topicId) {
         return loadingTopicIds[topicId] ?? false;
       },
