@@ -377,8 +377,7 @@ const styles = StyleSheet.create({
   },
   topicList: {
     flexShrink: 1,
-    gap: spacing.xxs,
-    paddingTop: spacing.sm
+    gap: spacing.xxs
   },
   createCard: {
     minHeight: 76,

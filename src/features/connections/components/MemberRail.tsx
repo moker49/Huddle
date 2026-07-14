@@ -2,7 +2,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native"
 import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 
 import { Connection } from "@/models/connection";
-import { spacing } from "@/theme/tokens";
+import { shape, spacing } from "@/theme/tokens";
 
 interface MemberRailProps {
   connections: Connection[];
@@ -28,10 +28,10 @@ const avatarColors = [
 const keepInputFocusedProps =
   Platform.OS === "web"
     ? {
-        onMouseDown: (event: PreventableEvent) => event.preventDefault(),
-        onPointerDown: (event: PreventableEvent) => event.preventDefault(),
-        onTouchStart: (event: PreventableEvent) => event.preventDefault()
-      }
+      onMouseDown: (event: PreventableEvent) => event.preventDefault(),
+      onPointerDown: (event: PreventableEvent) => event.preventDefault(),
+      onTouchStart: (event: PreventableEvent) => event.preventDefault()
+    }
     : undefined;
 
 export function MemberRail({
@@ -91,27 +91,31 @@ export function MemberRail({
               accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${connection.displayName}`}
               accessibilityRole="button"
               focusable={false}
-              style={styles.item}
+              style={[
+                styles.item,
+                isSelected
+                  ? { backgroundColor: theme.colors.secondaryContainer }
+                  : undefined
+              ]}
             >
               <View
                 style={[
                   styles.avatar,
                   {
-                    backgroundColor: avatarColors[index % avatarColors.length],
-                    borderColor: isSelected ? theme.colors.primary : "transparent"
+                    backgroundColor: avatarColors[index % avatarColors.length]
                   }
                 ]}
               >
-                <Text variant="titleMedium" style={styles.avatarText}>
+                <Text variant="titleSmall" style={styles.avatarText}>
                   {connection.displayName.slice(0, 1).toLocaleUpperCase()}
                 </Text>
               </View>
               <Text
-                variant="labelLarge"
+                variant="labelMedium"
                 numberOfLines={1}
                 style={[
                   styles.label,
-                  { color: isSelected ? theme.colors.primary : theme.colors.onSurface }
+                  { color: isSelected ? theme.colors.onSecondaryContainer : theme.colors.onSurface }
                 ]}
               >
                 {connection.displayName}
@@ -126,17 +130,21 @@ export function MemberRail({
 
 const styles = StyleSheet.create({
   area: {
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xxs,
     paddingBottom: spacing.sm
   },
   content: {
-    gap: spacing.md,
-    paddingHorizontal: spacing.md
+    gap: spacing.xxs
   },
   item: {
     width: 72,
+    minHeight: 84,
     alignItems: "center",
-    gap: spacing.xs
+    justifyContent: "center",
+    gap: spacing.xxs,
+    borderRadius: shape.medium,
+    paddingHorizontal: spacing.xxs,
+    paddingVertical: spacing.xs
   },
   state: {
     minHeight: 104,
@@ -144,10 +152,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 3,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -155,7 +162,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF"
   },
   label: {
-    maxWidth: 72,
+    maxWidth: 64,
     textAlign: "center"
   }
 });

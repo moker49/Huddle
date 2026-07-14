@@ -1,20 +1,20 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
-import { Button, Snackbar, TextInput, useTheme } from "react-native-paper";
+import { AnimatedFAB, Snackbar, TextInput } from "react-native-paper";
 
 import { Screen } from "@/components/Screen";
-import { MemberRail } from "@/features/connections/components/MemberRail";
+import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { Connection } from "@/models/connection";
-import { layout, spacing } from "@/theme/tokens";
+import { spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
 const maxTitleLength = 80;
+const collapseFabScrollOffset = 24;
 
 export function CreateTopicScreen() {
-  const theme = useTheme();
   const params = useLocalSearchParams<{ title?: string; memberIds?: string }>();
   const { createTopic } = useTopics();
   const {
@@ -32,6 +32,7 @@ export function CreateTopicScreen() {
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>(initialConnectionIds);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [fabIsExtended, setFabIsExtended] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
   const trimmedTitle = title.trim();
@@ -73,6 +74,14 @@ export function CreateTopicScreen() {
     setNetworkQuery("");
   }
 
+  function handleGridScroll(offsetY: number) {
+    const shouldExtendFab = offsetY < collapseFabScrollOffset;
+
+    setFabIsExtended((currentValue) =>
+      currentValue === shouldExtendFab ? currentValue : shouldExtendFab
+    );
+  }
+
   async function handleSubmit() {
     setHasSubmitted(true);
 
@@ -94,7 +103,7 @@ export function CreateTopicScreen() {
   }
 
   return (
-    <Screen title="Create huddle" onBack={() => goBackOrReplace("/")}>
+    <Screen title="Create huddle" onBack={() => goBackOrReplace("/")} scroll={false}>
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: "padding", default: undefined })}
         style={styles.keyboardAvoidingView}
@@ -122,26 +131,25 @@ export function CreateTopicScreen() {
             accessibilityLabel="Search your network"
             error={memberError}
           />
-          <MemberRail
+          <MemberGrid
             connections={filteredConnections}
             errorMessage={connectionErrorMessage}
             isLoading={connectionsAreLoading}
+            onScroll={handleGridScroll}
             onToggleConnection={handleToggleConnection}
             selectedConnectionIds={selectedConnectionIds}
           />
-
-          <Button
-            mode="contained"
+          <AnimatedFAB
             icon="check"
+            label="Create huddle"
+            extended={fabIsExtended}
             onPress={handleSubmit}
-            loading={isSaving}
+            visible
             disabled={isSaving}
-            buttonColor={theme.colors.primaryContainer}
-            textColor={theme.colors.onPrimaryContainer}
-            contentStyle={styles.buttonContent}
-          >
-            Create huddle
-          </Button>
+            animateFrom="right"
+            accessibilityLabel="Create huddle"
+            style={styles.fab}
+          />
         </View>
       </KeyboardAvoidingView>
       <Snackbar visible={Boolean(errorMessage)} onDismiss={() => setErrorMessage("")}>
@@ -156,10 +164,13 @@ const styles = StyleSheet.create({
     flex: 1
   },
   form: {
+    flex: 1,
     paddingTop: spacing.sm,
     gap: spacing.xs
   },
-  buttonContent: {
-    minHeight: layout.minTouchTarget
+  fab: {
+    position: "absolute",
+    right: spacing.md,
+    bottom: spacing.lg
   }
 });
