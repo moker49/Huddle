@@ -3,9 +3,11 @@ export interface Topic {
   title: string;
   memberIds: string[];
   createdAt: string;
+  autoArchiveAt?: string;
 }
 
 export interface CreateTopicInput {
   title: string;
   memberIds?: string[];
+  autoArchiveAt?: string;
 }

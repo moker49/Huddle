@@ -13,7 +13,6 @@ interface TopicListItemProps {
   onPress: () => void;
 }
 
-const placeholderExpiryDays = 30;
 const outerCardRadius = shape.large;
 const innerCardRadius = spacing.xxs;
 
@@ -24,7 +23,7 @@ export function TopicListItem({
   onPress
 }: TopicListItemProps) {
   const theme = useTheme();
-  const expiresAt = getPlaceholderExpiryDate(topic.createdAt);
+  const autoArchiveDate = formatAutoArchiveDate(topic.autoArchiveAt);
 
   return (
     <Pressable
@@ -57,13 +56,15 @@ export function TopicListItem({
           {memberSummary}
         </Text>
       </View>
-      <Text
-        variant="labelMedium"
-        numberOfLines={1}
-        style={[styles.expiryDate, { color: theme.colors.onSurfaceVariant }]}
-      >
-        {expiresAt}
-      </Text>
+      {autoArchiveDate ? (
+        <Text
+          variant="labelMedium"
+          numberOfLines={1}
+          style={[styles.expiryDate, { color: theme.colors.onSurfaceVariant }]}
+        >
+          {autoArchiveDate}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -81,14 +82,16 @@ function getCardCornerStyle(position: TopicListItemPosition) {
   }
 }
 
-function getPlaceholderExpiryDate(createdAt: string) {
-  const date = new Date(createdAt);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Auto";
+function formatAutoArchiveDate(autoArchiveAt: string | undefined) {
+  if (!autoArchiveAt) {
+    return "";
   }
 
-  date.setDate(date.getDate() + placeholderExpiryDays);
+  const date = new Date(autoArchiveAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
 
   return new Intl.DateTimeFormat("en-US", {
     month: "short",

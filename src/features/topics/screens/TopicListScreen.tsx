@@ -40,7 +40,7 @@ const keepSearchInputFocusedProps =
 
 export function TopicListScreen() {
   const theme = useTheme();
-  const { createTopic, errorMessage, isLoading, lastCreatedTopicId, topics } = useTopics();
+  const { errorMessage, isLoading, lastCreatedTopicId, topics } = useTopics();
   const {
     connections,
     errorMessage: connectionErrorMessage,
@@ -50,7 +50,6 @@ export function TopicListScreen() {
   const observedCreatedTopicIdRef = useRef(lastCreatedTopicId);
   const [query, setQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
   const connectionNameById = useMemo(() => {
@@ -102,8 +101,15 @@ export function TopicListScreen() {
   const createHasTitle = impliedTopicTitle.length > 0;
   const createHasMembers = selectedConnectionIds.length > 0;
   const canShowCreateOption = createHasTitle || createHasMembers;
-  const canCreateImmediately = createHasTitle && createHasMembers && !isCreating && !isLoading;
-  const listItemCount = visibleTopics.length + (canShowCreateOption ? 1 : 0);
+  const activeTopics = useMemo(
+    () => visibleTopics.filter((topic) => !topicIsArchived(topic.autoArchiveAt)),
+    [visibleTopics]
+  );
+  const archivedTopics = useMemo(
+    () => visibleTopics.filter((topic) => topicIsArchived(topic.autoArchiveAt)),
+    [visibleTopics]
+  );
+  const activeListItemCount = activeTopics.length + (canShowCreateOption ? 1 : 0);
 
   useEffect(() => {
     if (!lastCreatedTopicId || observedCreatedTopicIdRef.current === lastCreatedTopicId) {
@@ -149,27 +155,6 @@ export function TopicListScreen() {
         memberIds: selectedConnectionIds.join(",")
       }
     });
-  }
-
-  async function handleCreateHuddle() {
-    if (!canCreateImmediately) {
-      openCreateScreen();
-      return;
-    }
-
-    setIsCreating(true);
-
-    try {
-      const topic = await createTopic({
-        title: impliedTopicTitle,
-        memberIds: selectedConnectionIds
-      });
-      setQuery("");
-      setSelectedConnectionIds([]);
-      router.push(`/topics/${topic.id}`);
-    } finally {
-      setIsCreating(false);
-    }
   }
 
   function getMemberSummary(memberIds: string[]) {
@@ -254,27 +239,27 @@ export function TopicListScreen() {
             style={styles.topicScroller}
             contentContainerStyle={styles.topicList}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {visibleTopics.map((topic, index) => (
+            {activeTopics.map((topic, index) => (
               <View key={topic.id}>
                 <TopicListItem
                   topic={topic}
                   memberSummary={getMemberSummary(topic.memberIds)}
-                  position={getTopicListItemPosition(index, listItemCount)}
+                  position={getTopicListItemPosition(index, activeListItemCount)}
                   onPress={() => router.push(`/topics/${topic.id}`)}
                 />
               </View>
             ))}
             {canShowCreateOption ? (
               <Pressable
-                onPress={handleCreateHuddle}
-                disabled={isCreating || isLoading}
+                onPress={openCreateScreen}
                 accessibilityLabel="Create huddle"
                 accessibilityRole="button"
                 style={[
                   styles.createCard,
                   getTopicListItemCornerStyle(
-                    getTopicListItemPosition(visibleTopics.length, listItemCount)
+                    getTopicListItemPosition(activeTopics.length, activeListItemCount)
                   ),
                   { borderColor: theme.colors.outlineVariant }
                 ]}
@@ -318,6 +303,28 @@ export function TopicListScreen() {
                 </View>
               </Pressable>
             ) : null}
+            {archivedTopics.length > 0 ? (
+              <View style={styles.archivedSection}>
+                <Text
+                  variant="labelLarge"
+                  style={[styles.archivedHeader, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Archived
+                </Text>
+                <View style={styles.archivedList}>
+                  {archivedTopics.map((topic, index) => (
+                    <View key={topic.id}>
+                      <TopicListItem
+                        topic={topic}
+                        memberSummary={getMemberSummary(topic.memberIds)}
+                        position={getTopicListItemPosition(index, archivedTopics.length)}
+                        onPress={() => router.push(`/topics/${topic.id}`)}
+                      />
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </ScrollView>
         )}
       </View>
@@ -352,6 +359,16 @@ function getTopicListItemCornerStyle(position: TopicListItemPosition) {
     case "middle":
       return styles.middleCard;
   }
+}
+
+function topicIsArchived(autoArchiveAt: string | undefined) {
+  if (!autoArchiveAt) {
+    return false;
+  }
+
+  const archiveDate = new Date(autoArchiveAt);
+
+  return !Number.isNaN(archiveDate.getTime()) && archiveDate.getTime() <= Date.now();
 }
 
 const styles = StyleSheet.create({
@@ -403,6 +420,15 @@ const styles = StyleSheet.create({
   topicList: {
     gap: spacing.xxs,
     paddingBottom: spacing.lg
+  },
+  archivedSection: {
+    paddingTop: spacing.md
+  },
+  archivedHeader: {
+    paddingBottom: spacing.xs
+  },
+  archivedList: {
+    gap: spacing.xxs
   },
   createCard: {
     minHeight: 76,

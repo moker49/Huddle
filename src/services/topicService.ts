@@ -12,13 +12,15 @@ const initialTopics: Topic[] = [
     id: "welcome",
     title: "Weekend plans",
     memberIds: ["erik", "hanna", "kevo"],
-    createdAt: new Date("2026-07-11T12:00:00.000Z").toISOString()
+    createdAt: new Date("2026-07-11T12:00:00.000Z").toISOString(),
+    autoArchiveAt: new Date("2026-07-20T23:59:59.999Z").toISOString()
   },
   {
     id: "trail-run",
     title: "Trail run crew",
     memberIds: ["andre", "karina"],
-    createdAt: new Date("2026-07-11T12:10:00.000Z").toISOString()
+    createdAt: new Date("2026-07-11T12:10:00.000Z").toISOString(),
+    autoArchiveAt: new Date("2026-07-10T23:59:59.999Z").toISOString()
   },
   {
     id: "recipe-swap",
@@ -30,7 +32,8 @@ const initialTopics: Topic[] = [
     id: "book-club",
     title: "Book club picks",
     memberIds: ["erik", "andre", "russel"],
-    createdAt: new Date("2026-07-11T12:30:00.000Z").toISOString()
+    createdAt: new Date("2026-07-11T12:30:00.000Z").toISOString(),
+    autoArchiveAt: new Date("2026-08-01T23:59:59.999Z").toISOString()
   },
   {
     id: "coffee-walks",
@@ -42,7 +45,8 @@ const initialTopics: Topic[] = [
     id: "movie-night",
     title: "Movie night",
     memberIds: ["kevo", "glenn", "russel", "karina"],
-    createdAt: new Date("2026-07-11T12:50:00.000Z").toISOString()
+    createdAt: new Date("2026-07-11T12:50:00.000Z").toISOString(),
+    autoArchiveAt: new Date("2026-07-12T23:59:59.999Z").toISOString()
   },
   {
     id: "pickup-games",
@@ -84,7 +88,8 @@ export class LocalTopicService implements TopicService {
       id: createId(),
       title,
       memberIds: input.memberIds,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      autoArchiveAt: input.autoArchiveAt
     };
 
     this.topics = [topic, ...this.topics];

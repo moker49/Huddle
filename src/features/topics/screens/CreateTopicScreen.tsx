@@ -6,6 +6,7 @@ import { AnimatedFAB, Snackbar, TextInput } from "react-native-paper";
 import { Screen } from "@/components/Screen";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import { useConnections } from "@/features/connections/ConnectionProvider";
+import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { Connection } from "@/models/connection";
 import { spacing } from "@/theme/tokens";
@@ -28,6 +29,7 @@ export function CreateTopicScreen() {
       : [];
   }, [params.memberIds]);
   const [title, setTitle] = useState(params.title ?? "");
+  const [autoArchiveDate, setAutoArchiveDate] = useState("");
   const [networkQuery, setNetworkQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>(initialConnectionIds);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -39,8 +41,11 @@ export function CreateTopicScreen() {
   const titleError = hasSubmitted && trimmedTitle.length === 0;
   const memberError = hasSubmitted && selectedConnectionIds.length === 0;
   const isOverTitleLimit = title.length > maxTitleLength;
+  const parsedAutoArchiveAt = parseAutoArchiveDate(autoArchiveDate);
+  const autoArchiveIsInvalid = autoArchiveDate.trim().length > 0 && !parsedAutoArchiveAt;
+  const autoArchiveError = hasSubmitted && autoArchiveIsInvalid;
   const hasRequiredSubmitFields = trimmedTitle.length > 0 && selectedConnectionIds.length > 0;
-  const canSubmit = trimmedTitle.length > 0 && selectedConnectionIds.length > 0 && !isOverTitleLimit;
+  const canSubmit = hasRequiredSubmitFields && !isOverTitleLimit && !autoArchiveIsInvalid;
   const normalizedNetworkQuery = networkQuery.trim().toLocaleLowerCase();
   const filteredConnections = useMemo(() => {
     const matchingConnections = connections.filter((connection) => {
@@ -94,7 +99,11 @@ export function CreateTopicScreen() {
     setErrorMessage("");
 
     try {
-      const topic = await createTopic({ title, memberIds: selectedConnectionIds });
+      const topic = await createTopic({
+        title,
+        memberIds: selectedConnectionIds,
+        autoArchiveAt: parsedAutoArchiveAt ?? undefined
+      });
       router.replace(`/topics/${topic.id}`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Huddle could not be created.");
@@ -110,27 +119,35 @@ export function CreateTopicScreen() {
         style={styles.keyboardAvoidingView}
       >
         <View style={styles.form}>
-          <TextInput
-            mode="outlined"
-            label="Title"
-            value={title}
-            onChangeText={setTitle}
-            autoFocus
-            autoCapitalize="sentences"
-            returnKeyType="next"
-            error={titleError || isOverTitleLimit}
-            maxLength={maxTitleLength + 1}
-            accessibilityLabel="Huddle title"
-            right={
-              title ? (
-                <TextInput.Icon
-                  icon="close"
-                  onPress={() => setTitle("")}
-                  accessibilityLabel="Clear title"
-                />
-              ) : undefined
-            }
-          />
+          <View style={styles.titleRow}>
+            <TextInput
+              mode="outlined"
+              label="Title"
+              value={title}
+              onChangeText={setTitle}
+              autoFocus
+              autoCapitalize="sentences"
+              returnKeyType="next"
+              error={titleError || isOverTitleLimit}
+              maxLength={maxTitleLength + 1}
+              accessibilityLabel="Huddle title"
+              style={styles.titleField}
+              right={
+                title ? (
+                  <TextInput.Icon
+                    icon="close"
+                    onPress={() => setTitle("")}
+                    accessibilityLabel="Clear title"
+                  />
+                ) : undefined
+              }
+            />
+            <AutoArchiveDateField
+              error={autoArchiveError}
+              value={autoArchiveDate}
+              onChange={setAutoArchiveDate}
+            />
+          </View>
 
           <TextInput
             mode="outlined"
@@ -178,6 +195,22 @@ export function CreateTopicScreen() {
   );
 }
 
+function parseAutoArchiveDate(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return undefined;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedValue)) {
+    return null;
+  }
+
+  const date = new Date(`${trimmedValue}T23:59:59.999Z`);
+
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1
@@ -186,6 +219,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: spacing.sm,
     gap: spacing.xs
+  },
+  titleRow: {
+    flexDirection: "row",
+    gap: spacing.xs
+  },
+  titleField: {
+    flex: 1
   },
   fab: {
     position: "absolute",
