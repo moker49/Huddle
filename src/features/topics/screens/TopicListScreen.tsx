@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Appbar,
@@ -11,6 +11,7 @@ import {
 } from "react-native-paper";
 
 import { Screen } from "@/components/Screen";
+import { MemberRail } from "@/features/connections/components/MemberRail";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { useTopics } from "@/features/topics/TopicProvider";
@@ -35,15 +36,6 @@ const keepSearchInputFocusedProps =
       onTouchStart: (event: PreventableEvent) => event.preventDefault()
     }
     : undefined;
-
-const avatarColors = [
-  "#6D8F6F",
-  "#8D6E63",
-  "#6C7EA6",
-  "#A56C82",
-  "#8A7C5A",
-  "#5F8E95"
-] as const;
 
 export function TopicListScreen() {
   const theme = useTheme();
@@ -325,106 +317,6 @@ function getTopicListItemPosition(index: number, itemCount: number): TopicListIt
   return "middle";
 }
 
-interface MemberRailProps {
-  connections: Connection[];
-  errorMessage: string | null;
-  isLoading: boolean;
-  onToggleConnection: (connection: Connection) => void;
-  selectedConnectionIds: string[];
-}
-
-function MemberRail({
-  connections,
-  errorMessage,
-  isLoading,
-  onToggleConnection,
-  selectedConnectionIds
-}: MemberRailProps) {
-  const theme = useTheme();
-  const selectedConnectionIdSet = useMemo(
-    () => new Set(selectedConnectionIds),
-    [selectedConnectionIds]
-  );
-
-  if (isLoading) {
-    return (
-      <View style={styles.memberRailState}>
-        <ActivityIndicator accessibilityLabel="Loading network" />
-      </View>
-    );
-  }
-
-  if (errorMessage) {
-    return (
-      <View style={styles.memberRailState}>
-        <Text variant="bodyLarge" style={{ color: theme.colors.error }}>
-          {errorMessage}
-        </Text>
-      </View>
-    );
-  }
-
-  if (connections.length === 0) {
-    return (
-      <View style={styles.memberRailState}>
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-          No matching network members
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.memberRailArea}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.memberRailContent}
-      >
-        {connections.map((connection, index) => {
-          const isSelected = selectedConnectionIdSet.has(connection.id);
-          return (
-            <Pressable
-              {...keepSearchInputFocusedProps}
-              key={connection.id}
-              onPress={() => onToggleConnection(connection)}
-              accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${connection.displayName}`}
-              accessibilityRole="button"
-              focusable={false}
-              style={styles.memberRailItem}
-            >
-              <View
-                style={[
-                  styles.memberAvatar,
-                  {
-                    backgroundColor: avatarColors[index % avatarColors.length],
-                    borderColor: isSelected ? theme.colors.primary : "transparent"
-                  }
-                ]}
-              >
-                <Text variant="titleMedium" style={styles.memberAvatarText}>
-                  {connection.displayName.slice(0, 1).toLocaleUpperCase()}
-                </Text>
-              </View>
-              <Text
-                variant="labelLarge"
-                numberOfLines={1}
-                style={[
-                  styles.memberLabel,
-                  { color: isSelected ? theme.colors.primary : theme.colors.onSurface }
-                ]}
-              >
-                {connection.displayName}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   searchShell: {
     flex: 1,
@@ -457,39 +349,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1
-  },
-  memberRailArea: {
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm
-  },
-  memberRailContent: {
-    gap: spacing.md,
-    paddingHorizontal: spacing.md
-  },
-  memberRailItem: {
-    width: 72,
-    alignItems: "center",
-    gap: spacing.xs
-  },
-  memberRailState: {
-    minHeight: 104,
-    justifyContent: "center",
-    paddingHorizontal: spacing.md
-  },
-  memberAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 3,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  memberAvatarText: {
-    color: "#FFFFFF"
-  },
-  memberLabel: {
-    maxWidth: 72,
-    textAlign: "center"
   },
   centerContent: {
     flex: 1,
