@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Appbar, Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -93,7 +93,12 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           />
         }
         title={
-          <View style={styles.appBarTitle}>
+          <Pressable
+            onPress={() => router.push(`/topics/${topic.id}/settings`)}
+            accessibilityRole="button"
+            accessibilityLabel="Open huddle settings"
+            style={styles.appBarTitle}
+          >
             <View
               style={[
                 styles.topicAvatar,
@@ -107,14 +112,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             <Text variant="titleLarge" numberOfLines={1} style={styles.topicName}>
               {topic.title}
             </Text>
-          </View>
-        }
-        action={
-          <Appbar.Action
-            icon="account-circle-outline"
-            onPress={() => router.push("/profile")}
-            accessibilityLabel="Profile"
-          />
+          </Pressable>
         }
       />
       <View style={styles.shell}>
