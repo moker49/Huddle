@@ -1,7 +1,17 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Snackbar, Text, TextInput } from "react-native-paper";
+import {
+  ActivityIndicator,
+  Appbar,
+  Button,
+  Dialog,
+  Portal,
+  Snackbar,
+  Text,
+  TextInput,
+  useTheme
+} from "react-native-paper";
 
 import { HuddleFab } from "@/components/HuddleFab";
 import { Screen } from "@/components/Screen";
@@ -27,12 +37,13 @@ interface TopicSettingsScreenProps {
 }
 
 export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
+  const theme = useTheme();
   const {
     connections,
     errorMessage: connectionErrorMessage,
     isLoading: connectionsAreLoading
   } = useConnections();
-  const { getTopic, isLoading, updateTopic } = useTopics();
+  const { deleteTopic, getTopic, isLoading, updateTopic } = useTopics();
   const topic = topicId ? getTopic(topicId) : undefined;
   const [title, setTitle] = useState("");
   const [autoArchiveDate, setAutoArchiveDate] = useState("");
@@ -40,7 +51,10 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [fabIsExtended, setFabIsExtended] = useState(true);
+  const [discardDialogIsVisible, setDiscardDialogIsVisible] = useState(false);
+  const [deleteDialogIsVisible, setDeleteDialogIsVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const initializedTopicIdRef = useRef<string | null>(null);
 
@@ -93,6 +107,25 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
     );
   }
 
+  function handleBack() {
+    if (hasChanges) {
+      setDiscardDialogIsVisible(true);
+      return;
+    }
+
+    goBackOrReplace(`/topics/${topic?.id ?? ""}`);
+  }
+
+  function handleDiscardChanges() {
+    setDiscardDialogIsVisible(false);
+
+    if (topic) {
+      goBackOrReplace(`/topics/${topic.id}`);
+    } else {
+      goBackOrReplace("/");
+    }
+  }
+
   async function handleSubmit() {
     setHasSubmitted(true);
 
@@ -104,16 +137,35 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
     setErrorMessage("");
 
     try {
-      const updatedTopic = await updateTopic(topic.id, {
+      await updateTopic(topic.id, {
         title,
         memberIds: selectedConnectionIds,
         autoArchiveAt: parsedAutoArchiveAt ?? undefined
       });
-      router.replace(`/topics/${updatedTopic.id}`);
+      goBackOrReplace(`/topics/${topic.id}`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Huddle could not be saved.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!topic) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setErrorMessage("");
+
+    try {
+      await deleteTopic(topic.id);
+      router.replace("/");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Huddle could not be deleted.");
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogIsVisible(false);
     }
   }
 
@@ -138,7 +190,20 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   }
 
   return (
-    <Screen title="Huddle settings" onBack={() => goBackOrReplace(`/topics/${topic.id}`)} scroll={false}>
+    <Screen
+      title="Huddle settings"
+      onBack={handleBack}
+      scroll={false}
+      action={
+        <Appbar.Action
+          icon="delete-outline"
+          onPress={() => setDeleteDialogIsVisible(true)}
+          disabled={isSaving || isDeleting}
+          accessibilityLabel="Delete huddle"
+          iconColor={theme.colors.error}
+        />
+      }
+    >
       <KeyboardAvoidingView
         behavior={Platform.select({ ios: "padding", default: undefined })}
         style={styles.keyboardAvoidingView}
@@ -215,6 +280,40 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
       <Snackbar visible={Boolean(errorMessage)} onDismiss={() => setErrorMessage("")}>
         {errorMessage}
       </Snackbar>
+      <Portal>
+        <Dialog
+          visible={discardDialogIsVisible}
+          onDismiss={() => setDiscardDialogIsVisible(false)}
+        >
+          <Dialog.Title>Discard changes?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              Unsaved changes to this huddle will be lost.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDiscardDialogIsVisible(false)}>Cancel</Button>
+            <Button onPress={handleDiscardChanges}>Discard</Button>
+          </Dialog.Actions>
+        </Dialog>
+        <Dialog
+          visible={deleteDialogIsVisible}
+          onDismiss={() => setDeleteDialogIsVisible(false)}
+        >
+          <Dialog.Title>Delete huddle?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              This removes the huddle from the current app session.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDeleteDialogIsVisible(false)}>Cancel</Button>
+            <Button onPress={handleDelete} loading={isDeleting} disabled={isDeleting}>
+              Delete
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </Screen>
   );
 }

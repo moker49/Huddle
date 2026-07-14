@@ -19,6 +19,15 @@ interface AutoArchiveDateFieldProps {
 }
 
 const weekdayLabels = ["S", "M", "T", "W", "T", "F", "S"] as const;
+const weekdayAccessibilityLabels = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday"
+] as const;
 const fieldWidth = 168;
 
 export function AutoArchiveDateField({
@@ -99,7 +108,7 @@ export function AutoArchiveDateField({
               <IconButton
                 icon="chevron-left"
                 onPress={() => moveMonth(-1)}
-                accessibilityLabel="Previous month"
+                accessibilityLabel={`Previous month, ${formatMonthLabel(getAdjacentMonth(draftDate, -1))}`}
               />
               <Text variant="titleMedium" style={styles.monthLabel}>
                 {formatMonthLabel(draftDate)}
@@ -107,7 +116,7 @@ export function AutoArchiveDateField({
               <IconButton
                 icon="chevron-right"
                 onPress={() => moveMonth(1)}
-                accessibilityLabel="Next month"
+                accessibilityLabel={`Next month, ${formatMonthLabel(getAdjacentMonth(draftDate, 1))}`}
               />
             </View>
             <View style={styles.weekdays}>
@@ -115,6 +124,7 @@ export function AutoArchiveDateField({
                 <Text
                   key={`${label}-${index}`}
                   variant="labelMedium"
+                  accessibilityLabel={weekdayAccessibilityLabels[index]}
                   style={[styles.weekday, { color: theme.colors.onSurfaceVariant }]}
                 >
                   {label}
@@ -129,12 +139,13 @@ export function AutoArchiveDateField({
 
                 return (
                   <Pressable
-                    key={date.toISOString()}
-                    onPress={() => setDraftDate(date)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Select ${formatDateInputValue(date)}`}
-                    disabled={!isCurrentMonth}
-                    style={styles.dayButton}
+                  key={date.toISOString()}
+                  onPress={() => setDraftDate(date)}
+                  accessibilityRole="button"
+                    accessibilityLabel={getDayAccessibilityLabel(date, isSelected, isToday)}
+                    accessibilityState={{ disabled: !isCurrentMonth, selected: isSelected }}
+                  disabled={!isCurrentMonth}
+                  style={styles.dayButton}
                   >
                     {isCurrentMonth ? (
                       <View
@@ -190,6 +201,10 @@ function getCalendarDates(monthDate: Date) {
   ));
 }
 
+function getAdjacentMonth(date: Date, offset: number) {
+  return new Date(date.getFullYear(), date.getMonth() + offset, 1);
+}
+
 function parseDateInputValue(value: string) {
   const trimmedValue = value.trim();
 
@@ -239,6 +254,25 @@ function formatMonthLabel(date: Date) {
     month: "long",
     year: "numeric"
   }).format(date);
+}
+
+function formatAccessibleDate(date: Date) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric"
+  }).format(date);
+}
+
+function getDayAccessibilityLabel(date: Date, isSelected: boolean, isToday: boolean) {
+  const stateLabels = [
+    isToday ? "today" : "",
+    isSelected ? "selected" : ""
+  ].filter(Boolean);
+  const stateSuffix = stateLabels.length > 0 ? `, ${stateLabels.join(", ")}` : "";
+
+  return `Select ${formatAccessibleDate(date)}${stateSuffix}`;
 }
 
 function datesMatch(firstDate: Date, secondDate: Date) {

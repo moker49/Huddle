@@ -10,6 +10,7 @@ interface TopicContextValue {
   lastCreatedTopicId: string | null;
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
+  deleteTopic(id: string): Promise<void>;
   getTopic(id: string): Topic | undefined;
 }
 
@@ -68,6 +69,10 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
         const topic = await service.updateTopic(id, input);
         setTopics(await service.listTopics());
         return topic;
+      },
+      async deleteTopic(id) {
+        await service.deleteTopic(id);
+        setTopics(await service.listTopics());
       },
       getTopic(id) {
         return topics.find((topic) => topic.id === id);

@@ -100,7 +100,6 @@ export function TopicListScreen() {
   const impliedTopicTitle = trimmedQuery;
   const createHasTitle = impliedTopicTitle.length > 0;
   const createHasMembers = selectedConnectionIds.length > 0;
-  const canShowCreateOption = createHasTitle || createHasMembers;
   const activeTopics = useMemo(
     () => visibleTopics.filter((topic) => !topicIsArchived(topic.autoArchiveAt)),
     [visibleTopics]
@@ -109,6 +108,7 @@ export function TopicListScreen() {
     () => visibleTopics.filter((topic) => topicIsArchived(topic.autoArchiveAt)),
     [visibleTopics]
   );
+  const canShowCreateOption = createHasTitle || createHasMembers || activeTopics.length === 0;
   const activeListItemCount = activeTopics.length + (canShowCreateOption ? 1 : 0);
 
   useEffect(() => {

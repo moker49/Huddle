@@ -6,6 +6,7 @@ export interface TopicService {
   getTopic(id: string): Promise<Topic | null>;
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
+  deleteTopic(id: string): Promise<void>;
 }
 
 const initialTopics: Topic[] = [
@@ -127,6 +128,10 @@ export class LocalTopicService implements TopicService {
     ));
 
     return topic;
+  }
+
+  async deleteTopic(id: string): Promise<void> {
+    this.topics = this.topics.filter((topic) => topic.id !== id);
   }
 }
 
