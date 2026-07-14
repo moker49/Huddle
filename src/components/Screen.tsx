@@ -1,5 +1,5 @@
 import { PropsWithChildren, ReactNode } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { Appbar, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -11,6 +11,7 @@ interface ScreenProps extends PropsWithChildren {
   onBack?: () => void;
   navigation?: ReactNode;
   action?: ReactNode;
+  contentStyle?: StyleProp<ViewStyle>;
   scroll?: boolean;
 }
 
@@ -19,11 +20,12 @@ export function Screen({
   onBack,
   navigation,
   action,
+  contentStyle,
   scroll = true,
   children
 }: ScreenProps) {
   const theme = useTheme();
-  const content = <View style={styles.content}>{children}</View>;
+  const content = <View style={[styles.content, contentStyle]}>{children}</View>;
 
   return (
     <SafeAreaView

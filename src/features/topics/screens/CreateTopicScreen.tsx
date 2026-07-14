@@ -121,6 +121,15 @@ export function CreateTopicScreen() {
             error={titleError || isOverTitleLimit}
             maxLength={maxTitleLength + 1}
             accessibilityLabel="Huddle title"
+            right={
+              title ? (
+                <TextInput.Icon
+                  icon="close"
+                  onPress={() => setTitle("")}
+                  accessibilityLabel="Clear title"
+                />
+              ) : undefined
+            }
           />
 
           <TextInput
@@ -131,6 +140,15 @@ export function CreateTopicScreen() {
             autoCapitalize="words"
             accessibilityLabel="Search your network"
             error={memberError}
+            right={
+              networkQuery ? (
+                <TextInput.Icon
+                  icon="close"
+                  onPress={() => setNetworkQuery("")}
+                  accessibilityLabel="Clear member search"
+                />
+              ) : undefined
+            }
           />
           <MemberGrid
             connections={filteredConnections}

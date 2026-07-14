@@ -122,6 +122,10 @@ export function TopicListScreen() {
     });
   }
 
+  function handleClearSelectedConnections() {
+    setSelectedConnectionIds([]);
+  }
+
   function handleToggleConnection(connection: Connection) {
     setSelectedConnectionIds((currentIds) => {
       if (currentIds.includes(connection.id)) {
@@ -213,7 +217,18 @@ export function TopicListScreen() {
         </View>
       }
       scroll={false}
-      navigation={<Appbar.Action icon="menu" onPress={() => undefined} accessibilityLabel="Menu" />}
+      contentStyle={styles.screenContent}
+      navigation={
+        selectedConnectionIds.length > 0 ? (
+          <Appbar.Action
+            icon="arrow-left"
+            onPress={handleClearSelectedConnections}
+            accessibilityLabel="Clear selected members"
+          />
+        ) : (
+          <Appbar.Action icon="menu" onPress={() => undefined} accessibilityLabel="Menu" />
+        )
+      }
       action={<View style={styles.trailingSearchInset} />}
     >
       <View style={styles.container}>
@@ -371,6 +386,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1
+  },
+  screenContent: {
+    paddingBottom: spacing.none
   },
   centerContent: {
     flex: 1,
