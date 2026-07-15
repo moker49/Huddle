@@ -322,47 +322,6 @@ export function TopicListScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {!hasNetworkMembers ? (
-              <Pressable
-                onPress={() => router.push({
-                  pathname: "/profile",
-                  params: { addNetwork: "1" }
-                })}
-                accessibilityLabel="Build your network"
-                accessibilityRole="button"
-                style={[
-                  styles.networkCta,
-                  { borderColor: theme.colors.outlineVariant }
-                ]}
-              >
-                <View
-                  style={[
-                    styles.networkCtaIcon,
-                    { backgroundColor: theme.colors.surfaceVariant }
-                  ]}
-                >
-                  <Icon
-                    source="account-plus-outline"
-                    size={28}
-                    color={theme.colors.onSurfaceVariant}
-                  />
-                </View>
-                <Text
-                  variant="titleMedium"
-                  numberOfLines={1}
-                  style={{ color: theme.colors.onSurface }}
-                >
-                  Build your network
-                </Text>
-                <Text
-                  variant="bodyMedium"
-                  numberOfLines={2}
-                  style={[styles.networkCtaText, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  Add people before creating huddles.
-                </Text>
-              </Pressable>
-            ) : null}
             {activeTopics.map((topic, index) => (
               <View key={topic.id}>
                 <TopicListItem
@@ -449,6 +408,56 @@ export function TopicListScreen() {
             ) : null}
           </ScrollView>
         )}
+        {!isLoading && !errorMessage && !hasNetworkMembers ? (
+          <View pointerEvents="box-none" style={styles.networkCtaLayer}>
+            <Pressable
+              onPress={() => router.push({
+                pathname: "/profile",
+                params: { addNetwork: "1" }
+              })}
+              accessibilityLabel="Add people"
+              accessibilityRole="button"
+              style={[
+                styles.networkCta,
+                { borderColor: theme.colors.outlineVariant }
+              ]}
+            >
+              <View
+                style={[
+                  styles.networkCtaIcon,
+                  { backgroundColor: theme.colors.surfaceVariant }
+                ]}
+              >
+                <Icon
+                  source="account-plus-outline"
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              </View>
+              <View style={styles.networkCtaCopy}>
+                <Text
+                  variant="titleMedium"
+                  numberOfLines={1}
+                  style={{ color: theme.colors.onSurface }}
+                >
+                  Add people
+                </Text>
+                <Text
+                  variant="bodyMedium"
+                  numberOfLines={2}
+                  style={{ color: theme.colors.onSurfaceVariant }}
+                >
+                  Build your network to create huddles.
+                </Text>
+              </View>
+              <Icon
+                source="arrow-right"
+                size={24}
+                color={theme.colors.onSurfaceVariant}
+              />
+            </Pressable>
+          </View>
+        ) : null}
       </View>
       <Portal>
         {drawerIsMounted ? (
@@ -696,26 +705,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
-  networkCta: {
-    minHeight: 220,
+  networkCtaLayer: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
+    paddingTop: "33%",
+    paddingHorizontal: spacing.none
+  },
+  networkCta: {
+    minHeight: 168,
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xl,
     borderWidth: 1,
     borderStyle: "dashed",
     borderRadius: shape.large
   },
   networkCtaIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center"
   },
-  networkCtaText: {
-    textAlign: "center"
+  networkCtaCopy: {
+    flex: 1,
+    minWidth: 0
   },
   drawerLayer: {
     position: "absolute",
