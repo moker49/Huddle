@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, TextInput as NativeTextInput, View } from "react-native";
 import {
@@ -25,6 +26,7 @@ import { shape, spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
 export function ProfileSettingsScreen() {
+  const params = useLocalSearchParams<{ addNetwork?: string }>();
   const theme = useTheme();
   const { errorMessage, isLoading, updateDisplayName, user } = useUser();
   const {
@@ -43,6 +45,7 @@ export function ProfileSettingsScreen() {
   const [networkSearch, setNetworkSearch] = useState("");
   const [networkIdentifierError, setNetworkIdentifierError] = useState("");
   const [isAddingNetworkMember, setIsAddingNetworkMember] = useState(false);
+  const [hasOpenedInitialAddDialog, setHasOpenedInitialAddDialog] = useState(false);
   const trimmedDisplayName = displayName.trim();
   const trimmedNetworkTag = networkTag.trim();
   const trimmedNetworkPhone = networkPhone.trim();
@@ -73,6 +76,17 @@ export function ProfileSettingsScreen() {
       setInitializedUserId(user.id);
     }
   }, [initializedUserId, user]);
+
+  useEffect(() => {
+    if (
+      params.addNetwork === "1" &&
+      profileIsInitialized &&
+      !hasOpenedInitialAddDialog
+    ) {
+      setHasOpenedInitialAddDialog(true);
+      openAddDialog();
+    }
+  }, [hasOpenedInitialAddDialog, params.addNetwork, profileIsInitialized]);
 
   async function handleSave() {
     if (!canSave) {

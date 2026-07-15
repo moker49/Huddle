@@ -77,6 +77,7 @@ export function TopicListScreen() {
   const [localDataMessage, setLocalDataMessage] = useState("");
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
+  const hasNetworkMembers = connections.length > 0;
   const connectionNameById = useMemo(() => {
     return connections.reduce<Record<string, string>>((nameById, connection) => {
       nameById[connection.id] = connection.displayName;
@@ -135,7 +136,9 @@ export function TopicListScreen() {
     () => visibleTopics.filter((topic) => topicIsArchived(topic.autoArchiveAt)),
     [visibleTopics]
   );
-  const canShowCreateOption = createHasTitle || createHasMembers || activeTopics.length === 0;
+  const canShowCreateOption = hasNetworkMembers && (
+    createHasTitle || createHasMembers || activeTopics.length === 0
+  );
   const activeListItemCount = activeTopics.length + (canShowCreateOption ? 1 : 0);
 
   useEffect(() => {
@@ -293,13 +296,15 @@ export function TopicListScreen() {
       action={<View style={styles.trailingSearchInset} />}
     >
       <View style={styles.container}>
-        <MemberRail
-          connections={filteredConnections}
-          errorMessage={connectionErrorMessage}
-          isLoading={connectionsAreLoading}
-          onToggleConnection={handleToggleConnection}
-          selectedConnectionIds={selectedConnectionIds}
-        />
+        {!connectionsAreLoading && !connectionErrorMessage && !hasNetworkMembers ? null : (
+          <MemberRail
+            connections={filteredConnections}
+            errorMessage={connectionErrorMessage}
+            isLoading={connectionsAreLoading}
+            onToggleConnection={handleToggleConnection}
+            selectedConnectionIds={selectedConnectionIds}
+          />
+        )}
         {isLoading ? (
           <View style={styles.centerContent}>
             <ActivityIndicator accessibilityLabel="Loading huddles" />
@@ -317,6 +322,47 @@ export function TopicListScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {!hasNetworkMembers ? (
+              <Pressable
+                onPress={() => router.push({
+                  pathname: "/profile",
+                  params: { addNetwork: "1" }
+                })}
+                accessibilityLabel="Build your network"
+                accessibilityRole="button"
+                style={[
+                  styles.networkCta,
+                  { borderColor: theme.colors.outlineVariant }
+                ]}
+              >
+                <View
+                  style={[
+                    styles.networkCtaIcon,
+                    { backgroundColor: theme.colors.surfaceVariant }
+                  ]}
+                >
+                  <Icon
+                    source="account-plus-outline"
+                    size={28}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </View>
+                <Text
+                  variant="titleMedium"
+                  numberOfLines={1}
+                  style={{ color: theme.colors.onSurface }}
+                >
+                  Build your network
+                </Text>
+                <Text
+                  variant="bodyMedium"
+                  numberOfLines={2}
+                  style={[styles.networkCtaText, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Add people before creating huddles.
+                </Text>
+              </Pressable>
+            ) : null}
             {activeTopics.map((topic, index) => (
               <View key={topic.id}>
                 <TopicListItem
@@ -649,6 +695,27 @@ const styles = StyleSheet.create({
     height: layout.minTouchTarget,
     alignItems: "center",
     justifyContent: "center"
+  },
+  networkCta: {
+    minHeight: 220,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: shape.large
+  },
+  networkCtaIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  networkCtaText: {
+    textAlign: "center"
   },
   drawerLayer: {
     position: "absolute",
