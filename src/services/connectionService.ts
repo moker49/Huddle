@@ -1,4 +1,5 @@
 import { Connection } from "@/models/connection";
+import { getConnectionDisplayName } from "@/models/connectionDisplay";
 import { DirectoryUser } from "@/models/directoryUser";
 import { getAutoNetworkMemberIdsForPhone } from "@/services/inboundHuddleFixtures";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
@@ -55,27 +56,30 @@ export class LocalConnectionService implements ConnectionService {
     const autoNetworkUserIds = getAutoNetworkMemberIdsForPhone(localUser.phoneNumber);
     const networkUserIdSet = new Set([...networkUserIds, ...autoNetworkUserIds]);
 
-    return defaultUsers
-      .filter((user) => networkUserIdSet.has(user.id))
-      .map(userToConnection)
-      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return Array.from(networkUserIdSet)
+      .map(resolveNetworkEntry)
+      .filter((connection): connection is Connection => Boolean(connection))
+      .sort((a, b) => getConnectionDisplayName(a).localeCompare(getConnectionDisplayName(b)));
   }
 
   async addConnection(identifier: string): Promise<Connection> {
-    const user = findDirectoryUser(identifier);
+    const normalizedIdentifier = normalizeIdentifier(identifier);
+    const user = findDirectoryUser(normalizedIdentifier);
 
-    if (!user) {
+    if (!normalizedIdentifier) {
       throw new Error("User could not be found.");
     }
 
+    const connection = user ? userToConnection(user) : createPhoneConnection(normalizedIdentifier);
+    const networkEntry = user ? user.id : connection.id;
     const networkUserIds = await this.loadNetworkUserIds();
 
-    if (!networkUserIds.includes(user.id)) {
-      this.networkUserIds = [...networkUserIds, user.id];
+    if (!networkUserIds.includes(networkEntry)) {
+      this.networkUserIds = [...networkUserIds, networkEntry];
       await this.saveNetworkUserIds();
     }
 
-    return userToConnection(user);
+    return connection;
   }
 
   async resetLocalData(): Promise<void> {
@@ -106,9 +110,7 @@ export class LocalConnectionService implements ConnectionService {
   }
 }
 
-function findDirectoryUser(identifier: string) {
-  const normalizedIdentifier = normalizeIdentifier(identifier);
-
+function findDirectoryUser(normalizedIdentifier: string) {
   if (!normalizedIdentifier) {
     return null;
   }
@@ -133,6 +135,48 @@ function normalizeIdentifier(identifier: string) {
   return /^\d/.test(trimmedIdentifier)
     ? `#${trimmedIdentifier}`
     : `@${trimmedIdentifier}`;
+}
+
+function resolveNetworkEntry(networkEntry: string) {
+  const userById = defaultUsers.find((user) => user.id === networkEntry);
+
+  if (userById) {
+    return userToConnection(userById);
+  }
+
+  const userByIdentifier = findDirectoryUser(networkEntry);
+
+  if (userByIdentifier) {
+    return userToConnection(userByIdentifier);
+  }
+
+  if (isPhoneIdentifier(networkEntry)) {
+    return createPhoneConnection(networkEntry);
+  }
+
+  return null;
+}
+
+function isPhoneIdentifier(identifier: string) {
+  return /^#\d+$/.test(identifier) || /^phone:#\d+$/.test(identifier);
+}
+
+function createPhoneConnection(identifier: string): Connection {
+  const phoneNumber = identifier.startsWith("phone:")
+    ? identifier.slice("phone:".length)
+    : identifier;
+
+  if (!/^#\d+$/.test(phoneNumber)) {
+    throw new Error("User could not be found.");
+  }
+
+  return {
+    id: `phone:${phoneNumber}`,
+    displayName: "",
+    tag: "",
+    phoneNumber,
+    createdAt: new Date("2026-07-15T12:00:00.000Z").toISOString()
+  };
 }
 
 function userToConnection(user: DirectoryUser): Connection {

@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 
 import { getMemberAvatarColor, getMemberInitial } from "@/features/connections/memberAvatar";
 import { Connection } from "@/models/connection";
+import { getConnectionDisplayName } from "@/models/connectionDisplay";
 import { shape, spacing } from "@/theme/tokens";
 
 interface MemberRailProps {
@@ -74,13 +75,14 @@ export function MemberRail({
       >
         {connections.map((connection) => {
           const isSelected = selectedConnectionIdSet.has(connection.id);
+          const displayName = getConnectionDisplayName(connection);
 
           return (
             <Pressable
               {...keepInputFocusedProps}
               key={connection.id}
               onPress={() => onToggleConnection(connection)}
-              accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${connection.displayName}`}
+              accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${displayName}`}
               accessibilityRole="button"
               focusable={false}
               style={[
@@ -94,12 +96,12 @@ export function MemberRail({
                 style={[
                   styles.avatar,
                   {
-                    backgroundColor: getMemberAvatarColor(connection.displayName)
+                    backgroundColor: getMemberAvatarColor(displayName)
                   }
                 ]}
               >
                 <Text variant="titleSmall" style={styles.avatarText}>
-                  {getMemberInitial(connection.displayName)}
+                  {getMemberInitial(displayName)}
                 </Text>
               </View>
               <Text
@@ -110,7 +112,7 @@ export function MemberRail({
                   { color: isSelected ? theme.colors.onSecondaryContainer : theme.colors.onSurface }
                 ]}
               >
-                {connection.displayName}
+                {displayName}
               </Text>
             </Pressable>
           );

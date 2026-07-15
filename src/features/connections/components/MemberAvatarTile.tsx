@@ -4,6 +4,7 @@ import { Text, useTheme } from "react-native-paper";
 
 import { getMemberAvatarColor, getMemberInitial } from "@/features/connections/memberAvatar";
 import { Connection } from "@/models/connection";
+import { getConnectionDisplayName } from "@/models/connectionDisplay";
 import { shape, spacing } from "@/theme/tokens";
 
 interface MemberAvatarTileProps {
@@ -41,6 +42,7 @@ export function MemberAvatarTile({
   style
 }: MemberAvatarTileProps) {
   const theme = useTheme();
+  const displayName = getConnectionDisplayName(connection);
   const itemStyle = [
     styles.item,
     style,
@@ -67,7 +69,7 @@ export function MemberAvatarTile({
     <Pressable
       {...keepInputFocusedProps}
       onPress={onPress}
-      accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${connection.displayName}`}
+      accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${displayName}`}
       accessibilityRole="button"
       focusable={false}
       style={itemStyle}
@@ -84,16 +86,18 @@ export function MemberAvatarTileContent({
   connection: Connection;
   labelColor: string;
 }) {
+  const displayName = getConnectionDisplayName(connection);
+
   return (
     <>
       <View
         style={[
           styles.avatar,
-          { backgroundColor: getMemberAvatarColor(connection.displayName) }
+          { backgroundColor: getMemberAvatarColor(displayName) }
         ]}
       >
         <Text variant="titleSmall" style={styles.avatarText}>
-          {getMemberInitial(connection.displayName)}
+          {getMemberInitial(displayName)}
         </Text>
       </View>
       <Text
@@ -101,7 +105,7 @@ export function MemberAvatarTileContent({
         numberOfLines={1}
         style={[styles.label, { color: labelColor }]}
       >
-        {connection.displayName}
+        {displayName}
       </Text>
     </>
   );

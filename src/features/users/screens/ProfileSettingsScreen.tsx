@@ -26,6 +26,7 @@ import { useTopics } from "@/features/topics/TopicProvider";
 import { hasCompleteLocalIdentity } from "@/features/users/identity";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
+import { connectionMatchesText } from "@/models/connectionDisplay";
 import { shape, spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
@@ -549,9 +550,7 @@ function filterNetworkConnections(connections: Connection[], query: string) {
   }
 
   return connections.filter((connection) => (
-    connection.displayName.toLocaleLowerCase().startsWith(normalizedQuery) ||
-    connection.tag.toLocaleLowerCase().startsWith(normalizedQuery) ||
-    connection.phoneNumber.toLocaleLowerCase().startsWith(normalizedQuery)
+    connectionMatchesText(connection, normalizedQuery)
   ));
 }
 

@@ -1,4 +1,5 @@
 import { Connection } from "@/models/connection";
+import { connectionMatchesText } from "@/models/connectionDisplay";
 
 export const maxTopicTitleLength = 80;
 export const collapseFabScrollOffset = 24;
@@ -47,11 +48,7 @@ export function filterConnectionsForTopicForm({
       return true;
     }
 
-    return (
-      connection.displayName.toLocaleLowerCase().startsWith(normalizedQuery) ||
-      connection.tag.toLocaleLowerCase().startsWith(normalizedQuery) ||
-      connection.phoneNumber.toLocaleLowerCase().startsWith(normalizedQuery)
-    );
+    return connectionMatchesText(connection, normalizedQuery);
   });
 
   return normalizedQuery && matchingConnections.length === 0

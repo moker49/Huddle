@@ -32,6 +32,7 @@ import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
+import { connectionMatchesText, getConnectionDisplayName } from "@/models/connectionDisplay";
 import { clearLocalAppData } from "@/services/localDataService";
 import { layout, shape, spacing } from "@/theme/tokens";
 
@@ -80,7 +81,7 @@ export function TopicListScreen() {
   const hasNetworkMembers = connections.length > 0;
   const connectionNameById = useMemo(() => {
     return connections.reduce<Record<string, string>>((nameById, connection) => {
-      nameById[connection.id] = connection.displayName;
+      nameById[connection.id] = getConnectionDisplayName(connection);
       return nameById;
     }, {});
   }, [connections]);
@@ -591,11 +592,7 @@ function connectionMatchesQuery(connection: Connection, normalizedQuery: string)
     return false;
   }
 
-  return (
-    connection.displayName.toLocaleLowerCase().startsWith(normalizedQuery) ||
-    connection.tag.toLocaleLowerCase().startsWith(normalizedQuery) ||
-    connection.phoneNumber.toLocaleLowerCase().startsWith(normalizedQuery)
-  );
+  return connectionMatchesText(connection, normalizedQuery);
 }
 
 const styles = StyleSheet.create({
