@@ -40,6 +40,7 @@ export function ProfileSettingsScreen() {
   const trimmedDisplayName = displayName.trim();
   const trimmedNetworkTag = networkTag.trim();
   const trimmedNetworkPhone = networkPhone.trim();
+  const formattedNetworkPhone = formatPhoneInput(networkPhone);
   const networkIdentifier = trimmedNetworkTag
     ? `@${trimmedNetworkTag.replace(/^@/, "")}`
     : trimmedNetworkPhone
@@ -91,7 +92,7 @@ export function ProfileSettingsScreen() {
   }
 
   function handleChangeNetworkPhone(value: string) {
-    setNetworkPhone(value.replace(/^#/, ""));
+    setNetworkPhone(value.replace(/\D/g, "").slice(0, 10));
     setNetworkTag("");
     setNetworkIdentifierError("");
   }
@@ -231,7 +232,7 @@ export function ProfileSettingsScreen() {
               <TextInput
                 mode="outlined"
                 label="Phone"
-                value={networkPhone}
+                value={formattedNetworkPhone}
                 onChangeText={handleChangeNetworkPhone}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -273,6 +274,23 @@ export function ProfileSettingsScreen() {
       </Snackbar>
     </Screen>
   );
+}
+
+function formatPhoneInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+  const area = digits.slice(0, 3);
+  const prefix = digits.slice(3, 6);
+  const line = digits.slice(6, 10);
+
+  if (line) {
+    return `${area}-${prefix}-${line}`;
+  }
+
+  if (prefix) {
+    return `${area}-${prefix}`;
+  }
+
+  return area;
 }
 
 const styles = StyleSheet.create({
