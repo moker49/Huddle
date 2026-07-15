@@ -5,7 +5,7 @@ import {
   DirectoryUserService,
   directoryUserService,
   findDirectoryUser,
-  getDirectoryConnectionById,
+  getDirectoryConnectionForMemberId,
   normalizeIdentifier,
   userToConnection
 } from "@/services/directoryUsers";
@@ -126,16 +126,10 @@ function resolveNetworkEntry(
   networkEntry: string,
   directoryUsers: Awaited<ReturnType<DirectoryUserService["listUsers"]>>
 ) {
-  const userById = getDirectoryConnectionById(directoryUsers, networkEntry);
+  const userById = getDirectoryConnectionForMemberId(directoryUsers, networkEntry);
 
   if (userById) {
     return userById;
-  }
-
-  const userByIdentifier = findDirectoryUser(directoryUsers, networkEntry);
-
-  if (userByIdentifier) {
-    return userToConnection(userByIdentifier);
   }
 
   if (isPhoneIdentifier(networkEntry)) {

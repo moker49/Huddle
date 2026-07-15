@@ -81,8 +81,16 @@ export function TopicListScreen() {
   const hasNetworkMembers = connections.length > 0;
   const connectionNameById = useMemo(() => {
     return connections.reduce<Record<string, string>>((nameById, connection) => {
-      nameById[connection.id] = getConnectionDisplayName(connection);
+      getConnectionMemberAliases(connection).forEach((alias) => {
+        nameById[alias] = getConnectionDisplayName(connection);
+      });
       return nameById;
+    }, {});
+  }, [connections]);
+  const connectionAliasesById = useMemo(() => {
+    return connections.reduce<Record<string, string[]>>((aliasesById, connection) => {
+      aliasesById[connection.id] = getConnectionMemberAliases(connection);
+      return aliasesById;
     }, {});
   }, [connections]);
   const filteredTopics = useMemo(() => {
@@ -123,9 +131,11 @@ export function TopicListScreen() {
     }
 
     return filteredTopics.filter((topic) =>
-      selectedConnectionIds.every((connectionId) => topic.memberIds.includes(connectionId))
+      selectedConnectionIds.every((connectionId) =>
+        connectionAliasesById[connectionId]?.some((alias) => topic.memberIds.includes(alias))
+      )
     );
-  }, [filteredTopics, selectedConnectionIds]);
+  }, [connectionAliasesById, filteredTopics, selectedConnectionIds]);
   const impliedTopicTitle = trimmedQuery;
   const createHasTitle = impliedTopicTitle.length > 0;
   const createHasMembers = selectedConnectionIds.length > 0;
@@ -593,6 +603,15 @@ function connectionMatchesQuery(connection: Connection, normalizedQuery: string)
   }
 
   return connectionMatchesText(connection, normalizedQuery);
+}
+
+function getConnectionMemberAliases(connection: Connection) {
+  return [
+    connection.id,
+    connection.tag,
+    connection.phoneNumber,
+    connection.phoneNumber ? `phone:${connection.phoneNumber}` : ""
+  ].filter(Boolean);
 }
 
 const styles = StyleSheet.create({

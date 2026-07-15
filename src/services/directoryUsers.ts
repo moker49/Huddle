@@ -80,7 +80,7 @@ export class LocalDirectoryUserService implements DirectoryUserService {
     const users = await this.listUsers();
 
     this.users = mergeDirectoryUsers(
-      users.filter((currentUser) => currentUser.id !== directoryUser.id),
+      users.filter((currentUser) => !usersIdentifySamePerson(currentUser, directoryUser)),
       [directoryUser]
     );
     this.usersPromise = Promise.resolve(this.users);
@@ -118,11 +118,21 @@ export function getDirectoryConnectionById(users: DirectoryUser[], id: string) {
   return user ? userToConnection(user) : null;
 }
 
+export function getDirectoryConnectionForMemberId(users: DirectoryUser[], memberId: string) {
+  return getDirectoryConnectionById(users, memberId) ?? userToConnectionOrNull(
+    findDirectoryUser(users, memberId)
+  );
+}
+
 export function normalizeIdentifier(identifier: string) {
   const trimmedIdentifier = identifier.trim().toLocaleLowerCase();
 
   if (!trimmedIdentifier) {
     return "";
+  }
+
+  if (trimmedIdentifier.startsWith("phone:")) {
+    return normalizeIdentifier(trimmedIdentifier.slice("phone:".length));
   }
 
   if (trimmedIdentifier.startsWith("@") || trimmedIdentifier.startsWith("#")) {
@@ -157,6 +167,18 @@ function localUserToDirectoryUser(user: LocalUser): DirectoryUser {
 function mergeDirectoryUsers(baseUsers: DirectoryUser[], nextUsers: DirectoryUser[]) {
   return Array.from(
     new Map([...baseUsers, ...nextUsers].map((user) => [user.id, user])).values()
+  );
+}
+
+function userToConnectionOrNull(user: DirectoryUser | null) {
+  return user ? userToConnection(user) : null;
+}
+
+function usersIdentifySamePerson(left: DirectoryUser, right: DirectoryUser) {
+  return (
+    left.id === right.id ||
+    Boolean(left.tag && right.tag && left.tag === right.tag) ||
+    Boolean(left.phoneNumber && right.phoneNumber && left.phoneNumber === right.phoneNumber)
   );
 }
 
