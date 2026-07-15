@@ -22,6 +22,7 @@ import {
   networkMemberSectionStyles
 } from "@/features/connections/components/NetworkMemberSection";
 import { useConnections } from "@/features/connections/ConnectionProvider";
+import { useTopics } from "@/features/topics/TopicProvider";
 import { hasCompleteLocalIdentity } from "@/features/users/identity";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
@@ -36,8 +37,10 @@ export function ProfileSettingsScreen() {
     addConnection,
     connections,
     errorMessage: networkErrorMessage,
-    isLoading: networkIsLoading
+    isLoading: networkIsLoading,
+    reloadConnections
   } = useConnections();
+  const { reloadTopics } = useTopics();
   const [initializedUserId, setInitializedUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [profileTag, setProfileTag] = useState("");
@@ -244,6 +247,7 @@ export function ProfileSettingsScreen() {
 
       setProfileTag(nextUser.tag.replace(/^@/, ""));
       setProfilePhone(nextUser.phoneNumber.replace(/\D/g, ""));
+      await Promise.all([reloadConnections(), reloadTopics()]);
       setIdentityDialogIsVisible(false);
     } catch (error) {
       setIdentityDialogError(

@@ -1,6 +1,8 @@
 import { Connection } from "@/models/connection";
 import { DirectoryUser } from "@/models/directoryUser";
+import { getAutoNetworkMemberIdsForPhone } from "@/services/inboundHuddleFixtures";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
+import { UserService, userService } from "@/services/userService";
 
 export interface ConnectionService {
   listConnections(): Promise<Connection[]>;
@@ -42,11 +44,16 @@ export class LocalConnectionService implements ConnectionService {
   private networkUserIds: string[] = [];
   private networkUserIdsPromise: Promise<string[]> | null = null;
 
-  constructor(private readonly storage: JsonStorage = localJsonStorage) {}
+  constructor(
+    private readonly storage: JsonStorage = localJsonStorage,
+    private readonly users: UserService = userService
+  ) {}
 
   async listConnections(): Promise<Connection[]> {
     const networkUserIds = await this.loadNetworkUserIds();
-    const networkUserIdSet = new Set(networkUserIds);
+    const localUser = await this.users.getUser();
+    const autoNetworkUserIds = getAutoNetworkMemberIdsForPhone(localUser.phoneNumber);
+    const networkUserIdSet = new Set([...networkUserIds, ...autoNetworkUserIds]);
 
     return defaultUsers
       .filter((user) => networkUserIdSet.has(user.id))

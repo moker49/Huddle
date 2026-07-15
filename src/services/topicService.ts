@@ -1,5 +1,7 @@
 import { CreateTopicInput, Topic, UpdateTopicInput } from "@/models/topic";
+import { getVisibleInboundHuddleTopics } from "@/services/inboundHuddleFixtures";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
+import { UserService, userService } from "@/services/userService";
 import { createId } from "@/utils/createId";
 
 export interface TopicService {
@@ -36,16 +38,27 @@ export class LocalTopicService implements TopicService {
   private topics = [...initialTopics];
   private topicsPromise: Promise<Topic[]> | null = null;
 
-  constructor(private readonly storage: JsonStorage = localJsonStorage) {}
+  constructor(
+    private readonly storage: JsonStorage = localJsonStorage,
+    private readonly users: UserService = userService
+  ) {}
 
   async listTopics(): Promise<Topic[]> {
     const topics = await this.loadTopics();
+    const localUser = await this.users.getUser();
+    const visibleInboundTopics = getVisibleInboundHuddleTopics(
+      localUser.id,
+      localUser.phoneNumber
+    );
+    const topicById = new Map(
+      [...topics, ...visibleInboundTopics].map((topic) => [topic.id, topic])
+    );
 
-    return [...topics].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return Array.from(topicById.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async getTopic(id: string): Promise<Topic | null> {
-    const topics = await this.loadTopics();
+    const topics = await this.listTopics();
 
     return topics.find((topic) => topic.id === id) ?? null;
   }
