@@ -403,18 +403,28 @@ test("updating huddle members records member-added and member-removed activities
     memberIds: ["phone:#27"]
   });
 
-  await efrenSession.topics.updateTopic(topic.id, {
+  const phone27Session = createServices(storage);
+  await phone27Session.users.resetLocalData();
+  await phone27Session.users.updateIdentifiers({ tag: "", phoneNumber: "27" });
+  await phone27Session.users.updateDisplayName("The 27");
+
+  const returningEfrenSession = createServices(storage);
+  await returningEfrenSession.users.resetLocalData();
+  await returningEfrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await returningEfrenSession.users.updateDisplayName("Efren");
+
+  await returningEfrenSession.topics.updateTopic(topic.id, {
     title: "Member activity",
     memberIds: ["andre"]
   });
-  const messages = await efrenSession.messages.listMessages(topic.id);
+  const messages = await returningEfrenSession.messages.listMessages(topic.id);
   const addedActivity = messages.find((message) => message.activityType === "member_added");
   const removedActivity = messages.find((message) => message.activityType === "member_removed");
 
   assert.equal(addedActivity?.kind, "system");
   assert.equal(addedActivity?.body, "Member added: andre");
   assert.equal(removedActivity?.kind, "system");
-  assert.equal(removedActivity?.body, "Member removed: phone:#27");
+  assert.equal(removedActivity?.body, "Member removed: The 27");
 });
 
 function createServices(storage: JsonStorage): ServiceSet {

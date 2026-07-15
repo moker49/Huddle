@@ -4,6 +4,7 @@ import { DirectoryUser } from "@/models/directoryUser";
 import {
   DirectoryUserService,
   directoryUserService,
+  getDirectoryConnectionForMemberId,
   getDirectoryUserIdForIdentifier
 } from "@/services/directoryUsers";
 import { getVisibleInboundHuddleTopics } from "@/services/inboundHuddleFixtures";
@@ -148,7 +149,7 @@ export class LocalTopicService implements TopicService {
       currentTopic.id === id ? topic : currentTopic
     ));
     await this.saveTopics();
-    await this.createUpdateActivities(currentTopic, topic);
+    await this.createUpdateActivities(currentTopic, topic, directoryUsers);
 
     return topic;
   }
@@ -183,7 +184,11 @@ export class LocalTopicService implements TopicService {
     await this.storage.write(topicStorageKey, this.topics);
   }
 
-  private async createUpdateActivities(previousTopic: Topic, nextTopic: Topic) {
+  private async createUpdateActivities(
+    previousTopic: Topic,
+    nextTopic: Topic,
+    directoryUsers: DirectoryUser[]
+  ) {
     if (previousTopic.title !== nextTopic.title) {
       await this.messages.createActivity({
         topicId: nextTopic.id,
@@ -200,7 +205,7 @@ export class LocalTopicService implements TopicService {
     for (const memberId of addedMemberIds) {
       await this.messages.createActivity({
         topicId: nextTopic.id,
-        body: `Member added: ${memberId}`,
+        body: `Member added: ${getMemberDisplayName(memberId, directoryUsers)}`,
         activityType: "member_added"
       });
     }
@@ -208,7 +213,7 @@ export class LocalTopicService implements TopicService {
     for (const memberId of removedMemberIds) {
       await this.messages.createActivity({
         topicId: nextTopic.id,
-        body: `Member removed: ${memberId}`,
+        body: `Member removed: ${getMemberDisplayName(memberId, directoryUsers)}`,
         activityType: "member_removed"
       });
     }
@@ -246,6 +251,12 @@ function getCreatorMemberId(creator: LocalUser | Topic, directoryUsers: Director
   return directoryMemberId
     ?? creator.id
     ?? null;
+}
+
+function getMemberDisplayName(memberId: string, directoryUsers: DirectoryUser[]) {
+  const connection = getDirectoryConnectionForMemberId(directoryUsers, memberId);
+
+  return connection?.displayName || connection?.tag || connection?.phoneNumber || memberId;
 }
 
 export const topicService = new LocalTopicService();
