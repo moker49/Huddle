@@ -149,6 +149,91 @@ test("claimed phone display names replace phone placeholders in later sessions",
   assertMemberDisplays(network, visibleTopics[0], ["the27"]);
 });
 
+test("users without matching identity cannot see unrelated huddles", async () => {
+  const storage = new MemoryJsonStorage();
+
+  const efrenSession = createServices(storage);
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  await efrenSession.topics.createTopic({
+    title: "Private phone invite",
+    memberIds: ["phone:#27"]
+  });
+
+  const unrelatedSession = createServices(storage);
+  await unrelatedSession.users.resetLocalData();
+  await unrelatedSession.users.updateIdentifiers({ tag: "maria", phoneNumber: "" });
+  await unrelatedSession.users.updateDisplayName("Maria");
+
+  assert.deepEqual(await unrelatedSession.topics.listTopics(), []);
+});
+
+test("tag-only identity cannot see a phone-invited huddle until claiming the matching phone", async () => {
+  const storage = new MemoryJsonStorage();
+
+  const efrenSession = createServices(storage);
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Phone-gated invite",
+    memberIds: ["phone:#27"]
+  });
+
+  const tagOnlySession = createServices(storage);
+  await tagOnlySession.users.resetLocalData();
+  await tagOnlySession.users.updateIdentifiers({ tag: "the27", phoneNumber: "" });
+  await tagOnlySession.users.updateDisplayName("The 27");
+  assert.deepEqual(await tagOnlySession.topics.listTopics(), []);
+
+  const phoneClaimSession = createServices(storage);
+  await phoneClaimSession.users.updateIdentifiers({ tag: "the27", phoneNumber: "27" });
+  await phoneClaimSession.users.updateDisplayName("The 27");
+
+  const visibleTopics = await phoneClaimSession.topics.listTopics();
+
+  assert.equal(visibleTopics.some((visibleTopic) => visibleTopic.id === topic.id), true);
+});
+
+test("creating a huddle includes the creator as a member", async () => {
+  const storage = new MemoryJsonStorage();
+
+  const efrenSession = createServices(storage);
+  const efren = await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+
+  const topic = await efrenSession.topics.createTopic({
+    title: "Creator included",
+    memberIds: ["phone:#27"]
+  });
+
+  assert.equal(topic.memberIds.includes(efren.id), true);
+});
+
+test("updating huddle members does not remove the creator", async () => {
+  const storage = new MemoryJsonStorage();
+
+  const efrenSession = createServices(storage);
+  const efren = await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Creator retained",
+    memberIds: ["phone:#27"]
+  });
+
+  const updatedTopic = await efrenSession.topics.updateTopic(topic.id, {
+    title: "Creator retained",
+    memberIds: ["andre"]
+  });
+
+  assert.equal(updatedTopic.memberIds.includes(efren.id), true);
+  assert.equal(updatedTopic.memberIds.includes("phone:#27"), false);
+  assert.equal(updatedTopic.memberIds.includes("andre"), true);
+});
+
 function createServices(storage: JsonStorage): ServiceSet {
   const directory = new LocalDirectoryUserService(storage);
   const users = new LocalUserService(storage, directory);
