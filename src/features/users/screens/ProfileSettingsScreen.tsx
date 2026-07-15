@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, TextInput as NativeTextInput, View } from "react-native";
 import {
   ActivityIndicator,
@@ -33,7 +33,7 @@ export function ProfileSettingsScreen() {
     errorMessage: networkErrorMessage,
     isLoading: networkIsLoading
   } = useConnections();
-  const initializedUserIdRef = useRef<string | null>(null);
+  const [initializedUserId, setInitializedUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -53,7 +53,7 @@ export function ProfileSettingsScreen() {
       ? `#${trimmedNetworkPhone.replace(/^#/, "")}`
       : "";
   const displayNameIsDirty = user ? displayName !== user.displayName : false;
-  const profileIsInitialized = Boolean(user && initializedUserIdRef.current === user.id);
+  const profileIsInitialized = Boolean(user && initializedUserId === user.id);
   const canSave = trimmedDisplayName.length > 0 && !isSaving;
   const filteredConnections = useMemo(
     () => filterNetworkConnections(connections, networkSearch),
@@ -68,11 +68,11 @@ export function ProfileSettingsScreen() {
   };
 
   useEffect(() => {
-    if (user && initializedUserIdRef.current !== user.id) {
-      initializedUserIdRef.current = user.id;
+    if (user && initializedUserId !== user.id) {
       setDisplayName(user.displayName);
+      setInitializedUserId(user.id);
     }
-  }, [user]);
+  }, [initializedUserId, user]);
 
   async function handleSave() {
     if (!canSave) {
@@ -179,7 +179,7 @@ export function ProfileSettingsScreen() {
                 <NativeTextInput
                   value={networkSearch}
                   onChangeText={setNetworkSearch}
-                  placeholder="Search network"
+                  placeholder="Search your network"
                   placeholderTextColor={theme.colors.onSurfaceVariant}
                   autoCapitalize="words"
                   accessibilityLabel="Search your network"

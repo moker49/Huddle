@@ -101,7 +101,7 @@ export function TopicFormLayout({
             <NativeTextInput
               value={memberSearchValue}
               onChangeText={onChangeMemberSearch}
-              placeholder="Search network"
+              placeholder="Search your network"
               placeholderTextColor={theme.colors.onSurfaceVariant}
               autoCapitalize="words"
               accessibilityLabel="Search your network"
