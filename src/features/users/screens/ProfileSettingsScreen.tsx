@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
@@ -31,7 +31,7 @@ import { goBackOrReplace } from "@/utils/navigation";
 export function ProfileSettingsScreen() {
   const params = useLocalSearchParams<{ addNetwork?: string }>();
   const theme = useTheme();
-  const { errorMessage, isLoading, updateProfile, user } = useUser();
+  const { errorMessage, isLoading, updateIdentifiers, updateProfile, user } = useUser();
   const {
     addConnection,
     connections,
@@ -42,6 +42,12 @@ export function ProfileSettingsScreen() {
   const [displayName, setDisplayName] = useState("");
   const [profileTag, setProfileTag] = useState("");
   const [profilePhone, setProfilePhone] = useState("");
+  const [identityDialogIsVisible, setIdentityDialogIsVisible] = useState(false);
+  const [identityDialogTag, setIdentityDialogTag] = useState("");
+  const [identityDialogPhone, setIdentityDialogPhone] = useState("");
+  const [identityDialogError, setIdentityDialogError] = useState("");
+  const [isSavingIdentity, setIsSavingIdentity] = useState(false);
+  const [displayNameWasValidated, setDisplayNameWasValidated] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [addDialogIsVisible, setAddDialogIsVisible] = useState(false);
@@ -51,11 +57,13 @@ export function ProfileSettingsScreen() {
   const [networkIdentifierError, setNetworkIdentifierError] = useState("");
   const [isAddingNetworkMember, setIsAddingNetworkMember] = useState(false);
   const [hasOpenedInitialAddDialog, setHasOpenedInitialAddDialog] = useState(false);
+  const [hasOpenedInitialIdentityDialog, setHasOpenedInitialIdentityDialog] = useState(false);
   const trimmedDisplayName = displayName.trim();
   const trimmedProfileTag = profileTag.trim();
   const trimmedProfilePhone = profilePhone.trim();
   const profilePhoneDigits = profilePhone.replace(/\D/g, "").slice(0, 10);
   const formattedProfilePhone = formatPhoneInput(profilePhone);
+  const formattedIdentityDialogPhone = formatPhoneInput(identityDialogPhone);
   const trimmedNetworkTag = networkTag.trim();
   const trimmedNetworkPhone = networkPhone.trim();
   const formattedNetworkPhone = formatPhoneInput(networkPhone);
@@ -66,6 +74,7 @@ export function ProfileSettingsScreen() {
       : "";
   const savedProfileTag = user ? user.tag.replace(/^@/, "") : "";
   const savedProfilePhone = user ? user.phoneNumber.replace(/\D/g, "") : "";
+  const userHasIdentifier = Boolean(savedProfileTag || savedProfilePhone);
   const userHasCompleteIdentity = hasCompleteLocalIdentity(user);
   const profileIdentifierIsComplete = Boolean(trimmedProfileTag || trimmedProfilePhone);
   const profileIsComplete = trimmedDisplayName.length > 0 && profileIdentifierIsComplete;
@@ -76,12 +85,20 @@ export function ProfileSettingsScreen() {
   ) : false;
   const profileIsInitialized = Boolean(user && initializedUserId === user.id);
   const canSave = profileIsComplete && !isSaving;
+  const displayNameHasError = displayNameWasValidated && trimmedDisplayName.length === 0;
+  const identityDialogCanSave = Boolean(
+    identityDialogTag.trim() || identityDialogPhone.trim()
+  ) && !isSavingIdentity;
   const canSearchNetwork = connections.length >= 6;
   const filteredConnections = useMemo(
     () => filterNetworkConnections(connections, canSearchNetwork ? networkSearch : ""),
     [canSearchNetwork, connections, networkSearch]
   );
   const cardColor = theme.colors.elevation.level2;
+  const displayNameAdornmentLabels = {
+    tag: profileTag ? `@${profileTag}` : "@tag",
+    phone: formattedProfilePhone ? `#${formattedProfilePhone}` : "#phone"
+  };
   const screenFieldTheme = {
     colors: {
       background: cardColor,
@@ -110,6 +127,26 @@ export function ProfileSettingsScreen() {
     }
   }, [hasOpenedInitialAddDialog, params.addNetwork, profileIsInitialized, userHasCompleteIdentity]);
 
+  useEffect(() => {
+    if (
+      profileIsInitialized &&
+      !userHasIdentifier &&
+      !hasOpenedInitialIdentityDialog
+    ) {
+      setHasOpenedInitialIdentityDialog(true);
+      setIdentityDialogTag(profileTag);
+      setIdentityDialogPhone(profilePhoneDigits);
+      setIdentityDialogError("");
+      setIdentityDialogIsVisible(true);
+    }
+  }, [
+    hasOpenedInitialIdentityDialog,
+    profileIsInitialized,
+    profilePhoneDigits,
+    profileTag,
+    userHasIdentifier
+  ]);
+
   async function handleSave() {
     if (!canSave) {
       return;
@@ -133,12 +170,26 @@ export function ProfileSettingsScreen() {
     }
   }
 
-  function handleChangeProfileTag(value: string) {
-    setProfileTag(value.replace(/^@/, ""));
+  function handleBack() {
+    if (!trimmedDisplayName) {
+      setDisplayNameWasValidated(true);
+      return;
+    }
+
+    if (!profileIdentifierIsComplete) {
+      openIdentityDialog();
+      return;
+    }
+
+    goBackOrReplace("/");
   }
 
-  function handleChangeProfilePhone(value: string) {
-    setProfilePhone(value.replace(/\D/g, "").slice(0, 10));
+  function handleChangeDisplayName(value: string) {
+    setDisplayName(value);
+
+    if (displayNameWasValidated) {
+      setDisplayNameWasValidated(false);
+    }
   }
 
   function handleChangeNetworkTag(value: string) {
@@ -158,6 +209,49 @@ export function ProfileSettingsScreen() {
     setNetworkPhone("");
     setNetworkIdentifierError("");
     setAddDialogIsVisible(true);
+  }
+
+  function openIdentityDialog() {
+    setIdentityDialogTag(profileTag);
+    setIdentityDialogPhone(profilePhoneDigits);
+    setIdentityDialogError("");
+    setIdentityDialogIsVisible(true);
+  }
+
+  function handleChangeIdentityDialogTag(value: string) {
+    setIdentityDialogTag(value.replace(/^@/, ""));
+    setIdentityDialogError("");
+  }
+
+  function handleChangeIdentityDialogPhone(value: string) {
+    setIdentityDialogPhone(value.replace(/\D/g, "").slice(0, 10));
+    setIdentityDialogError("");
+  }
+
+  async function handleSaveIdentity() {
+    if (!identityDialogCanSave) {
+      return;
+    }
+
+    setIsSavingIdentity(true);
+    setIdentityDialogError("");
+
+    try {
+      const nextUser = await updateIdentifiers({
+        tag: identityDialogTag,
+        phoneNumber: identityDialogPhone
+      });
+
+      setProfileTag(nextUser.tag.replace(/^@/, ""));
+      setProfilePhone(nextUser.phoneNumber.replace(/\D/g, ""));
+      setIdentityDialogIsVisible(false);
+    } catch (error) {
+      setIdentityDialogError(
+        error instanceof Error ? error.message : "Profile identity could not be saved."
+      );
+    } finally {
+      setIsSavingIdentity(false);
+    }
   }
 
   async function handleAddNetworkMember() {
@@ -183,7 +277,7 @@ export function ProfileSettingsScreen() {
   return (
     <Screen
       title="Profile"
-      onBack={userHasCompleteIdentity ? () => goBackOrReplace("/") : undefined}
+      onBack={handleBack}
     >
       <View style={styles.container}>
         {isLoading || (user && !profileIsInitialized) ? (
@@ -199,57 +293,54 @@ export function ProfileSettingsScreen() {
             <View
               style={[
                 styles.card,
-                styles.firstCard,
+                userHasCompleteIdentity ? styles.firstCard : styles.singleCard,
                 { backgroundColor: cardColor }
               ]}
             >
-              <TextInput
-                mode="outlined"
-                label="Display name"
-                value={displayName}
-                onChangeText={setDisplayName}
-                autoCapitalize="words"
-                autoCorrect={false}
-                accessibilityLabel="Display name"
-                error={displayName.length > 0 && trimmedDisplayName.length === 0}
-                theme={screenFieldTheme}
-              />
-            </View>
-            <View
-              style={[
-                styles.card,
-                userHasCompleteIdentity ? styles.middleCard : styles.lastCard,
-                styles.identityFields,
-                { backgroundColor: cardColor }
-              ]}
-            >
-              <AffixTextField
-                affix="@"
-                label="Tag"
-                value={profileTag}
-                onChangeText={handleChangeProfileTag}
-                accessibilityLabel="Profile tag"
-                containerColor={cardColor}
-              />
-              <View style={styles.orDivider}>
-                <Divider style={styles.orLine} />
-                <Text
-                  variant="labelMedium"
-                  style={[styles.orText, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  or
-                </Text>
-                <Divider style={styles.orLine} />
+              <View style={styles.displayNameFieldShell}>
+                <TextInput
+                  mode="outlined"
+                  label="Display name"
+                  value={displayName}
+                  onChangeText={handleChangeDisplayName}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  accessibilityLabel="Display name"
+                  error={displayNameHasError}
+                  theme={screenFieldTheme}
+                  contentStyle={styles.displayNameFieldContent}
+                />
+                <View pointerEvents="box-none" style={styles.displayNameAdornments}>
+                  <Pressable
+                    onPress={openIdentityDialog}
+                    accessibilityLabel="Set profile tag"
+                    accessibilityRole="button"
+                    style={styles.displayNameAdornment}
+                  >
+                    <Text
+                      variant="labelLarge"
+                      numberOfLines={1}
+                      style={{ color: theme.colors.primary }}
+                    >
+                      {displayNameAdornmentLabels.tag}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={openIdentityDialog}
+                    accessibilityLabel="Set profile phone"
+                    accessibilityRole="button"
+                    style={styles.displayNameAdornment}
+                  >
+                    <Text
+                      variant="labelLarge"
+                      numberOfLines={1}
+                      style={{ color: theme.colors.primary }}
+                    >
+                      {displayNameAdornmentLabels.phone}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
-              <AffixTextField
-                affix="#"
-                label="Phone"
-                value={formattedProfilePhone}
-                onChangeText={handleChangeProfilePhone}
-                keyboardType="phone-pad"
-                accessibilityLabel="Profile phone"
-                containerColor={cardColor}
-              />
             </View>
             {userHasCompleteIdentity ? (
               <NetworkMemberSection
@@ -291,6 +382,54 @@ export function ProfileSettingsScreen() {
       </View>
       <Portal>
         <Dialog
+          visible={identityDialogIsVisible}
+          onDismiss={() => {
+            if (!isSavingIdentity && userHasIdentifier) {
+              setIdentityDialogIsVisible(false);
+            }
+          }}
+        >
+          <Dialog.Title>Set profile identity</Dialog.Title>
+          <Dialog.Content>
+            <IdentifierDialogFields
+              tag={identityDialogTag}
+              phone={formattedIdentityDialogPhone}
+              error={Boolean(identityDialogError)}
+              containerColor={theme.colors.elevation.level3}
+              onChangeTag={handleChangeIdentityDialogTag}
+              onChangePhone={handleChangeIdentityDialogPhone}
+              onClearTag={() => handleChangeIdentityDialogTag("")}
+              onClearPhone={() => handleChangeIdentityDialogPhone("")}
+              showOrDivider={!userHasIdentifier}
+            />
+            {identityDialogError ? (
+              <Text
+                variant="bodySmall"
+                style={[styles.fieldError, { color: theme.colors.error }]}
+              >
+                {identityDialogError}
+              </Text>
+            ) : null}
+          </Dialog.Content>
+          <Dialog.Actions>
+            {userHasIdentifier ? (
+              <Button
+                onPress={() => setIdentityDialogIsVisible(false)}
+                disabled={isSavingIdentity}
+              >
+                Cancel
+              </Button>
+            ) : null}
+            <Button
+              onPress={handleSaveIdentity}
+              loading={isSavingIdentity}
+              disabled={!identityDialogCanSave}
+            >
+              Save
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+        <Dialog
           visible={addDialogIsVisible}
           onDismiss={() => {
             if (!isAddingNetworkMember) {
@@ -300,37 +439,17 @@ export function ProfileSettingsScreen() {
         >
           <Dialog.Title>Add to network</Dialog.Title>
           <Dialog.Content>
-            <View style={styles.addFields}>
-              <AffixTextField
-                affix="@"
-                label="Tag"
-                value={networkTag}
-                onChangeText={handleChangeNetworkTag}
-                error={Boolean(networkIdentifierError)}
-                accessibilityLabel="Tag"
-                containerColor={theme.colors.elevation.level3}
-              />
-              <View style={styles.orDivider}>
-                <Divider style={styles.orLine} />
-                <Text
-                  variant="labelMedium"
-                  style={[styles.orText, { color: theme.colors.onSurfaceVariant }]}
-                >
-                  or
-                </Text>
-                <Divider style={styles.orLine} />
-              </View>
-              <AffixTextField
-                affix="#"
-                label="Phone"
-                value={formattedNetworkPhone}
-                onChangeText={handleChangeNetworkPhone}
-                keyboardType="phone-pad"
-                error={Boolean(networkIdentifierError)}
-                accessibilityLabel="Phone"
-                containerColor={theme.colors.elevation.level3}
-              />
-            </View>
+            <IdentifierDialogFields
+              tag={networkTag}
+              phone={formattedNetworkPhone}
+              error={Boolean(networkIdentifierError)}
+              containerColor={theme.colors.elevation.level3}
+              onChangeTag={handleChangeNetworkTag}
+              onChangePhone={handleChangeNetworkPhone}
+              onClearTag={() => handleChangeNetworkTag("")}
+              onClearPhone={() => handleChangeNetworkPhone("")}
+              showOrDivider
+            />
             {networkIdentifierError ? (
               <Text
                 variant="bodySmall"
@@ -361,6 +480,68 @@ export function ProfileSettingsScreen() {
         {saveError}
       </Snackbar>
     </Screen>
+  );
+}
+
+function IdentifierDialogFields({
+  containerColor,
+  error,
+  onChangePhone,
+  onChangeTag,
+  onClearPhone,
+  onClearTag,
+  phone,
+  showOrDivider,
+  tag
+}: {
+  containerColor: string;
+  error: boolean;
+  onChangePhone: (value: string) => void;
+  onChangeTag: (value: string) => void;
+  onClearPhone: () => void;
+  onClearTag: () => void;
+  phone: string;
+  showOrDivider: boolean;
+  tag: string;
+}) {
+  const theme = useTheme();
+
+  return (
+    <View style={styles.addFields}>
+      <AffixTextField
+        affix="@"
+        label="Tag"
+        value={tag}
+        onChangeText={onChangeTag}
+        onClear={onClearTag}
+        error={error}
+        accessibilityLabel="Tag"
+        containerColor={containerColor}
+      />
+      {showOrDivider ? (
+        <View style={styles.orDivider}>
+          <Divider style={styles.orLine} />
+          <Text
+            variant="labelMedium"
+            style={[styles.orText, { color: theme.colors.onSurfaceVariant }]}
+          >
+            or
+          </Text>
+          <Divider style={styles.orLine} />
+        </View>
+      ) : null}
+      <AffixTextField
+        affix="#"
+        label="Phone"
+        value={phone}
+        onChangeText={onChangePhone}
+        onClear={onClearPhone}
+        keyboardType="phone-pad"
+        error={error}
+        accessibilityLabel="Phone"
+        containerColor={containerColor}
+      />
+    </View>
   );
 }
 
@@ -416,17 +597,29 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: spacing.xxs,
     gap: spacing.xs
   },
-  middleCard: {
-    borderRadius: spacing.xxs
-  },
-  lastCard: {
-    borderTopLeftRadius: spacing.xxs,
-    borderTopRightRadius: spacing.xxs,
-    borderBottomLeftRadius: shape.large,
-    borderBottomRightRadius: shape.large
-  },
-  identityFields: {
+  singleCard: {
+    borderRadius: shape.large,
     gap: spacing.xs
+  },
+  displayNameFieldShell: {
+    position: "relative"
+  },
+  displayNameFieldContent: {
+    paddingRight: 148
+  },
+  displayNameAdornments: {
+    position: "absolute",
+    top: 4,
+    right: spacing.sm,
+    bottom: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs
+  },
+  displayNameAdornment: {
+    minHeight: 40,
+    justifyContent: "center",
+    maxWidth: 68
   },
   fieldError: {
     paddingTop: spacing.xs,

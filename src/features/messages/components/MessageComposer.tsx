@@ -98,6 +98,16 @@ export function MessageComposer({ onSend, disabled = false }: MessageComposerPro
           activeUnderlineColor="transparent"
           style={[styles.input, { height: inputHeight }]}
           contentStyle={styles.inputContent}
+          right={
+            body ? (
+              <TextInput.Icon
+                icon="close"
+                onPress={() => setBody("")}
+                accessibilityLabel="Clear message"
+                forceTextInputFocus={false}
+              />
+            ) : undefined
+          }
         />
       </View>
       <IconButton

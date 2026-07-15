@@ -80,6 +80,7 @@ export function TopicFormLayout({
                   icon="close"
                   onPress={() => onChangeTitle("")}
                   accessibilityLabel="Clear title"
+                  forceTextInputFocus={false}
                 />
               ) : undefined
             }

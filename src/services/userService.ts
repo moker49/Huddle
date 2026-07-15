@@ -4,6 +4,7 @@ import { createId } from "@/utils/createId";
 
 export interface UserService {
   getUser(): Promise<LocalUser>;
+  updateIdentifiers(identifiers: Pick<LocalUserProfileInput, "tag" | "phoneNumber">): Promise<LocalUser>;
   updateProfile(profile: LocalUserProfileInput): Promise<LocalUser>;
   updateDisplayName(displayName: string): Promise<LocalUser>;
   resetLocalData(): Promise<void>;
@@ -61,6 +62,29 @@ export class LocalUserService implements UserService {
     const nextUser: LocalUser = {
       ...currentUser,
       displayName: nextDisplayName,
+      tag: nextTag,
+      phoneNumber: nextPhoneNumber
+    };
+
+    this.userPromise = Promise.resolve(nextUser);
+    await this.storage.write(userStorageKey, nextUser);
+
+    return nextUser;
+  }
+
+  async updateIdentifiers(
+    identifiers: Pick<LocalUserProfileInput, "tag" | "phoneNumber">
+  ): Promise<LocalUser> {
+    const nextTag = normalizeTag(identifiers.tag);
+    const nextPhoneNumber = normalizePhoneNumber(identifiers.phoneNumber);
+
+    if (!nextTag && !nextPhoneNumber) {
+      throw new Error("Tag or phone number is required.");
+    }
+
+    const currentUser = await this.getUser();
+    const nextUser: LocalUser = {
+      ...currentUser,
       tag: nextTag,
       phoneNumber: nextPhoneNumber
     };

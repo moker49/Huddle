@@ -83,12 +83,14 @@ export function AutoArchiveDateField({
                 icon="close"
                 onPress={() => onChange("")}
                 accessibilityLabel="Clear auto-archive date"
+                forceTextInputFocus={false}
               />
             ) : (
               <TextInput.Icon
                 icon="calendar"
                 onPress={openDialog}
                 accessibilityLabel="Choose auto-archive date"
+                forceTextInputFocus={false}
               />
             )
           }

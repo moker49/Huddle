@@ -10,6 +10,7 @@ import {
 import { Icon, IconButton, useTheme } from "react-native-paper";
 
 import { shape, spacing } from "@/theme/tokens";
+import { preserveFocusOnPressStart } from "@/utils/preserveFocusOnPressStart";
 
 interface NetworkMemberSectionProps {
   children: ReactNode;
@@ -63,10 +64,12 @@ export function NetworkMemberSection({
           />
           {searchValue ? (
             <IconButton
+              {...preserveFocusOnPressStart}
               icon="close"
               size={24}
               onPress={onClearSearch}
               accessibilityLabel="Clear network search"
+              focusable={false}
               iconColor={theme.colors.onSurfaceVariant}
               style={styles.clear}
             />

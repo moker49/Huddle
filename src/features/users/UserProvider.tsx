@@ -16,6 +16,7 @@ interface UserContextValue {
   isLoading: boolean;
   errorMessage: string | null;
   reloadUser(): Promise<void>;
+  updateIdentifiers(identifiers: Pick<LocalUserProfileInput, "tag" | "phoneNumber">): Promise<LocalUser>;
   updateProfile(profile: LocalUserProfileInput): Promise<LocalUser>;
   updateDisplayName(displayName: string): Promise<LocalUser>;
 }
@@ -77,6 +78,12 @@ export function UserProvider({ children, service = userService }: UserProviderPr
       isLoading,
       errorMessage,
       reloadUser: loadUser,
+      async updateIdentifiers(identifiers) {
+        const nextUser = await service.updateIdentifiers(identifiers);
+        setUser(nextUser);
+        setErrorMessage(null);
+        return nextUser;
+      },
       async updateProfile(profile) {
         const nextUser = await service.updateProfile(profile);
         setUser(nextUser);

@@ -6,9 +6,10 @@ import {
   TextInput as NativeTextInput,
   View
 } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { IconButton, Text, useTheme } from "react-native-paper";
 
 import { spacing } from "@/theme/tokens";
+import { preserveFocusOnPressStart } from "@/utils/preserveFocusOnPressStart";
 
 interface AffixTextFieldProps {
   accessibilityLabel: string;
@@ -19,6 +20,7 @@ interface AffixTextFieldProps {
   keyboardType?: KeyboardTypeOptions;
   label: string;
   onChangeText: (value: string) => void;
+  onClear?: () => void;
   value: string;
 }
 
@@ -31,6 +33,7 @@ export function AffixTextField({
   keyboardType,
   label,
   onChangeText,
+  onClear,
   value
 }: AffixTextFieldProps) {
   const theme = useTheme();
@@ -92,6 +95,18 @@ export function AffixTextField({
           ]}
           value={value}
         />
+        {value && onClear ? (
+          <IconButton
+            {...preserveFocusOnPressStart}
+            icon="close"
+            size={24}
+            onPress={onClear}
+            accessibilityLabel={`Clear ${label.toLocaleLowerCase()}`}
+            focusable={false}
+            iconColor={theme.colors.onSurfaceVariant}
+            style={styles.clearButton}
+          />
+        ) : null}
       </View>
     </View>
   );
@@ -122,6 +137,11 @@ const styles = StyleSheet.create({
     minHeight: 48,
     padding: 0,
     fontSize: 16
+  },
+  clearButton: {
+    width: 40,
+    height: 40,
+    margin: spacing.none
   }
 });
 
