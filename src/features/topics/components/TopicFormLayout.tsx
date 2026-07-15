@@ -1,7 +1,11 @@
 import { ReactNode } from "react";
-import { Platform, StyleSheet, TextInput as NativeTextInput, View } from "react-native";
-import { Icon, IconButton, TextInput, useTheme } from "react-native-paper";
+import { StyleSheet, View } from "react-native";
+import { TextInput, useTheme } from "react-native-paper";
 
+import {
+  NetworkMemberSection,
+  networkMemberSectionStyles
+} from "@/features/connections/components/NetworkMemberSection";
 import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
 import { spacing, shape } from "@/theme/tokens";
 
@@ -87,48 +91,16 @@ export function TopicFormLayout({
             themeOverride={propertyFieldTheme}
           />
         </View>
-        <View
-          style={[
-            styles.card,
-            styles.lastCard,
-            { backgroundColor: theme.colors.elevation.level2 }
-          ]}
+        <NetworkMemberSection
+          searchHasError={memberError}
+          searchValue={memberSearchValue}
+          searchVisible={memberSearchVisible}
+          onChangeSearch={onChangeMemberSearch}
+          onClearSearch={onClearMemberSearch}
+          style={networkMemberSectionStyles.lastCard}
         >
-          {memberSearchVisible ? (
-            <View style={[styles.memberSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <Icon
-                source="magnify"
-                size={24}
-                color={theme.colors.onSurfaceVariant}
-              />
-              <NativeTextInput
-                value={memberSearchValue}
-                onChangeText={onChangeMemberSearch}
-                placeholder="Search your network"
-                placeholderTextColor={theme.colors.onSurfaceVariant}
-                autoCapitalize="words"
-                accessibilityLabel="Search your network"
-                style={[
-                  styles.memberSearch,
-                  webInputFocusReset,
-                  { color: theme.colors.onSurface },
-                  memberError ? { color: theme.colors.error } : undefined
-                ]}
-              />
-              {memberSearchValue ? (
-                <IconButton
-                  icon="close"
-                  size={24}
-                  onPress={onClearMemberSearch}
-                  accessibilityLabel="Clear member search"
-                  iconColor={theme.colors.onSurfaceVariant}
-                  style={styles.memberSearchClear}
-                />
-              ) : null}
-            </View>
-          ) : null}
           {children}
-        </View>
+        </NetworkMemberSection>
       </View>
     </>
   );
@@ -150,39 +122,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.xs
   },
-  lastCard: {
-    borderTopLeftRadius: spacing.xxs,
-    borderTopRightRadius: spacing.xxs,
-    borderBottomLeftRadius: shape.large,
-    borderBottomRightRadius: shape.large,
-    gap: spacing.xs
-  },
   titleField: {
     flex: 1
-  },
-  memberSearchShell: {
-    height: 56,
-    borderRadius: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingLeft: spacing.md,
-    overflow: "hidden"
-  },
-  memberSearch: {
-    flex: 1,
-    height: 56,
-    padding: spacing.none,
-    fontSize: 16,
-    backgroundColor: "transparent"
-  },
-  memberSearchClear: {
-    width: 48,
-    height: 48,
-    margin: spacing.none
   }
 });
-
-const webInputFocusReset = Platform.OS === "web"
-  ? ({ outlineStyle: "none" } as object)
-  : undefined;

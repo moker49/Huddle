@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Platform, StyleSheet, TextInput as NativeTextInput, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
@@ -10,8 +10,6 @@ import {
   Text,
   TextInput,
   Divider,
-  Icon,
-  IconButton,
   useTheme
 } from "react-native-paper";
 
@@ -19,6 +17,10 @@ import { AffixTextField } from "@/components/AffixTextField";
 import { HuddleFab } from "@/components/HuddleFab";
 import { Screen } from "@/components/Screen";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
+import {
+  NetworkMemberSection,
+  networkMemberSectionStyles
+} from "@/features/connections/components/NetworkMemberSection";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
@@ -178,45 +180,13 @@ export function ProfileSettingsScreen() {
                 theme={screenFieldTheme}
               />
             </View>
-            <View
-              style={[
-                styles.card,
-                styles.lastCard,
-                { backgroundColor: cardColor }
-              ]}
+            <NetworkMemberSection
+              searchValue={networkSearch}
+              searchVisible={canSearchNetwork}
+              onChangeSearch={setNetworkSearch}
+              onClearSearch={() => setNetworkSearch("")}
+              style={networkMemberSectionStyles.lastCard}
             >
-              {canSearchNetwork ? (
-                <View style={[styles.networkSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
-                  <Icon
-                    source="magnify"
-                    size={24}
-                    color={theme.colors.onSurfaceVariant}
-                  />
-                  <NativeTextInput
-                    value={networkSearch}
-                    onChangeText={setNetworkSearch}
-                    placeholder="Search your network"
-                    placeholderTextColor={theme.colors.onSurfaceVariant}
-                    autoCapitalize="words"
-                    accessibilityLabel="Search your network"
-                    style={[
-                      styles.networkSearch,
-                      webInputFocusReset,
-                      { color: theme.colors.onSurface }
-                    ]}
-                  />
-                  {networkSearch ? (
-                    <IconButton
-                      icon="close"
-                      size={24}
-                      onPress={() => setNetworkSearch("")}
-                      accessibilityLabel="Clear network search"
-                      iconColor={theme.colors.onSurfaceVariant}
-                      style={styles.networkSearchClear}
-                    />
-                  ) : null}
-                </View>
-              ) : null}
               <MemberGrid
                 connections={filteredConnections}
                 contentTopPadding={canSearchNetwork ? spacing.xs : spacing.none}
@@ -231,7 +201,7 @@ export function ProfileSettingsScreen() {
                   onPress: openAddDialog
                 }}
               />
-            </View>
+            </NetworkMemberSection>
             <View style={styles.fab}>
               <HuddleFab
                 icon="check"
@@ -372,34 +342,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: spacing.xxs,
     borderBottomRightRadius: spacing.xxs
   },
-  lastCard: {
-    gap: spacing.xs,
-    borderTopLeftRadius: spacing.xxs,
-    borderTopRightRadius: spacing.xxs,
-    borderBottomLeftRadius: shape.large,
-    borderBottomRightRadius: shape.large
-  },
-  networkSearchShell: {
-    height: 56,
-    borderRadius: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingLeft: spacing.md,
-    overflow: "hidden"
-  },
-  networkSearch: {
-    flex: 1,
-    height: 56,
-    padding: spacing.none,
-    fontSize: 16,
-    backgroundColor: "transparent"
-  },
-  networkSearchClear: {
-    width: 48,
-    height: 48,
-    margin: spacing.none
-  },
   fieldError: {
     paddingTop: spacing.xs,
     paddingHorizontal: spacing.md
@@ -425,7 +367,3 @@ const styles = StyleSheet.create({
     bottom: spacing.none
   }
 });
-
-const webInputFocusReset = Platform.OS === "web"
-  ? ({ outlineStyle: "none" } as object)
-  : undefined;

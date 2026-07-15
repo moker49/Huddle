@@ -1,8 +1,12 @@
 import { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Icon, Text, useTheme } from "react-native-paper";
 
-import { getMemberAvatarColor, getMemberInitial } from "@/features/connections/memberAvatar";
+import {
+  MemberAvatarTile,
+  MemberCollectionState,
+  memberAvatarTile
+} from "@/features/connections/components/MemberAvatarTile";
 import { Connection } from "@/models/connection";
 import { shape, spacing } from "@/theme/tokens";
 
@@ -23,21 +27,8 @@ interface MemberGridProps {
   };
 }
 
-interface PreventableEvent {
-  preventDefault(): void;
-}
-
-const minItemWidth = 72;
+const minItemWidth = memberAvatarTile.width;
 const itemGap = spacing.xxs;
-
-const keepInputFocusedProps =
-  Platform.OS === "web"
-    ? {
-        onMouseDown: (event: PreventableEvent) => event.preventDefault(),
-        onPointerDown: (event: PreventableEvent) => event.preventDefault(),
-        onTouchStart: (event: PreventableEvent) => event.preventDefault()
-      }
-    : undefined;
 
 export function MemberGrid({
   connections,
@@ -59,29 +50,25 @@ export function MemberGrid({
 
   if (isLoading) {
     return (
-      <View style={styles.state}>
+      <MemberCollectionState>
         <ActivityIndicator accessibilityLabel="Loading network" />
-      </View>
+      </MemberCollectionState>
     );
   }
 
   if (errorMessage) {
     return (
-      <View style={styles.state}>
-        <Text variant="bodyLarge" style={{ color: theme.colors.error }}>
-          {errorMessage}
-        </Text>
-      </View>
+      <MemberCollectionState color={theme.colors.error}>
+        {errorMessage}
+      </MemberCollectionState>
     );
   }
 
   if (connections.length === 0 && !trailingAction) {
     return (
-      <View style={styles.state}>
-        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-          {emptyMessage}
-        </Text>
-      </View>
+      <MemberCollectionState color={theme.colors.onSurfaceVariant}>
+        {emptyMessage}
+      </MemberCollectionState>
     );
   }
 
@@ -103,54 +90,15 @@ export function MemberGrid({
       {gridIsMeasured ? connections.map((connection) => {
         const isSelected = selectedConnectionIdSet.has(connection.id);
 
-        const content = (
-          <>
-            <View
-              style={[
-                styles.avatar,
-                { backgroundColor: getMemberAvatarColor(connection.displayName) }
-              ]}
-            >
-              <Text variant="titleSmall" style={styles.avatarText}>
-                {getMemberInitial(connection.displayName)}
-              </Text>
-            </View>
-            <Text
-              variant="labelMedium"
-              numberOfLines={1}
-              style={[
-                styles.label,
-                { color: isSelected ? theme.colors.onSecondaryContainer : theme.colors.onSurface }
-              ]}
-            >
-              {connection.displayName}
-            </Text>
-          </>
-        );
-        const itemStyle = [
-          styles.item,
-          { width: itemWidth },
-          isSelected
-            ? { backgroundColor: theme.colors.secondaryContainer }
-            : undefined
-        ];
-
-        return isInteractive ? (
-          <Pressable
-            {...keepInputFocusedProps}
+        return (
+          <MemberAvatarTile
             key={connection.id}
+            connection={connection}
+            isInteractive={isInteractive}
+            isSelected={isSelected}
             onPress={() => onToggleConnection?.(connection)}
-            accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${connection.displayName}`}
-            accessibilityRole="button"
-            focusable={false}
-            style={itemStyle}
-          >
-            {content}
-          </Pressable>
-        ) : (
-          <View key={connection.id} style={itemStyle}>
-            {content}
-          </View>
+            style={{ width: itemWidth }}
+          />
         );
       }) : null}
       {gridIsMeasured && trailingAction ? (
@@ -210,7 +158,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxs
   },
   item: {
-    minHeight: 84,
+    minHeight: memberAvatarTile.minHeight,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xxs,
@@ -222,25 +170,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: "dashed"
   },
-  state: {
-    minHeight: 104,
-    justifyContent: "center",
-    paddingHorizontal: spacing.md
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  avatarText: {
-    color: "#FFFFFF"
-  },
   actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: memberAvatarTile.avatarSize,
+    height: memberAvatarTile.avatarSize,
+    borderRadius: memberAvatarTile.avatarSize / 2,
     alignItems: "center",
     justifyContent: "center"
   },
