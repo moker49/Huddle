@@ -12,6 +12,7 @@ import {
   useTheme
 } from "react-native-paper";
 
+import { AffixTextField } from "@/components/AffixTextField";
 import { HuddleFab } from "@/components/HuddleFab";
 import { Screen } from "@/components/Screen";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
@@ -52,12 +53,6 @@ export function ProfileSettingsScreen() {
     colors: {
       background: theme.colors.background,
       surfaceVariant: theme.colors.background
-    }
-  };
-  const dialogFieldTheme = {
-    colors: {
-      background: theme.colors.elevation.level3,
-      surfaceVariant: theme.colors.elevation.level3
     }
   };
 
@@ -206,18 +201,15 @@ export function ProfileSettingsScreen() {
           <Dialog.Title>Add to network</Dialog.Title>
           <Dialog.Content>
             <View style={styles.addFields}>
-              <TextInput
-                mode="outlined"
+              <AffixTextField
+                affix="@"
                 label="Tag"
                 value={networkTag}
                 onChangeText={handleChangeNetworkTag}
-                autoCapitalize="none"
-                autoCorrect={false}
                 autoFocus
-                left={<TextInput.Affix text="@" />}
                 error={Boolean(networkIdentifierError)}
                 accessibilityLabel="Tag"
-                theme={dialogFieldTheme}
+                containerColor={theme.colors.elevation.level3}
               />
               <View style={styles.orDivider}>
                 <Divider style={styles.orLine} />
@@ -229,18 +221,15 @@ export function ProfileSettingsScreen() {
                 </Text>
                 <Divider style={styles.orLine} />
               </View>
-              <TextInput
-                mode="outlined"
+              <AffixTextField
+                affix="#"
                 label="Phone"
                 value={formattedNetworkPhone}
                 onChangeText={handleChangeNetworkPhone}
-                autoCapitalize="none"
-                autoCorrect={false}
                 keyboardType="phone-pad"
-                left={<TextInput.Affix text="#" />}
                 error={Boolean(networkIdentifierError)}
                 accessibilityLabel="Phone"
-                theme={dialogFieldTheme}
+                containerColor={theme.colors.elevation.level3}
               />
             </View>
             {networkIdentifierError ? (

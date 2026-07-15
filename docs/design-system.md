@@ -84,6 +84,8 @@ Choose the simplest Material variant that fits the use case.
 
 Outlined `TextInput` backgrounds must match the surface they sit on. React Native Paper derives outlined-field label/background fill from theme colors, so fields placed inside cards, dialogs, or elevated containers should receive a scoped `theme` override whose `colors.background` and `colors.surfaceVariant` match that container surface. This prevents a mismatched fill from appearing behind the floating label or inside the outline. Prefer scoped overrides at the component boundary over hard-coded field background styles.
 
+Use the custom `AffixTextField` only when a Paper `TextInput.Affix` cannot achieve Material spacing cleanly. It should remain limited to simple outlined fields with a short fixed prefix, preserve Material label, outline, focus, and error states, and receive the containing surface color so the floating label background matches its container.
+
 ## Search and Member Rail
 
 The main screen uses a single search field for huddles and network members. Do not add a mode toggle, segmented button, connected button group, dropdown, or ghost chip to the main search flow unless the product model changes.
