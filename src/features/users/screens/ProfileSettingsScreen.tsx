@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
@@ -119,17 +119,13 @@ export function ProfileSettingsScreen() {
     setSaveError("");
 
     try {
-      const userHadCompleteIdentity = userHasCompleteIdentity;
-
       await updateProfile({
         displayName: trimmedDisplayName,
         tag: profileTag,
         phoneNumber: profilePhoneDigits
       });
 
-      if (userHadCompleteIdentity) {
-        goBackOrReplace("/");
-      }
+      router.replace("/");
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Profile could not be saved.");
     } finally {
@@ -204,7 +200,6 @@ export function ProfileSettingsScreen() {
               style={[
                 styles.card,
                 styles.firstCard,
-                userHasCompleteIdentity ? styles.firstCardWithFollowing : undefined,
                 { backgroundColor: cardColor }
               ]}
             >
@@ -219,35 +214,42 @@ export function ProfileSettingsScreen() {
                 error={displayName.length > 0 && trimmedDisplayName.length === 0}
                 theme={screenFieldTheme}
               />
-              <View style={styles.identityFields}>
-                <AffixTextField
-                  affix="@"
-                  label="Tag"
-                  value={profileTag}
-                  onChangeText={handleChangeProfileTag}
-                  accessibilityLabel="Profile tag"
-                  containerColor={cardColor}
-                />
-                <View style={styles.orDivider}>
-                  <Divider style={styles.orLine} />
-                  <Text
-                    variant="labelMedium"
-                    style={[styles.orText, { color: theme.colors.onSurfaceVariant }]}
-                  >
-                    or
-                  </Text>
-                  <Divider style={styles.orLine} />
-                </View>
-                <AffixTextField
-                  affix="#"
-                  label="Phone"
-                  value={formattedProfilePhone}
-                  onChangeText={handleChangeProfilePhone}
-                  keyboardType="phone-pad"
-                  accessibilityLabel="Profile phone"
-                  containerColor={cardColor}
-                />
+            </View>
+            <View
+              style={[
+                styles.card,
+                userHasCompleteIdentity ? styles.middleCard : styles.lastCard,
+                styles.identityFields,
+                { backgroundColor: cardColor }
+              ]}
+            >
+              <AffixTextField
+                affix="@"
+                label="Tag"
+                value={profileTag}
+                onChangeText={handleChangeProfileTag}
+                accessibilityLabel="Profile tag"
+                containerColor={cardColor}
+              />
+              <View style={styles.orDivider}>
+                <Divider style={styles.orLine} />
+                <Text
+                  variant="labelMedium"
+                  style={[styles.orText, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  or
+                </Text>
+                <Divider style={styles.orLine} />
               </View>
+              <AffixTextField
+                affix="#"
+                label="Phone"
+                value={formattedProfilePhone}
+                onChangeText={handleChangeProfilePhone}
+                keyboardType="phone-pad"
+                accessibilityLabel="Profile phone"
+                containerColor={cardColor}
+              />
             </View>
             {userHasCompleteIdentity ? (
               <NetworkMemberSection
@@ -410,13 +412,18 @@ const styles = StyleSheet.create({
   firstCard: {
     borderTopLeftRadius: shape.large,
     borderTopRightRadius: shape.large,
-    borderBottomLeftRadius: shape.large,
-    borderBottomRightRadius: shape.large,
+    borderBottomLeftRadius: spacing.xxs,
+    borderBottomRightRadius: spacing.xxs,
     gap: spacing.xs
   },
-  firstCardWithFollowing: {
-    borderBottomLeftRadius: spacing.xxs,
-    borderBottomRightRadius: spacing.xxs
+  middleCard: {
+    borderRadius: spacing.xxs
+  },
+  lastCard: {
+    borderTopLeftRadius: spacing.xxs,
+    borderTopRightRadius: spacing.xxs,
+    borderBottomLeftRadius: shape.large,
+    borderBottomRightRadius: shape.large
   },
   identityFields: {
     gap: spacing.xs
