@@ -53,6 +53,7 @@ export function CreateTopicScreen() {
   const [fabIsExtended, setFabIsExtended] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [duplicateMatch, setDuplicateMatch] = useState<DuplicateTopicMatch | null>(null);
+  const [duplicateDialogIsVisible, setDuplicateDialogIsVisible] = useState(false);
   const titleShouldAutoFocus = !params.title;
 
   const {
@@ -101,6 +102,7 @@ export function CreateTopicScreen() {
 
       if (nextDuplicateMatch) {
         setDuplicateMatch(nextDuplicateMatch);
+        setDuplicateDialogIsVisible(true);
         return;
       }
     }
@@ -131,11 +133,11 @@ export function CreateTopicScreen() {
   }
 
   function closeDuplicateDialog() {
-    setDuplicateMatch(null);
+    setDuplicateDialogIsVisible(false);
   }
 
   async function createAnyway() {
-    setDuplicateMatch(null);
+    setDuplicateDialogIsVisible(false);
     await handleSubmit({ skipDuplicateWarning: true });
   }
 
@@ -188,7 +190,7 @@ export function CreateTopicScreen() {
         {errorMessage}
       </Snackbar>
       <Portal>
-        <Dialog visible={Boolean(duplicateMatch)} onDismiss={closeDuplicateDialog}>
+        <Dialog visible={duplicateDialogIsVisible} onDismiss={closeDuplicateDialog}>
           <Dialog.Title>
             {duplicateMatch?.level === "prevent" ? "Huddle already exists" : "Similar huddle found"}
           </Dialog.Title>
