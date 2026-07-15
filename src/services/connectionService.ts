@@ -1,137 +1,141 @@
 import { Connection } from "@/models/connection";
+import { DirectoryUser } from "@/models/directoryUser";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
 
 export interface ConnectionService {
   listConnections(): Promise<Connection[]>;
+  addConnection(identifier: string): Promise<Connection>;
   resetLocalData(): Promise<void>;
 }
 
-const initialConnections: Connection[] = [
-  {
-    id: "erik",
-    displayName: "erik",
-    handle: "erik",
-    source: "direct",
-    createdAt: new Date("2026-07-11T13:00:00.000Z").toISOString()
-  },
-  {
-    id: "hanna",
-    displayName: "hanna",
-    handle: "hanna",
-    source: "shared_huddle",
-    createdAt: new Date("2026-07-11T13:05:00.000Z").toISOString()
-  },
-  {
-    id: "kevo",
-    displayName: "kevo",
-    handle: "kevo",
-    source: "phone_contact",
-    createdAt: new Date("2026-07-11T13:10:00.000Z").toISOString()
-  },
-  {
-    id: "andre",
-    displayName: "andre",
-    handle: "andre",
-    source: "shared_huddle",
-    createdAt: new Date("2026-07-11T13:15:00.000Z").toISOString()
-  },
-  {
-    id: "karina",
-    displayName: "karina",
-    handle: "karina",
-    source: "direct",
-    createdAt: new Date("2026-07-11T13:20:00.000Z").toISOString()
-  },
-  {
-    id: "russel",
-    displayName: "russel",
-    handle: "russel",
-    source: "shared_huddle",
-    createdAt: new Date("2026-07-11T13:25:00.000Z").toISOString()
-  },
-  {
-    id: "kleb",
-    displayName: "kleb",
-    handle: "kleb",
-    source: "direct",
-    createdAt: new Date("2026-07-11T13:30:00.000Z").toISOString()
-  },
-  {
-    id: "jay",
-    displayName: "jay",
-    handle: "jay",
-    source: "shared_huddle",
-    createdAt: new Date("2026-07-11T13:35:00.000Z").toISOString()
-  },
-  {
-    id: "glenn",
-    displayName: "glenn",
-    handle: "glenn",
-    source: "phone_contact",
-    createdAt: new Date("2026-07-11T13:40:00.000Z").toISOString()
-  },
-  {
-    id: "kayla",
-    displayName: "kayla",
-    handle: "kayla",
-    source: "shared_huddle",
-    createdAt: new Date("2026-07-11T13:45:00.000Z").toISOString()
-  }
+const defaultUsers: DirectoryUser[] = [
+  createDefaultUser("erik", 1),
+  createDefaultUser("hanna", 2),
+  createDefaultUser("kevo", 3),
+  createDefaultUser("andre", 4),
+  createDefaultUser("karina", 5),
+  createDefaultUser("russel", 6),
+  createDefaultUser("kleb", 7),
+  createDefaultUser("jay", 8),
+  createDefaultUser("glenn", 9),
+  createDefaultUser("kayla", 10)
 ];
 
-const connectionStorageKey = "huddle:connections";
+const networkStorageKey = "huddle:network-user-ids";
 
-function isConnection(value: unknown): value is Connection {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "id" in value &&
-    "displayName" in value &&
-    "source" in value &&
-    "createdAt" in value &&
-    typeof value.id === "string" &&
-    typeof value.displayName === "string" &&
-    (!("handle" in value) || typeof value.handle === "string") &&
-    (value.source === "direct" ||
-      value.source === "phone_contact" ||
-      value.source === "shared_huddle") &&
-    typeof value.createdAt === "string"
-  );
+function createDefaultUser(name: string, index: number): DirectoryUser {
+  return {
+    id: name,
+    displayName: name,
+    tag: `@${name}`,
+    phoneNumber: `#${index}`,
+    createdAt: new Date(`2026-07-11T13:${String(index - 1).padStart(2, "0")}:00.000Z`)
+      .toISOString()
+  };
+}
+
+function isNetworkUserIds(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((userId) => typeof userId === "string");
 }
 
 export class LocalConnectionService implements ConnectionService {
-  private connections = [...initialConnections];
-  private connectionsPromise: Promise<Connection[]> | null = null;
+  private networkUserIds: string[] = [];
+  private networkUserIdsPromise: Promise<string[]> | null = null;
 
   constructor(private readonly storage: JsonStorage = localJsonStorage) {}
 
   async listConnections(): Promise<Connection[]> {
-    const connections = await this.loadConnections();
+    const networkUserIds = await this.loadNetworkUserIds();
+    const networkUserIdSet = new Set(networkUserIds);
 
-    return [...connections].sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return defaultUsers
+      .filter((user) => networkUserIdSet.has(user.id))
+      .map(userToConnection)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }
+
+  async addConnection(identifier: string): Promise<Connection> {
+    const user = findDirectoryUser(identifier);
+
+    if (!user) {
+      throw new Error("User could not be found.");
+    }
+
+    const networkUserIds = await this.loadNetworkUserIds();
+
+    if (!networkUserIds.includes(user.id)) {
+      this.networkUserIds = [...networkUserIds, user.id];
+      await this.saveNetworkUserIds();
+    }
+
+    return userToConnection(user);
   }
 
   async resetLocalData(): Promise<void> {
-    this.connections = [...initialConnections];
-    this.connectionsPromise = Promise.resolve(this.connections);
-    await this.storage.remove(connectionStorageKey);
+    this.networkUserIds = [];
+    this.networkUserIdsPromise = Promise.resolve(this.networkUserIds);
+    await this.storage.remove(networkStorageKey);
   }
 
-  private async loadConnections(): Promise<Connection[]> {
-    if (!this.connectionsPromise) {
-      this.connectionsPromise = this.storage
-        .read<unknown>(connectionStorageKey)
-        .then((storedConnections) => {
-          if (Array.isArray(storedConnections) && storedConnections.every(isConnection)) {
-            this.connections = storedConnections;
+  private async loadNetworkUserIds(): Promise<string[]> {
+    if (!this.networkUserIdsPromise) {
+      this.networkUserIdsPromise = this.storage
+        .read<unknown>(networkStorageKey)
+        .then((storedUserIds) => {
+          if (isNetworkUserIds(storedUserIds)) {
+            this.networkUserIds = storedUserIds;
           }
 
-          return this.connections;
+          return this.networkUserIds;
         });
     }
 
-    return this.connectionsPromise;
+    return this.networkUserIdsPromise;
   }
+
+  private async saveNetworkUserIds() {
+    this.networkUserIdsPromise = Promise.resolve(this.networkUserIds);
+    await this.storage.write(networkStorageKey, this.networkUserIds);
+  }
+}
+
+function findDirectoryUser(identifier: string) {
+  const normalizedIdentifier = normalizeIdentifier(identifier);
+
+  if (!normalizedIdentifier) {
+    return null;
+  }
+
+  return defaultUsers.find((user) => (
+    user.tag.toLocaleLowerCase() === normalizedIdentifier ||
+    user.phoneNumber.toLocaleLowerCase() === normalizedIdentifier
+  )) ?? null;
+}
+
+function normalizeIdentifier(identifier: string) {
+  const trimmedIdentifier = identifier.trim().toLocaleLowerCase();
+
+  if (!trimmedIdentifier) {
+    return "";
+  }
+
+  if (trimmedIdentifier.startsWith("@") || trimmedIdentifier.startsWith("#")) {
+    return trimmedIdentifier;
+  }
+
+  return /^\d/.test(trimmedIdentifier)
+    ? `#${trimmedIdentifier}`
+    : `@${trimmedIdentifier}`;
+}
+
+function userToConnection(user: DirectoryUser): Connection {
+  return {
+    id: user.id,
+    displayName: user.displayName,
+    tag: user.tag,
+    phoneNumber: user.phoneNumber,
+    createdAt: user.createdAt
+  };
 }
 
 export const connectionService = new LocalConnectionService();

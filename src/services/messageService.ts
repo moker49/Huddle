@@ -8,31 +8,9 @@ export interface MessageService {
   resetLocalData(): Promise<void>;
 }
 
-const initialMessages: Message[] = [
-  {
-    id: "welcome-message-1",
-    topicId: "welcome",
-    body: "Looking forward to the next group plan. Loved the last one.",
-    authorName: "Mario",
-    createdAt: new Date("2026-07-11T12:10:00.000Z").toISOString()
-  },
-  {
-    id: "welcome-message-2",
-    topicId: "welcome",
-    body: "Does anyone have ideas that they want to add?",
-    authorName: "Anna",
-    createdAt: new Date("2026-07-11T12:16:00.000Z").toISOString()
-  },
-  {
-    id: "welcome-message-3",
-    topicId: "welcome",
-    body: "I am thinking of hosting this evening. Who is available?",
-    authorName: "Amanda",
-    createdAt: new Date("2026-07-11T12:22:00.000Z").toISOString()
-  }
-];
+const initialMessages: Message[] = [];
 
-const messageStorageKey = "huddle:messages";
+const messageStorageKey = "huddle:messages:v2";
 
 function isMessage(value: unknown): value is Message {
   return (

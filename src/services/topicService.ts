@@ -11,62 +11,9 @@ export interface TopicService {
   resetLocalData(): Promise<void>;
 }
 
-const initialTopics: Topic[] = [
-  {
-    id: "welcome",
-    title: "Weekend plans",
-    memberIds: ["erik", "hanna", "kevo"],
-    createdAt: new Date("2026-07-11T12:00:00.000Z").toISOString(),
-    autoArchiveAt: new Date("2026-07-20T23:59:59.999Z").toISOString()
-  },
-  {
-    id: "trail-run",
-    title: "Trail run crew",
-    memberIds: ["andre", "karina"],
-    createdAt: new Date("2026-07-11T12:10:00.000Z").toISOString(),
-    autoArchiveAt: new Date("2026-07-10T23:59:59.999Z").toISOString()
-  },
-  {
-    id: "recipe-swap",
-    title: "Recipe swap",
-    memberIds: ["hanna", "karina", "russel"],
-    createdAt: new Date("2026-07-11T12:20:00.000Z").toISOString()
-  },
-  {
-    id: "book-club",
-    title: "Book club picks",
-    memberIds: ["erik", "andre", "russel"],
-    createdAt: new Date("2026-07-11T12:30:00.000Z").toISOString(),
-    autoArchiveAt: new Date("2026-08-01T23:59:59.999Z").toISOString()
-  },
-  {
-    id: "coffee-walks",
-    title: "Coffee walks",
-    memberIds: ["jay", "kayla", "hanna"],
-    createdAt: new Date("2026-07-11T12:40:00.000Z").toISOString()
-  },
-  {
-    id: "movie-night",
-    title: "Movie night",
-    memberIds: ["kevo", "glenn", "russel", "karina"],
-    createdAt: new Date("2026-07-11T12:50:00.000Z").toISOString(),
-    autoArchiveAt: new Date("2026-07-12T23:59:59.999Z").toISOString()
-  },
-  {
-    id: "pickup-games",
-    title: "Pickup games",
-    memberIds: ["andre", "kleb", "jay"],
-    createdAt: new Date("2026-07-11T13:00:00.000Z").toISOString()
-  },
-  {
-    id: "project-ideas",
-    title: "Project ideas",
-    memberIds: ["erik", "glenn", "kayla", "kleb"],
-    createdAt: new Date("2026-07-11T13:10:00.000Z").toISOString()
-  }
-];
+const initialTopics: Topic[] = [];
 
-const topicStorageKey = "huddle:topics";
+const topicStorageKey = "huddle:topics:v2";
 
 function isTopic(value: unknown): value is Topic {
   return (

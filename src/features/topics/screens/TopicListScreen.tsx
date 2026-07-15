@@ -536,11 +536,10 @@ function connectionMatchesQuery(connection: Connection, normalizedQuery: string)
     return false;
   }
 
-  const handle = connection.handle ?? "";
-
   return (
     connection.displayName.toLocaleLowerCase().startsWith(normalizedQuery) ||
-    handle.toLocaleLowerCase().startsWith(normalizedQuery)
+    connection.tag.toLocaleLowerCase().startsWith(normalizedQuery) ||
+    connection.phoneNumber.toLocaleLowerCase().startsWith(normalizedQuery)
   );
 }
 

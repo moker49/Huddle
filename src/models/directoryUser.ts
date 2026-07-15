@@ -1,4 +1,4 @@
-export interface Connection {
+export interface DirectoryUser {
   id: string;
   displayName: string;
   tag: string;

@@ -47,11 +47,10 @@ export function filterConnectionsForTopicForm({
       return true;
     }
 
-    const handle = connection.handle ?? "";
-
     return (
       connection.displayName.toLocaleLowerCase().startsWith(normalizedQuery) ||
-      handle.toLocaleLowerCase().startsWith(normalizedQuery)
+      connection.tag.toLocaleLowerCase().startsWith(normalizedQuery) ||
+      connection.phoneNumber.toLocaleLowerCase().startsWith(normalizedQuery)
     );
   });
 

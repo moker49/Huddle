@@ -15,6 +15,7 @@ interface ConnectionContextValue {
   connections: Connection[];
   isLoading: boolean;
   errorMessage: string | null;
+  addConnection(identifier: string): Promise<Connection>;
   reloadConnections(): Promise<void>;
 }
 
@@ -77,9 +78,15 @@ export function ConnectionProvider({
       connections,
       isLoading,
       errorMessage,
+      async addConnection(identifier) {
+        const connection = await service.addConnection(identifier);
+        setConnections(await service.listConnections());
+        setErrorMessage(null);
+        return connection;
+      },
       reloadConnections: loadConnections
     }),
-    [connections, errorMessage, isLoading, loadConnections]
+    [connections, errorMessage, isLoading, loadConnections, service]
   );
 
   return <ConnectionContext.Provider value={value}>{children}</ConnectionContext.Provider>;

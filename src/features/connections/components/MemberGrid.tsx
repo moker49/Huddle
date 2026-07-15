@@ -8,11 +8,13 @@ import { shape, spacing } from "@/theme/tokens";
 
 interface MemberGridProps {
   connections: Connection[];
+  emptyMessage?: string;
   errorMessage: string | null;
+  isInteractive?: boolean;
   isLoading: boolean;
   onScroll: (offsetY: number) => void;
-  onToggleConnection: (connection: Connection) => void;
-  selectedConnectionIds: string[];
+  onToggleConnection?: (connection: Connection) => void;
+  selectedConnectionIds?: string[];
 }
 
 interface PreventableEvent {
@@ -33,11 +35,13 @@ const keepInputFocusedProps =
 
 export function MemberGrid({
   connections,
+  emptyMessage = "No matching network members",
   errorMessage,
+  isInteractive = true,
   isLoading,
   onScroll,
   onToggleConnection,
-  selectedConnectionIds
+  selectedConnectionIds = []
 }: MemberGridProps) {
   const theme = useTheme();
   const [gridWidth, setGridWidth] = useState(0);
@@ -67,7 +71,7 @@ export function MemberGrid({
     return (
       <View style={styles.state}>
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-          No matching network members
+          {emptyMessage}
         </Text>
       </View>
     );
@@ -91,22 +95,8 @@ export function MemberGrid({
       {gridIsMeasured ? connections.map((connection) => {
         const isSelected = selectedConnectionIdSet.has(connection.id);
 
-        return (
-          <Pressable
-            {...keepInputFocusedProps}
-            key={connection.id}
-            onPress={() => onToggleConnection(connection)}
-            accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${connection.displayName}`}
-            accessibilityRole="button"
-            focusable={false}
-            style={[
-              styles.item,
-              { width: itemWidth },
-              isSelected
-                ? { backgroundColor: theme.colors.secondaryContainer }
-                : undefined
-            ]}
-          >
+        const content = (
+          <>
             <View
               style={[
                 styles.avatar,
@@ -127,7 +117,32 @@ export function MemberGrid({
             >
               {connection.displayName}
             </Text>
+          </>
+        );
+        const itemStyle = [
+          styles.item,
+          { width: itemWidth },
+          isSelected
+            ? { backgroundColor: theme.colors.secondaryContainer }
+            : undefined
+        ];
+
+        return isInteractive ? (
+          <Pressable
+            {...keepInputFocusedProps}
+            key={connection.id}
+            onPress={() => onToggleConnection?.(connection)}
+            accessibilityLabel={`${isSelected ? "Remove" : "Add"} member ${connection.displayName}`}
+            accessibilityRole="button"
+            focusable={false}
+            style={itemStyle}
+          >
+            {content}
           </Pressable>
+        ) : (
+          <View key={connection.id} style={itemStyle}>
+            {content}
+          </View>
         );
       }) : null}
     </ScrollView>
