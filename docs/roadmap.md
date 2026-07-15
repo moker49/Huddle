@@ -25,6 +25,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Prefix-filtered network member rail by name or handle.
 - Huddle list subtitles showing members.
 - Member-based huddle filtering.
+- Focused service tests for identity, directory, huddle visibility, and network resolution.
 
 ## Current
 
@@ -33,7 +34,7 @@ Features should generally be implemented as complete vertical slices rather than
 
 ## Next
 
-- Add focused tests for huddle and message services.
+- Add focused tests for message services.
 - Add message delivery metadata suitable for a future backend.
 - Validate keyboard and safe-area behavior on physical Android and iOS devices.
 - Validate compact mobile-web layouts.

@@ -12,6 +12,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "lint": "expo lint",
+    "test": "node tools/run-service-tests.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

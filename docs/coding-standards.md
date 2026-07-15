@@ -64,6 +64,8 @@ Define small service interfaces around feature operations. Keep implementation d
 
 Service methods should be typed, purposeful, and specific to the domain.
 
+Service tests should instantiate real local services with an in-memory `JsonStorage`. Use these tests for identity, directory, huddle visibility, and network-resolution rules before reaching for UI tests. The in-memory storage must round-trip through JSON so tests match localStorage and native file persistence semantics.
+
 ## State Management
 
 Use small feature providers when state must be shared across screens. Avoid app-wide stores until repeated cross-feature coordination creates a real need.
@@ -83,6 +85,7 @@ Refactor when it reduces real complexity or clarifies a stable concept. Avoid br
 - Use semantic theme roles and shared tokens.
 - Keep services replaceable.
 - Keep member-search focus on the text field when interacting with related chips and dropdown rows.
+- Add focused service tests for product-critical service rules.
 - Run typecheck and lint after meaningful changes.
 - Prefer complete vertical slices.
 
