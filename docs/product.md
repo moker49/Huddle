@@ -34,6 +34,12 @@ A complete identity requires:
 
 Network actions should stay hidden or unavailable until identity is complete, because adding someone is reciprocal: if another user becomes part of your network, you also become visible as an identity in theirs.
 
+Huddle visibility must be identity-scoped. A huddle should appear only when the current user is its starter or can be resolved as one of its members through the user's local ID, tag, phone number, or a phone placeholder that later resolves to that user. Local persistence should not behave like a global huddle list.
+
+The huddle starter is also a huddle member behind the scenes. Creator metadata can support host behavior, but it must not replace membership because membership drives visibility, network discovery, and member summaries.
+
+Member identity stored on a huddle should be resolvable by other users. As soon as a user saves a tag or phone number, they become part of the user directory. Huddle membership should store stable directory user IDs whenever possible, not device-local placeholders.
+
 ### Network
 
 Users have a personal network, not fixed friend groups, servers, or communities. A user's network contains users they manually add and users automatically available because they share a huddle.

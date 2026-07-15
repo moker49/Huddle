@@ -1,4 +1,5 @@
 import { connectionService } from "@/services/connectionService";
+import { directoryUserService } from "@/services/directoryUsers";
 import { localJsonStorage } from "@/services/localJsonStorage";
 import { messageService } from "@/services/messageService";
 import { topicService } from "@/services/topicService";
@@ -10,6 +11,7 @@ export async function clearLocalAppData() {
   await localJsonStorage.clearNamespace(appStorageNamespace);
   await Promise.all([
     connectionService.resetLocalData(),
+    directoryUserService.resetLocalData(),
     messageService.resetLocalData(),
     topicService.resetLocalData(),
     userService.resetLocalData()

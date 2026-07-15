@@ -1,6 +1,14 @@
 import { CreateTopicInput, Topic, UpdateTopicInput } from "@/models/topic";
+import { LocalUser } from "@/models/user";
+import { DirectoryUser } from "@/models/directoryUser";
+import {
+  DirectoryUserService,
+  directoryUserService,
+  getDirectoryUserIdForIdentifier
+} from "@/services/directoryUsers";
 import { getVisibleInboundHuddleTopics } from "@/services/inboundHuddleFixtures";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
+import { topicIsVisibleToUser } from "@/services/topicVisibility";
 import { UserService, userService } from "@/services/userService";
 import { createId } from "@/utils/createId";
 
@@ -29,6 +37,9 @@ function isTopic(value: unknown): value is Topic {
     typeof value.title === "string" &&
     Array.isArray(value.memberIds) &&
     value.memberIds.every((memberId) => typeof memberId === "string") &&
+    (!("ownerId" in value) || typeof value.ownerId === "string") &&
+    (!("ownerTag" in value) || typeof value.ownerTag === "string") &&
+    (!("ownerPhoneNumber" in value) || typeof value.ownerPhoneNumber === "string") &&
     typeof value.createdAt === "string" &&
     (!("autoArchiveAt" in value) || typeof value.autoArchiveAt === "string")
   );
@@ -40,18 +51,23 @@ export class LocalTopicService implements TopicService {
 
   constructor(
     private readonly storage: JsonStorage = localJsonStorage,
-    private readonly users: UserService = userService
+    private readonly users: UserService = userService,
+    private readonly directoryUsers: DirectoryUserService = directoryUserService
   ) {}
 
   async listTopics(): Promise<Topic[]> {
     const topics = await this.loadTopics();
     const localUser = await this.users.getUser();
+    const directoryUsers = await this.directoryUsers.listUsers();
+    const visibleTopics = topics.filter((topic) =>
+      topicIsVisibleToUser(topic, localUser, directoryUsers)
+    );
     const visibleInboundTopics = getVisibleInboundHuddleTopics(
       localUser.id,
       localUser.phoneNumber
     );
     const topicById = new Map(
-      [...topics, ...visibleInboundTopics].map((topic) => [topic.id, topic])
+      [...visibleTopics, ...visibleInboundTopics].map((topic) => [topic.id, topic])
     );
 
     return Array.from(topicById.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -65,6 +81,8 @@ export class LocalTopicService implements TopicService {
 
   async createTopic(input: CreateTopicInput): Promise<Topic> {
     const title = input.title.trim();
+    const localUser = await this.users.getUser();
+    const directoryUsers = await this.directoryUsers.listUsers();
 
     if (!title) {
       throw new Error("Huddle title is required.");
@@ -77,7 +95,10 @@ export class LocalTopicService implements TopicService {
     const topic: Topic = {
       id: createId(),
       title,
-      memberIds: input.memberIds,
+      memberIds: getTopicMemberIds(input.memberIds, localUser, directoryUsers),
+      ownerId: localUser.id,
+      ownerTag: localUser.tag,
+      ownerPhoneNumber: localUser.phoneNumber,
       createdAt: new Date().toISOString(),
       autoArchiveAt: input.autoArchiveAt
     };
@@ -100,16 +121,18 @@ export class LocalTopicService implements TopicService {
     }
 
     const topics = await this.loadTopics();
+    const directoryUsers = await this.directoryUsers.listUsers();
     const topicIndex = topics.findIndex((topic) => topic.id === id);
 
     if (topicIndex === -1) {
       throw new Error("Huddle could not be found.");
     }
 
+    const currentTopic = topics[topicIndex];
     const topic: Topic = {
-      ...topics[topicIndex],
+      ...currentTopic,
       title,
-      memberIds: input.memberIds,
+      memberIds: getTopicMemberIds(input.memberIds, currentTopic, directoryUsers),
       autoArchiveAt: input.autoArchiveAt
     };
 
@@ -150,6 +173,39 @@ export class LocalTopicService implements TopicService {
     this.topicsPromise = Promise.resolve(this.topics);
     await this.storage.write(topicStorageKey, this.topics);
   }
+}
+
+function getTopicMemberIds(
+  inputMemberIds: string[],
+  creator: LocalUser | Topic,
+  directoryUsers: DirectoryUser[]
+) {
+  const creatorMemberId = getCreatorMemberId(creator, directoryUsers);
+
+  return Array.from(new Set([
+    ...(creatorMemberId ? [creatorMemberId] : []),
+    ...inputMemberIds
+  ]));
+}
+
+function getCreatorMemberId(creator: LocalUser | Topic, directoryUsers: DirectoryUser[]) {
+  if ("memberIds" in creator) {
+    const directoryMemberId =
+      getDirectoryUserIdForIdentifier(directoryUsers, creator.ownerTag ?? "") ??
+      getDirectoryUserIdForIdentifier(directoryUsers, creator.ownerPhoneNumber ?? "");
+
+    return directoryMemberId
+      ?? creator.ownerId
+      ?? null;
+  }
+
+  const directoryMemberId =
+    getDirectoryUserIdForIdentifier(directoryUsers, creator.tag) ??
+    getDirectoryUserIdForIdentifier(directoryUsers, creator.phoneNumber);
+
+  return directoryMemberId
+    ?? creator.id
+    ?? null;
 }
 
 export const topicService = new LocalTopicService();

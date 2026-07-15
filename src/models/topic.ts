@@ -2,6 +2,9 @@ export interface Topic {
   id: string;
   title: string;
   memberIds: string[];
+  ownerId?: string;
+  ownerTag?: string;
+  ownerPhoneNumber?: string;
   createdAt: string;
   autoArchiveAt?: string;
 }

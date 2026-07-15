@@ -63,6 +63,8 @@ Do not introduce global state management until the app has a demonstrated need t
 
 The local user identity is the root of the app graph. Routes that depend on huddles, network members, or messages should be gated until the user has a complete identity. A complete identity is currently display name plus tag or phone number.
 
+Huddle reads must remain scoped to the current identity. A huddle service may combine local records, invite fixtures, and later backend records, but it should only return huddles the current user created or huddles where the current user resolves as a member. Do not expose local storage as a global huddle feed.
+
 ## Service Abstractions
 
 Create service interfaces around app-specific operations, not generic data frameworks. A service should be small, typed, and replaceable.

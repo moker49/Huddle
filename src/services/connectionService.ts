@@ -1,8 +1,17 @@
 import { Connection } from "@/models/connection";
 import { getConnectionDisplayName } from "@/models/connectionDisplay";
-import { DirectoryUser } from "@/models/directoryUser";
+import { Topic } from "@/models/topic";
+import {
+  DirectoryUserService,
+  directoryUserService,
+  findDirectoryUser,
+  getDirectoryConnectionById,
+  normalizeIdentifier,
+  userToConnection
+} from "@/services/directoryUsers";
 import { getAutoNetworkMemberIdsForPhone } from "@/services/inboundHuddleFixtures";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
+import { getLocalMemberIds, topicIsVisibleToUser } from "@/services/topicVisibility";
 import { UserService, userService } from "@/services/userService";
 
 export interface ConnectionService {
@@ -11,31 +20,8 @@ export interface ConnectionService {
   resetLocalData(): Promise<void>;
 }
 
-const defaultUsers: DirectoryUser[] = [
-  createDefaultUser("erik", 1),
-  createDefaultUser("hanna", 2),
-  createDefaultUser("kevo", 3),
-  createDefaultUser("andre", 4),
-  createDefaultUser("karina", 5),
-  createDefaultUser("russel", 6),
-  createDefaultUser("kleb", 7),
-  createDefaultUser("jay", 8),
-  createDefaultUser("glenn", 9),
-  createDefaultUser("kayla", 10)
-];
-
 const networkStorageKey = "huddle:network-user-ids";
-
-function createDefaultUser(name: string, index: number): DirectoryUser {
-  return {
-    id: name,
-    displayName: name,
-    tag: `@${name}`,
-    phoneNumber: `#${index}`,
-    createdAt: new Date(`2026-07-11T13:${String(index - 1).padStart(2, "0")}:00.000Z`)
-      .toISOString()
-  };
-}
+const topicStorageKey = "huddle:topics:v2";
 
 function isNetworkUserIds(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((userId) => typeof userId === "string");
@@ -47,24 +33,32 @@ export class LocalConnectionService implements ConnectionService {
 
   constructor(
     private readonly storage: JsonStorage = localJsonStorage,
-    private readonly users: UserService = userService
+    private readonly users: UserService = userService,
+    private readonly directoryUsers: DirectoryUserService = directoryUserService
   ) {}
 
   async listConnections(): Promise<Connection[]> {
     const networkUserIds = await this.loadNetworkUserIds();
     const localUser = await this.users.getUser();
+    const directoryUsers = await this.directoryUsers.listUsers();
     const autoNetworkUserIds = getAutoNetworkMemberIdsForPhone(localUser.phoneNumber);
-    const networkUserIdSet = new Set([...networkUserIds, ...autoNetworkUserIds]);
+    const localHuddleNetworkUserIds = await this.loadLocalHuddleNetworkUserIds(directoryUsers);
+    const networkUserIdSet = new Set([
+      ...networkUserIds,
+      ...autoNetworkUserIds,
+      ...localHuddleNetworkUserIds
+    ]);
 
     return Array.from(networkUserIdSet)
-      .map(resolveNetworkEntry)
+      .map((networkEntry) => resolveNetworkEntry(networkEntry, directoryUsers))
       .filter((connection): connection is Connection => Boolean(connection))
       .sort((a, b) => getConnectionDisplayName(a).localeCompare(getConnectionDisplayName(b)));
   }
 
   async addConnection(identifier: string): Promise<Connection> {
     const normalizedIdentifier = normalizeIdentifier(identifier);
-    const user = findDirectoryUser(normalizedIdentifier);
+    const directoryUsers = await this.directoryUsers.listUsers();
+    const user = findDirectoryUser(directoryUsers, normalizedIdentifier);
 
     if (!normalizedIdentifier) {
       throw new Error("User could not be found.");
@@ -108,43 +102,37 @@ export class LocalConnectionService implements ConnectionService {
     this.networkUserIdsPromise = Promise.resolve(this.networkUserIds);
     await this.storage.write(networkStorageKey, this.networkUserIds);
   }
+
+  private async loadLocalHuddleNetworkUserIds(directoryUsers: Awaited<ReturnType<DirectoryUserService["listUsers"]>>) {
+    const localUser = await this.users.getUser();
+    const storedTopics = await this.storage.read<unknown>(topicStorageKey);
+
+    if (!Array.isArray(storedTopics) || !storedTopics.every(isStoredTopic)) {
+      return [];
+    }
+
+    const localMemberIds = getLocalMemberIds(localUser, directoryUsers);
+
+    return Array.from(new Set(
+      storedTopics
+        .filter((topic) => topicIsVisibleToUser(topic, localUser, directoryUsers))
+        .flatMap((topic) => topic.memberIds)
+        .filter((memberId) => !localMemberIds.has(memberId))
+    ));
+  }
 }
 
-function findDirectoryUser(normalizedIdentifier: string) {
-  if (!normalizedIdentifier) {
-    return null;
-  }
-
-  return defaultUsers.find((user) => (
-    user.tag.toLocaleLowerCase() === normalizedIdentifier ||
-    user.phoneNumber.toLocaleLowerCase() === normalizedIdentifier
-  )) ?? null;
-}
-
-function normalizeIdentifier(identifier: string) {
-  const trimmedIdentifier = identifier.trim().toLocaleLowerCase();
-
-  if (!trimmedIdentifier) {
-    return "";
-  }
-
-  if (trimmedIdentifier.startsWith("@") || trimmedIdentifier.startsWith("#")) {
-    return trimmedIdentifier;
-  }
-
-  return /^\d/.test(trimmedIdentifier)
-    ? `#${trimmedIdentifier}`
-    : `@${trimmedIdentifier}`;
-}
-
-function resolveNetworkEntry(networkEntry: string) {
-  const userById = defaultUsers.find((user) => user.id === networkEntry);
+function resolveNetworkEntry(
+  networkEntry: string,
+  directoryUsers: Awaited<ReturnType<DirectoryUserService["listUsers"]>>
+) {
+  const userById = getDirectoryConnectionById(directoryUsers, networkEntry);
 
   if (userById) {
-    return userToConnection(userById);
+    return userById;
   }
 
-  const userByIdentifier = findDirectoryUser(networkEntry);
+  const userByIdentifier = findDirectoryUser(directoryUsers, networkEntry);
 
   if (userByIdentifier) {
     return userToConnection(userByIdentifier);
@@ -179,14 +167,20 @@ function createPhoneConnection(identifier: string): Connection {
   };
 }
 
-function userToConnection(user: DirectoryUser): Connection {
-  return {
-    id: user.id,
-    displayName: user.displayName,
-    tag: user.tag,
-    phoneNumber: user.phoneNumber,
-    createdAt: user.createdAt
-  };
+function isStoredTopic(value: unknown): value is Topic {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "id" in value &&
+    "title" in value &&
+    "memberIds" in value &&
+    "createdAt" in value &&
+    typeof value.id === "string" &&
+    typeof value.title === "string" &&
+    Array.isArray(value.memberIds) &&
+    value.memberIds.every((memberId) => typeof memberId === "string") &&
+    typeof value.createdAt === "string"
+  );
 }
 
 export const connectionService = new LocalConnectionService();

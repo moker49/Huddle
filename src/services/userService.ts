@@ -1,4 +1,8 @@
 import { LocalUser, LocalUserProfileInput } from "@/models/user";
+import {
+  DirectoryUserService,
+  directoryUserService
+} from "@/services/directoryUsers";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
 import { createId } from "@/utils/createId";
 
@@ -35,7 +39,10 @@ function normalizeLocalUser(value: LocalUser): LocalUser {
 export class LocalUserService implements UserService {
   private userPromise: Promise<LocalUser> | null = null;
 
-  constructor(private readonly storage: JsonStorage = localJsonStorage) {}
+  constructor(
+    private readonly storage: JsonStorage = localJsonStorage,
+    private readonly directoryUsers: DirectoryUserService = directoryUserService
+  ) {}
 
   async getUser(): Promise<LocalUser> {
     if (!this.userPromise) {
@@ -68,6 +75,7 @@ export class LocalUserService implements UserService {
 
     this.userPromise = Promise.resolve(nextUser);
     await this.storage.write(userStorageKey, nextUser);
+    await this.directoryUsers.upsertLocalUser(nextUser);
 
     return nextUser;
   }
@@ -91,6 +99,7 @@ export class LocalUserService implements UserService {
 
     this.userPromise = Promise.resolve(nextUser);
     await this.storage.write(userStorageKey, nextUser);
+    await this.directoryUsers.upsertLocalUser(nextUser);
 
     return nextUser;
   }
