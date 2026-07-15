@@ -1,6 +1,7 @@
 import { CreateTopicInput, Topic, UpdateTopicInput } from "@/models/topic";
 import { LocalUser } from "@/models/user";
 import { DirectoryUser } from "@/models/directoryUser";
+import { formatPublicIdentifier } from "@/models/identifierDisplay";
 import {
   DirectoryUserService,
   directoryUserService,
@@ -256,7 +257,12 @@ function getCreatorMemberId(creator: LocalUser | Topic, directoryUsers: Director
 function getMemberDisplayName(memberId: string, directoryUsers: DirectoryUser[]) {
   const connection = getDirectoryConnectionForMemberId(directoryUsers, memberId);
 
-  return connection?.displayName || connection?.tag || connection?.phoneNumber || memberId;
+  return (
+    connection?.displayName ||
+    formatPublicIdentifier(connection?.tag ?? "") ||
+    formatPublicIdentifier(connection?.phoneNumber ?? "") ||
+    formatPublicIdentifier(memberId)
+  );
 }
 
 export const topicService = new LocalTopicService();

@@ -139,6 +139,10 @@ export function normalizeIdentifier(identifier: string) {
     return normalizeIdentifier(trimmedIdentifier.slice("phone:".length));
   }
 
+  if (trimmedIdentifier.startsWith("tag:")) {
+    return normalizeIdentifier(trimmedIdentifier.slice("tag:".length));
+  }
+
   if (trimmedIdentifier.startsWith("@") || trimmedIdentifier.startsWith("#")) {
     return trimmedIdentifier;
   }

@@ -30,9 +30,9 @@ function isLocalUser(value: unknown): value is LocalUser {
 function normalizeLocalUser(value: LocalUser): LocalUser {
   return {
     id: value.id,
-    displayName: value.displayName,
-    tag: typeof value.tag === "string" ? value.tag : "",
-    phoneNumber: typeof value.phoneNumber === "string" ? value.phoneNumber : ""
+    displayName: normalizeDisplayName(value.displayName),
+    tag: typeof value.tag === "string" ? normalizeTag(value.tag) : "",
+    phoneNumber: typeof value.phoneNumber === "string" ? normalizePhoneNumber(value.phoneNumber) : ""
   };
 }
 
@@ -53,7 +53,7 @@ export class LocalUserService implements UserService {
   }
 
   async updateProfile(profile: LocalUserProfileInput): Promise<LocalUser> {
-    const nextDisplayName = profile.displayName.trim();
+    const nextDisplayName = normalizeDisplayName(profile.displayName);
     const nextTag = normalizeTag(profile.tag);
     const nextPhoneNumber = normalizePhoneNumber(profile.phoneNumber);
 
@@ -126,6 +126,7 @@ export class LocalUserService implements UserService {
       const normalizedUser = normalizeLocalUser(storedUser);
 
       if (
+        normalizedUser.displayName !== storedUser.displayName ||
         normalizedUser.tag !== storedUser.tag ||
         normalizedUser.phoneNumber !== storedUser.phoneNumber
       ) {
@@ -149,9 +150,16 @@ export class LocalUserService implements UserService {
 }
 
 function normalizeTag(value: string) {
-  const tag = value.trim().replace(/^@+/, "");
+  const tag = value
+    .trim()
+    .replace(/^tag:/i, "")
+    .replace(/[@#]/g, "");
 
   return tag ? `@${tag}` : "";
+}
+
+function normalizeDisplayName(value: string) {
+  return value.replace(/[#@]/g, "").trim();
 }
 
 function normalizePhoneNumber(value: string) {

@@ -200,7 +200,7 @@ export function ProfileSettingsScreen() {
   }
 
   function handleChangeDisplayName(value: string) {
-    setDisplayName(value);
+    setDisplayName(sanitizeDisplayNameInput(value));
 
     if (displayNameWasValidated) {
       setDisplayNameWasValidated(false);
@@ -208,7 +208,7 @@ export function ProfileSettingsScreen() {
   }
 
   function handleChangeNetworkTag(value: string) {
-    setNetworkTag(value.replace(/^@/, ""));
+    setNetworkTag(sanitizeTagInput(value));
     setNetworkPhone("");
     setNetworkIdentifierError("");
   }
@@ -234,7 +234,7 @@ export function ProfileSettingsScreen() {
   }
 
   function handleChangeIdentityDialogTag(value: string) {
-    setIdentityDialogTag(value.replace(/^@/, ""));
+    setIdentityDialogTag(sanitizeTagInput(value));
     setIdentityDialogError("");
   }
 
@@ -613,6 +613,16 @@ function formatPhoneInput(value: string) {
   }
 
   return area;
+}
+
+function sanitizeDisplayNameInput(value: string) {
+  return value.replace(/[#@]/g, "");
+}
+
+function sanitizeTagInput(value: string) {
+  return value
+    .replace(/^tag:/i, "")
+    .replace(/[@#]/g, "");
 }
 
 function filterNetworkConnections(connections: Connection[], query: string) {

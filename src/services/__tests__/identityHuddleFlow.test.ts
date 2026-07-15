@@ -65,6 +65,34 @@ test("saving an identity registers the user in the directory", async () => {
   );
 });
 
+test("saving a tag strips pound symbols", async () => {
+  const storage = new MemoryJsonStorage();
+  const { users } = createServices(storage);
+
+  const user = await users.updateIdentifiers({ tag: "#ef#r@en", phoneNumber: "" });
+
+  assert.equal(user.tag, "@efren");
+});
+
+test("saving a phone strips tag and phone symbols", async () => {
+  const storage = new MemoryJsonStorage();
+  const { users } = createServices(storage);
+
+  const user = await users.updateIdentifiers({ tag: "", phoneNumber: "#2@7" });
+
+  assert.equal(user.phoneNumber, "#27");
+});
+
+test("saving a display name strips tag and phone symbols", async () => {
+  const storage = new MemoryJsonStorage();
+  const { users } = createServices(storage);
+
+  await users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  const user = await users.updateDisplayName("@Ef#ren");
+
+  assert.equal(user.displayName, "Efren");
+});
+
 test("a default directory creator is visible to a later phone claimant", async () => {
   const storage = new MemoryJsonStorage();
 
@@ -425,6 +453,28 @@ test("updating huddle members records member-added and member-removed activities
   assert.equal(addedActivity?.body, "Member added: andre");
   assert.equal(removedActivity?.kind, "system");
   assert.equal(removedActivity?.body, "Member removed: The 27");
+});
+
+test("member activities display public identifiers when no directory name exists", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Identifier activity",
+    memberIds: ["phone:#27"]
+  });
+
+  await efrenSession.topics.updateTopic(topic.id, {
+    title: "Identifier activity",
+    memberIds: ["andre"]
+  });
+  const messages = await efrenSession.messages.listMessages(topic.id);
+  const removedActivity = messages.find((message) => message.activityType === "member_removed");
+
+  assert.equal(removedActivity?.body, "Member removed: #27");
 });
 
 function createServices(storage: JsonStorage): ServiceSet {
