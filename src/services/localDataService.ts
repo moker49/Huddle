@@ -15,3 +15,10 @@ export async function clearLocalAppData() {
     userService.resetLocalData()
   ]);
 }
+
+export async function logOutLocalUser() {
+  await Promise.all([
+    connectionService.resetLocalData(),
+    userService.resetLocalData()
+  ]);
+}

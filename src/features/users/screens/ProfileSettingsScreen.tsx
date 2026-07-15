@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
+  Appbar,
   Button,
   Dialog,
   Portal,
@@ -27,13 +28,21 @@ import { hasCompleteLocalIdentity } from "@/features/users/identity";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
 import { connectionMatchesText } from "@/models/connectionDisplay";
+import { logOutLocalUser } from "@/services/localDataService";
 import { shape, spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
 export function ProfileSettingsScreen() {
   const params = useLocalSearchParams<{ addNetwork?: string }>();
   const theme = useTheme();
-  const { errorMessage, isLoading, updateIdentifiers, updateProfile, user } = useUser();
+  const {
+    errorMessage,
+    isLoading,
+    reloadUser,
+    updateIdentifiers,
+    updateProfile,
+    user
+  } = useUser();
   const {
     addConnection,
     connections,
@@ -60,6 +69,8 @@ export function ProfileSettingsScreen() {
   const [networkSearch, setNetworkSearch] = useState("");
   const [networkIdentifierError, setNetworkIdentifierError] = useState("");
   const [isAddingNetworkMember, setIsAddingNetworkMember] = useState(false);
+  const [logoutDialogIsVisible, setLogoutDialogIsVisible] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [hasOpenedInitialAddDialog, setHasOpenedInitialAddDialog] = useState(false);
   const [hasOpenedInitialIdentityDialog, setHasOpenedInitialIdentityDialog] = useState(false);
   const trimmedDisplayName = displayName.trim();
@@ -279,10 +290,42 @@ export function ProfileSettingsScreen() {
     }
   }
 
+  async function handleLogOut() {
+    setIsLoggingOut(true);
+    setSaveError("");
+
+    try {
+      await logOutLocalUser();
+      await Promise.all([reloadConnections(), reloadTopics(), reloadUser()]);
+      setInitializedUserId(null);
+      setDisplayName("");
+      setProfileTag("");
+      setProfilePhone("");
+      setNetworkSearch("");
+      setDisplayNameWasValidated(false);
+      setHasOpenedInitialAddDialog(false);
+      setHasOpenedInitialIdentityDialog(false);
+      setLogoutDialogIsVisible(false);
+      router.replace("/profile");
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Could not log out.");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }
+
   return (
     <Screen
       title="Profile"
       onBack={handleBack}
+      action={
+        <Appbar.Action
+          icon="logout"
+          onPress={() => setLogoutDialogIsVisible(true)}
+          accessibilityLabel="Log out"
+          disabled={isLoggingOut}
+        />
+      }
     >
       <View style={styles.container}>
         {isLoading || (user && !profileIsInitialized) ? (
@@ -406,6 +449,36 @@ export function ProfileSettingsScreen() {
               disabled={!identityDialogCanSave}
             >
               Save
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+        <Dialog
+          visible={logoutDialogIsVisible}
+          onDismiss={() => {
+            if (!isLoggingOut) {
+              setLogoutDialogIsVisible(false);
+            }
+          }}
+        >
+          <Dialog.Title>Log out?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              This clears the current profile and network from this device. Local huddles stay available for testing phone invites.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button
+              onPress={() => setLogoutDialogIsVisible(false)}
+              disabled={isLoggingOut}
+            >
+              Cancel
+            </Button>
+            <Button
+              onPress={handleLogOut}
+              loading={isLoggingOut}
+              disabled={isLoggingOut}
+            >
+              Log out
             </Button>
           </Dialog.Actions>
         </Dialog>
