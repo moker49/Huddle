@@ -56,6 +56,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const [deleteDialogIsVisible, setDeleteDialogIsVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const initializedTopicIdRef = useRef<string | null>(null);
+  const topicIsInitialized = Boolean(topic && initializedTopicIdRef.current === topic.id);
 
   useEffect(() => {
     if (!topic || initializedTopicIdRef.current === topic.id) {
@@ -183,6 +184,16 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
       <Screen title="Huddle settings" onBack={() => goBackOrReplace("/")}>
         <View style={styles.centerState}>
           <Text variant="titleMedium">Huddle not found</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!topicIsInitialized) {
+    return (
+      <Screen title="Huddle settings" onBack={() => goBackOrReplace("/")}>
+        <View style={styles.centerState}>
+          <ActivityIndicator accessibilityLabel="Loading huddle settings" />
         </View>
       </Screen>
     );

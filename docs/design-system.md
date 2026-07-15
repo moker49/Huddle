@@ -86,6 +86,8 @@ Outlined `TextInput` backgrounds must match the surface they sit on. React Nativ
 
 Use the custom `AffixTextField` only when a Paper `TextInput.Affix` cannot achieve Material spacing cleanly. It should remain limited to simple outlined fields with a short fixed prefix, preserve Material label, outline, focus, and error states, and receive the containing surface color so the floating label background matches its container.
 
+Prefilled fields must mount with their final initial value. Do not render an outlined field empty and then fill it from an effect on the next frame; Paper will animate the label from the field body to the outline, which makes edit forms feel unstable. When initial values come from async data, keep showing the loading or pending state until the values have been copied into local form state. When values are available synchronously, derive them in the `useState` initializer. Search pills and other placeholder-only fields should also avoid empty-first-frame rendering when their surrounding form is waiting on async state.
+
 ## Search and Member Rail
 
 The main screen uses a single search field for huddles and network members. Do not add a mode toggle, segmented button, connected button group, dropdown, or ghost chip to the main search flow unless the product model changes.

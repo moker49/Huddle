@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
-import { TextInput, useTheme } from "react-native-paper";
+import { StyleSheet, TextInput as NativeTextInput, View } from "react-native";
+import { Icon, IconButton, TextInput, useTheme } from "react-native-paper";
 
 import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
 import { spacing, shape } from "@/theme/tokens";
@@ -93,29 +93,34 @@ export function TopicFormLayout({
           ]}
         >
           <View style={[styles.memberSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <TextInput
-              mode="flat"
-              dense
+            <Icon
+              source="magnify"
+              size={24}
+              color={theme.colors.onSurfaceVariant}
+            />
+            <NativeTextInput
               value={memberSearchValue}
               onChangeText={onChangeMemberSearch}
               placeholder="Search network"
+              placeholderTextColor={theme.colors.onSurfaceVariant}
               autoCapitalize="words"
               accessibilityLabel="Search your network"
-              error={memberError}
-              underlineColor="transparent"
-              activeUnderlineColor="transparent"
-              left={<TextInput.Icon icon="magnify" />}
-              right={
-                memberSearchValue ? (
-                  <TextInput.Icon
-                    icon="close"
-                    onPress={onClearMemberSearch}
-                    accessibilityLabel="Clear member search"
-                  />
-                ) : undefined
-              }
-              style={styles.memberSearch}
+              style={[
+                styles.memberSearch,
+                { color: theme.colors.onSurface },
+                memberError ? { color: theme.colors.error } : undefined
+              ]}
             />
+            {memberSearchValue ? (
+              <IconButton
+                icon="close"
+                size={24}
+                onPress={onClearMemberSearch}
+                accessibilityLabel="Clear member search"
+                iconColor={theme.colors.onSurfaceVariant}
+                style={styles.memberSearchClear}
+              />
+            ) : null}
           </View>
           {children}
         </View>
@@ -153,10 +158,22 @@ const styles = StyleSheet.create({
   memberSearchShell: {
     height: 56,
     borderRadius: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingLeft: spacing.md,
     overflow: "hidden"
   },
   memberSearch: {
+    flex: 1,
     height: 56,
+    padding: spacing.none,
+    fontSize: 16,
     backgroundColor: "transparent"
+  },
+  memberSearchClear: {
+    width: 48,
+    height: 48,
+    margin: spacing.none
   }
 });

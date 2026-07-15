@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet, TextInput as NativeTextInput, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
@@ -9,6 +9,8 @@ import {
   Text,
   TextInput,
   Divider,
+  Icon,
+  IconButton,
   useTheme
 } from "react-native-paper";
 
@@ -31,6 +33,7 @@ export function ProfileSettingsScreen() {
     errorMessage: networkErrorMessage,
     isLoading: networkIsLoading
   } = useConnections();
+  const initializedUserIdRef = useRef<string | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -50,6 +53,7 @@ export function ProfileSettingsScreen() {
       ? `#${trimmedNetworkPhone.replace(/^#/, "")}`
       : "";
   const displayNameIsDirty = user ? displayName !== user.displayName : false;
+  const profileIsInitialized = Boolean(user && initializedUserIdRef.current === user.id);
   const canSave = trimmedDisplayName.length > 0 && !isSaving;
   const filteredConnections = useMemo(
     () => filterNetworkConnections(connections, networkSearch),
@@ -64,7 +68,8 @@ export function ProfileSettingsScreen() {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && initializedUserIdRef.current !== user.id) {
+      initializedUserIdRef.current = user.id;
       setDisplayName(user.displayName);
     }
   }, [user]);
@@ -129,7 +134,7 @@ export function ProfileSettingsScreen() {
   return (
     <Screen title="Profile" onBack={() => goBackOrReplace("/")}>
       <View style={styles.container}>
-        {isLoading ? (
+        {isLoading || (user && !profileIsInitialized) ? (
           <View style={styles.centerContent}>
             <ActivityIndicator accessibilityLabel="Loading profile" />
           </View>
@@ -166,28 +171,30 @@ export function ProfileSettingsScreen() {
               ]}
             >
               <View style={[styles.networkSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
-                <TextInput
-                  mode="flat"
-                  dense
+                <Icon
+                  source="magnify"
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                />
+                <NativeTextInput
                   value={networkSearch}
                   onChangeText={setNetworkSearch}
                   placeholder="Search network"
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
                   autoCapitalize="words"
                   accessibilityLabel="Search your network"
-                  underlineColor="transparent"
-                  activeUnderlineColor="transparent"
-                  left={<TextInput.Icon icon="magnify" />}
-                  right={
-                    networkSearch ? (
-                      <TextInput.Icon
-                        icon="close"
-                        onPress={() => setNetworkSearch("")}
-                        accessibilityLabel="Clear network search"
-                      />
-                    ) : undefined
-                  }
-                  style={styles.networkSearch}
+                  style={[styles.networkSearch, { color: theme.colors.onSurface }]}
                 />
+                {networkSearch ? (
+                  <IconButton
+                    icon="close"
+                    size={24}
+                    onPress={() => setNetworkSearch("")}
+                    accessibilityLabel="Clear network search"
+                    iconColor={theme.colors.onSurfaceVariant}
+                    style={styles.networkSearchClear}
+                  />
+                ) : null}
               </View>
               <MemberGrid
                 connections={filteredConnections}
@@ -353,11 +360,23 @@ const styles = StyleSheet.create({
   networkSearchShell: {
     height: 56,
     borderRadius: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingLeft: spacing.md,
     overflow: "hidden"
   },
   networkSearch: {
+    flex: 1,
     height: 56,
+    padding: spacing.none,
+    fontSize: 16,
     backgroundColor: "transparent"
+  },
+  networkSearchClear: {
+    width: 48,
+    height: 48,
+    margin: spacing.none
   },
   fieldError: {
     paddingTop: spacing.xs,
