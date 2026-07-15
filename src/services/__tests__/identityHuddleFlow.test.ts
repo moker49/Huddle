@@ -234,6 +234,117 @@ test("updating huddle members does not remove the creator", async () => {
   assert.equal(updatedTopic.memberIds.includes("andre"), true);
 });
 
+test("shared huddles add members to each user's network", async () => {
+  const storage = new MemoryJsonStorage();
+
+  const efrenSession = createServices(storage);
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("@jay");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Shared network",
+    memberIds: ["jay"]
+  });
+
+  const efrenNetwork = await efrenSession.connections.listConnections();
+  assert.equal(efrenNetwork.some((connection) => connection.tag === "@jay"), true);
+
+  const jaySession = createServices(storage);
+  await jaySession.users.resetLocalData();
+  await jaySession.users.updateIdentifiers({ tag: "jay", phoneNumber: "" });
+  await jaySession.users.updateDisplayName("jay");
+
+  const jayTopics = await jaySession.topics.listTopics();
+  const jayNetwork = await jaySession.connections.listConnections();
+
+  assert.equal(jayTopics.some((visibleTopic) => visibleTopic.id === topic.id), true);
+  assert.equal(jayNetwork.some((connection) => connection.tag === "@efren"), true);
+});
+
+test("manually adding an unknown phone creates a placeholder connection", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  const connection = await efrenSession.connections.addConnection("#27");
+  const network = await efrenSession.connections.listConnections();
+
+  assert.equal(connection.id, "phone:#27");
+  assert.equal(connection.phoneNumber, "#27");
+  assert.equal(network.some((networkConnection) => networkConnection.id === "phone:#27"), true);
+});
+
+test("claimed phones replace manually added phone placeholders in the network", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+
+  const phone27Session = createServices(storage);
+  await phone27Session.users.resetLocalData();
+  await phone27Session.users.updateIdentifiers({ tag: "", phoneNumber: "27" });
+  await phone27Session.users.updateDisplayName("the27");
+
+  const returningEfrenSession = createServices(storage);
+  await returningEfrenSession.users.resetLocalData();
+  await returningEfrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await returningEfrenSession.users.updateDisplayName("Efren");
+  const network = await returningEfrenSession.connections.listConnections();
+
+  assert.equal(network.some((connection) => connection.displayName === "the27"), true);
+  assert.equal(network.some((connection) => connection.id === "phone:#27"), false);
+});
+
+test("updating display name updates the directory entry", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  const efren = await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.users.updateDisplayName("Efren Updated");
+  const directoryUsers = await efrenSession.directory.listUsers();
+
+  assert.equal(
+    directoryUsers.some((directoryUser) => (
+      directoryUser.id === efren.id &&
+      directoryUser.displayName === "Efren Updated"
+    )),
+    true
+  );
+});
+
+test("updating identifiers merges with existing directory identity instead of duplicating it", async () => {
+  const storage = new MemoryJsonStorage();
+  const firstSession = createServices(storage);
+
+  const originalUser = await firstSession.users.updateIdentifiers({ tag: "the27", phoneNumber: "" });
+  await firstSession.users.updateDisplayName("The 27");
+
+  const secondSession = createServices(storage);
+  await secondSession.users.resetLocalData();
+  await secondSession.users.updateIdentifiers({ tag: "", phoneNumber: "27" });
+  await secondSession.users.updateDisplayName("The 27 Phone");
+
+  const returningFirstSession = createServices(storage);
+  await returningFirstSession.users.resetLocalData();
+  await returningFirstSession.users.updateIdentifiers({ tag: "the27", phoneNumber: "27" });
+  await returningFirstSession.users.updateDisplayName("The 27 Merged");
+  const directoryUsers = await returningFirstSession.directory.listUsers();
+  const matchingUsers = directoryUsers.filter((directoryUser) => (
+    directoryUser.id === originalUser.id ||
+    directoryUser.tag === "@the27" ||
+    directoryUser.phoneNumber === "#27"
+  ));
+
+  assert.equal(matchingUsers.length, 1);
+  assert.equal(matchingUsers[0].displayName, "The 27 Merged");
+  assert.equal(matchingUsers[0].tag, "@the27");
+  assert.equal(matchingUsers[0].phoneNumber, "#27");
+});
+
 function createServices(storage: JsonStorage): ServiceSet {
   const directory = new LocalDirectoryUserService(storage);
   const users = new LocalUserService(storage, directory);

@@ -76,8 +76,12 @@ export class LocalDirectoryUserService implements DirectoryUserService {
   }
 
   async upsertLocalUser(user: LocalUser): Promise<void> {
-    const directoryUser = localUserToDirectoryUser(user);
     const users = await this.listUsers();
+    const matchingUser = users.find((currentUser) => usersIdentifySamePerson(
+      currentUser,
+      localUserToDirectoryUser(user)
+    ));
+    const directoryUser = localUserToDirectoryUser(user, matchingUser?.id);
 
     this.users = mergeDirectoryUsers(
       users.filter((currentUser) => !usersIdentifySamePerson(currentUser, directoryUser)),
@@ -154,9 +158,9 @@ export function userToConnection(user: DirectoryUser): Connection {
   };
 }
 
-function localUserToDirectoryUser(user: LocalUser): DirectoryUser {
+function localUserToDirectoryUser(user: LocalUser, id: string = user.id): DirectoryUser {
   return {
-    id: user.id,
+    id,
     displayName: user.displayName,
     tag: user.tag,
     phoneNumber: user.phoneNumber,
