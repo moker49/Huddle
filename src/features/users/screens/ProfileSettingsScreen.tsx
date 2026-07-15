@@ -158,13 +158,6 @@ export function ProfileSettingsScreen() {
                 <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
                   Network
                 </Text>
-                <Button
-                  mode="contained-tonal"
-                  onPress={openAddDialog}
-                  compact
-                >
-                  Add
-                </Button>
               </View>
               <MemberGrid
                 connections={connections}
@@ -173,6 +166,11 @@ export function ProfileSettingsScreen() {
                 isInteractive={false}
                 isLoading={networkIsLoading}
                 onScroll={() => undefined}
+                trailingAction={{
+                  accessibilityLabel: "Add to network",
+                  label: "Add",
+                  onPress: openAddDialog
+                }}
               />
             </View>
             <View style={styles.fab}>
@@ -206,7 +204,6 @@ export function ProfileSettingsScreen() {
                 label="Tag"
                 value={networkTag}
                 onChangeText={handleChangeNetworkTag}
-                autoFocus
                 error={Boolean(networkIdentifierError)}
                 accessibilityLabel="Tag"
                 containerColor={theme.colors.elevation.level3}
@@ -304,7 +301,6 @@ const styles = StyleSheet.create({
   networkHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: spacing.sm
   },
   fieldError: {

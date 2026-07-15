@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { ActivityIndicator, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Icon, Text, useTheme } from "react-native-paper";
 
 import { getMemberAvatarColor, getMemberInitial } from "@/features/connections/memberAvatar";
 import { Connection } from "@/models/connection";
@@ -15,6 +15,11 @@ interface MemberGridProps {
   onScroll: (offsetY: number) => void;
   onToggleConnection?: (connection: Connection) => void;
   selectedConnectionIds?: string[];
+  trailingAction?: {
+    accessibilityLabel: string;
+    label: string;
+    onPress: () => void;
+  };
 }
 
 interface PreventableEvent {
@@ -41,7 +46,8 @@ export function MemberGrid({
   isLoading,
   onScroll,
   onToggleConnection,
-  selectedConnectionIds = []
+  selectedConnectionIds = [],
+  trailingAction
 }: MemberGridProps) {
   const theme = useTheme();
   const [gridWidth, setGridWidth] = useState(0);
@@ -67,7 +73,7 @@ export function MemberGrid({
     );
   }
 
-  if (connections.length === 0) {
+  if (connections.length === 0 && !trailingAction) {
     return (
       <View style={styles.state}>
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
@@ -145,6 +151,39 @@ export function MemberGrid({
           </View>
         );
       }) : null}
+      {gridIsMeasured && trailingAction ? (
+        <Pressable
+          key="member-grid-action"
+          onPress={trailingAction.onPress}
+          accessibilityLabel={trailingAction.accessibilityLabel}
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            styles.item,
+            styles.actionItem,
+            {
+              width: itemWidth,
+              borderColor: theme.colors.outlineVariant,
+              backgroundColor: pressed ? theme.colors.surfaceVariant : "transparent"
+            }
+          ]}
+        >
+          <View
+            style={[
+              styles.actionIcon,
+              { backgroundColor: theme.colors.surfaceVariant }
+            ]}
+          >
+            <Icon source="plus" size={24} color={theme.colors.onSurfaceVariant} />
+          </View>
+          <Text
+            variant="labelMedium"
+            numberOfLines={1}
+            style={[styles.label, { color: theme.colors.onSurfaceVariant }]}
+          >
+            {trailingAction.label}
+          </Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }
@@ -178,6 +217,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxs,
     paddingVertical: spacing.xs
   },
+  actionItem: {
+    borderWidth: 1,
+    borderStyle: "dashed"
+  },
   state: {
     minHeight: 104,
     justifyContent: "center",
@@ -192,6 +235,13 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: "#FFFFFF"
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center"
   },
   label: {
     maxWidth: 64,
