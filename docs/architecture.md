@@ -61,6 +61,8 @@ Use local React state for local UI state. Use small context providers only when 
 
 Do not introduce global state management until the app has a demonstrated need that local state and focused providers cannot satisfy.
 
+The local user identity is the root of the app graph. Routes that depend on huddles, network members, or messages should be gated until the user has a complete identity. A complete identity is currently display name plus tag or phone number.
+
 ## Service Abstractions
 
 Create service interfaces around app-specific operations, not generic data frameworks. A service should be small, typed, and replaceable.

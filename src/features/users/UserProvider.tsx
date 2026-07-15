@@ -8,7 +8,7 @@ import {
   useState
 } from "react";
 
-import { LocalUser } from "@/models/user";
+import { LocalUser, LocalUserProfileInput } from "@/models/user";
 import { UserService, userService } from "@/services/userService";
 
 interface UserContextValue {
@@ -16,6 +16,7 @@ interface UserContextValue {
   isLoading: boolean;
   errorMessage: string | null;
   reloadUser(): Promise<void>;
+  updateProfile(profile: LocalUserProfileInput): Promise<LocalUser>;
   updateDisplayName(displayName: string): Promise<LocalUser>;
 }
 
@@ -76,6 +77,12 @@ export function UserProvider({ children, service = userService }: UserProviderPr
       isLoading,
       errorMessage,
       reloadUser: loadUser,
+      async updateProfile(profile) {
+        const nextUser = await service.updateProfile(profile);
+        setUser(nextUser);
+        setErrorMessage(null);
+        return nextUser;
+      },
       async updateDisplayName(displayName) {
         const nextUser = await service.updateDisplayName(displayName);
         setUser(nextUser);

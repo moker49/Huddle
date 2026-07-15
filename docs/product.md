@@ -23,6 +23,17 @@ Product complexity should stay behind this loop.
 
 ## Core Concepts
 
+### Identity
+
+The app is identity-first. There are no global huddles to browse before the app knows who the user is. A complete local identity is required before the main huddle experience is available.
+
+A complete identity requires:
+
+- Display name
+- Tag or phone number
+
+Network actions should stay hidden or unavailable until identity is complete, because adding someone is reciprocal: if another user becomes part of your network, you also become visible as an identity in theirs.
+
 ### Network
 
 Users have a personal network, not fixed friend groups, servers, or communities. A user's network contains users they manually add and users automatically available because they share a huddle.

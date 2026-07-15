@@ -1,14 +1,15 @@
-import { Stack } from "expo-router";
+import { Stack, router, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
-import { Platform, useColorScheme } from "react-native";
-import { PaperProvider } from "react-native-paper";
+import { PropsWithChildren, useEffect } from "react";
+import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { ActivityIndicator, PaperProvider, useTheme } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ConnectionProvider } from "@/features/connections/ConnectionProvider";
 import { MessageProvider } from "@/features/messages/MessageProvider";
 import { TopicProvider } from "@/features/topics/TopicProvider";
-import { UserProvider } from "@/features/users/UserProvider";
+import { hasCompleteLocalIdentity } from "@/features/users/identity";
+import { UserProvider, useUser } from "@/features/users/UserProvider";
 import { darkTheme, lightTheme } from "@/theme/theme";
 
 export function RootLayout() {
@@ -57,21 +58,55 @@ export function RootLayout() {
     <SafeAreaProvider>
       <PaperProvider theme={paperTheme}>
         <UserProvider>
-          <ConnectionProvider>
-            <TopicProvider>
-              <MessageProvider>
-                <StatusBar style={isDark ? "light" : "dark"} />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: paperTheme.colors.background }
-                  }}
-                />
-              </MessageProvider>
-            </TopicProvider>
-          </ConnectionProvider>
+          <IdentityGate>
+            <ConnectionProvider>
+              <TopicProvider>
+                <MessageProvider>
+                  <StatusBar style={isDark ? "light" : "dark"} />
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: paperTheme.colors.background }
+                    }}
+                  />
+                </MessageProvider>
+              </TopicProvider>
+            </ConnectionProvider>
+          </IdentityGate>
         </UserProvider>
       </PaperProvider>
     </SafeAreaProvider>
   );
 }
+
+function IdentityGate({ children }: PropsWithChildren) {
+  const pathname = usePathname();
+  const theme = useTheme();
+  const { errorMessage, isLoading, user } = useUser();
+  const profileIsCurrentRoute = pathname === "/profile";
+  const hasIdentity = hasCompleteLocalIdentity(user);
+
+  useEffect(() => {
+    if (!isLoading && !errorMessage && !hasIdentity && !profileIsCurrentRoute) {
+      router.replace("/profile");
+    }
+  }, [errorMessage, hasIdentity, isLoading, profileIsCurrentRoute]);
+
+  if ((isLoading || !hasIdentity) && !profileIsCurrentRoute && !errorMessage) {
+    return (
+      <View style={[styles.identityGate, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator accessibilityLabel="Loading profile" />
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+const styles = StyleSheet.create({
+  identityGate: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center"
+  }
+});

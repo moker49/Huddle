@@ -22,6 +22,7 @@ import {
   networkMemberSectionStyles
 } from "@/features/connections/components/NetworkMemberSection";
 import { useConnections } from "@/features/connections/ConnectionProvider";
+import { hasCompleteLocalIdentity } from "@/features/users/identity";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
 import { shape, spacing } from "@/theme/tokens";
@@ -30,7 +31,7 @@ import { goBackOrReplace } from "@/utils/navigation";
 export function ProfileSettingsScreen() {
   const params = useLocalSearchParams<{ addNetwork?: string }>();
   const theme = useTheme();
-  const { errorMessage, isLoading, updateDisplayName, user } = useUser();
+  const { errorMessage, isLoading, updateProfile, user } = useUser();
   const {
     addConnection,
     connections,
@@ -39,6 +40,8 @@ export function ProfileSettingsScreen() {
   } = useConnections();
   const [initializedUserId, setInitializedUserId] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
+  const [profileTag, setProfileTag] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [addDialogIsVisible, setAddDialogIsVisible] = useState(false);
@@ -49,6 +52,10 @@ export function ProfileSettingsScreen() {
   const [isAddingNetworkMember, setIsAddingNetworkMember] = useState(false);
   const [hasOpenedInitialAddDialog, setHasOpenedInitialAddDialog] = useState(false);
   const trimmedDisplayName = displayName.trim();
+  const trimmedProfileTag = profileTag.trim();
+  const trimmedProfilePhone = profilePhone.trim();
+  const profilePhoneDigits = profilePhone.replace(/\D/g, "").slice(0, 10);
+  const formattedProfilePhone = formatPhoneInput(profilePhone);
   const trimmedNetworkTag = networkTag.trim();
   const trimmedNetworkPhone = networkPhone.trim();
   const formattedNetworkPhone = formatPhoneInput(networkPhone);
@@ -57,9 +64,18 @@ export function ProfileSettingsScreen() {
     : trimmedNetworkPhone
       ? `#${trimmedNetworkPhone.replace(/^#/, "")}`
       : "";
-  const displayNameIsDirty = user ? displayName !== user.displayName : false;
+  const savedProfileTag = user ? user.tag.replace(/^@/, "") : "";
+  const savedProfilePhone = user ? user.phoneNumber.replace(/\D/g, "") : "";
+  const userHasCompleteIdentity = hasCompleteLocalIdentity(user);
+  const profileIdentifierIsComplete = Boolean(trimmedProfileTag || trimmedProfilePhone);
+  const profileIsComplete = trimmedDisplayName.length > 0 && profileIdentifierIsComplete;
+  const profileIsDirty = user ? (
+    displayName !== user.displayName ||
+    profileTag !== savedProfileTag ||
+    profilePhoneDigits !== savedProfilePhone
+  ) : false;
   const profileIsInitialized = Boolean(user && initializedUserId === user.id);
-  const canSave = trimmedDisplayName.length > 0 && !isSaving;
+  const canSave = profileIsComplete && !isSaving;
   const canSearchNetwork = connections.length >= 6;
   const filteredConnections = useMemo(
     () => filterNetworkConnections(connections, canSearchNetwork ? networkSearch : ""),
@@ -76,6 +92,8 @@ export function ProfileSettingsScreen() {
   useEffect(() => {
     if (user && initializedUserId !== user.id) {
       setDisplayName(user.displayName);
+      setProfileTag(user.tag.replace(/^@/, ""));
+      setProfilePhone(user.phoneNumber.replace(/\D/g, ""));
       setInitializedUserId(user.id);
     }
   }, [initializedUserId, user]);
@@ -84,12 +102,13 @@ export function ProfileSettingsScreen() {
     if (
       params.addNetwork === "1" &&
       profileIsInitialized &&
+      userHasCompleteIdentity &&
       !hasOpenedInitialAddDialog
     ) {
       setHasOpenedInitialAddDialog(true);
       openAddDialog();
     }
-  }, [hasOpenedInitialAddDialog, params.addNetwork, profileIsInitialized]);
+  }, [hasOpenedInitialAddDialog, params.addNetwork, profileIsInitialized, userHasCompleteIdentity]);
 
   async function handleSave() {
     if (!canSave) {
@@ -100,13 +119,30 @@ export function ProfileSettingsScreen() {
     setSaveError("");
 
     try {
-      await updateDisplayName(trimmedDisplayName);
-      goBackOrReplace("/");
+      const userHadCompleteIdentity = userHasCompleteIdentity;
+
+      await updateProfile({
+        displayName: trimmedDisplayName,
+        tag: profileTag,
+        phoneNumber: profilePhoneDigits
+      });
+
+      if (userHadCompleteIdentity) {
+        goBackOrReplace("/");
+      }
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Display name could not be saved.");
+      setSaveError(error instanceof Error ? error.message : "Profile could not be saved.");
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function handleChangeProfileTag(value: string) {
+    setProfileTag(value.replace(/^@/, ""));
+  }
+
+  function handleChangeProfilePhone(value: string) {
+    setProfilePhone(value.replace(/\D/g, "").slice(0, 10));
   }
 
   function handleChangeNetworkTag(value: string) {
@@ -149,7 +185,10 @@ export function ProfileSettingsScreen() {
   }
 
   return (
-    <Screen title="Profile" onBack={() => goBackOrReplace("/")}>
+    <Screen
+      title="Profile"
+      onBack={userHasCompleteIdentity ? () => goBackOrReplace("/") : undefined}
+    >
       <View style={styles.container}>
         {isLoading || (user && !profileIsInitialized) ? (
           <View style={styles.centerContent}>
@@ -165,6 +204,7 @@ export function ProfileSettingsScreen() {
               style={[
                 styles.card,
                 styles.firstCard,
+                userHasCompleteIdentity ? styles.firstCardWithFollowing : undefined,
                 { backgroundColor: cardColor }
               ]}
             >
@@ -179,36 +219,67 @@ export function ProfileSettingsScreen() {
                 error={displayName.length > 0 && trimmedDisplayName.length === 0}
                 theme={screenFieldTheme}
               />
+              <View style={styles.identityFields}>
+                <AffixTextField
+                  affix="@"
+                  label="Tag"
+                  value={profileTag}
+                  onChangeText={handleChangeProfileTag}
+                  accessibilityLabel="Profile tag"
+                  containerColor={cardColor}
+                />
+                <View style={styles.orDivider}>
+                  <Divider style={styles.orLine} />
+                  <Text
+                    variant="labelMedium"
+                    style={[styles.orText, { color: theme.colors.onSurfaceVariant }]}
+                  >
+                    or
+                  </Text>
+                  <Divider style={styles.orLine} />
+                </View>
+                <AffixTextField
+                  affix="#"
+                  label="Phone"
+                  value={formattedProfilePhone}
+                  onChangeText={handleChangeProfilePhone}
+                  keyboardType="phone-pad"
+                  accessibilityLabel="Profile phone"
+                  containerColor={cardColor}
+                />
+              </View>
             </View>
-            <NetworkMemberSection
-              searchValue={networkSearch}
-              searchVisible={canSearchNetwork}
-              onChangeSearch={setNetworkSearch}
-              onClearSearch={() => setNetworkSearch("")}
-              style={networkMemberSectionStyles.lastCard}
-            >
-              <MemberGrid
-                connections={filteredConnections}
-                contentTopPadding={canSearchNetwork ? spacing.xs : spacing.none}
-                emptyMessage="No network members yet"
-                errorMessage={networkErrorMessage}
-                isInteractive={false}
-                isLoading={networkIsLoading}
-                onScroll={() => undefined}
-                trailingAction={{
-                  accessibilityLabel: "Add to network",
-                  label: "Add",
-                  onPress: openAddDialog
-                }}
-              />
-            </NetworkMemberSection>
+            {userHasCompleteIdentity ? (
+              <NetworkMemberSection
+                searchValue={networkSearch}
+                searchVisible={canSearchNetwork}
+                onChangeSearch={setNetworkSearch}
+                onClearSearch={() => setNetworkSearch("")}
+                style={networkMemberSectionStyles.lastCard}
+              >
+                <MemberGrid
+                  connections={filteredConnections}
+                  contentTopPadding={canSearchNetwork ? spacing.xs : spacing.none}
+                  emptyMessage="No network members yet"
+                  errorMessage={networkErrorMessage}
+                  isInteractive={false}
+                  isLoading={networkIsLoading}
+                  onScroll={() => undefined}
+                  trailingAction={{
+                    accessibilityLabel: "Add to network",
+                    label: "Add",
+                    onPress: openAddDialog
+                  }}
+                />
+              </NetworkMemberSection>
+            ) : null}
             <View style={styles.fab}>
               <HuddleFab
                 icon="check"
                 label="Save"
                 extended
                 onPress={handleSave}
-                visible={displayNameIsDirty}
+                visible={profileIsDirty}
                 disabled={!canSave}
                 accessibilityLabel="Save profile"
               />
@@ -339,8 +410,16 @@ const styles = StyleSheet.create({
   firstCard: {
     borderTopLeftRadius: shape.large,
     borderTopRightRadius: shape.large,
+    borderBottomLeftRadius: shape.large,
+    borderBottomRightRadius: shape.large,
+    gap: spacing.xs
+  },
+  firstCardWithFollowing: {
     borderBottomLeftRadius: spacing.xxs,
     borderBottomRightRadius: spacing.xxs
+  },
+  identityFields: {
+    gap: spacing.xs
   },
   fieldError: {
     paddingTop: spacing.xs,

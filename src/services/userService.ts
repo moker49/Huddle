@@ -1,9 +1,10 @@
-import { LocalUser } from "@/models/user";
+import { LocalUser, LocalUserProfileInput } from "@/models/user";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
 import { createId } from "@/utils/createId";
 
 export interface UserService {
   getUser(): Promise<LocalUser>;
+  updateProfile(profile: LocalUserProfileInput): Promise<LocalUser>;
   updateDisplayName(displayName: string): Promise<LocalUser>;
   resetLocalData(): Promise<void>;
 }
@@ -15,10 +16,19 @@ function isLocalUser(value: unknown): value is LocalUser {
     typeof value === "object" &&
     value !== null &&
     "id" in value &&
-    "displayName" in value &&
     typeof value.id === "string" &&
+    "displayName" in value &&
     typeof value.displayName === "string"
   );
+}
+
+function normalizeLocalUser(value: LocalUser): LocalUser {
+  return {
+    id: value.id,
+    displayName: value.displayName,
+    tag: typeof value.tag === "string" ? value.tag : "",
+    phoneNumber: typeof value.phoneNumber === "string" ? value.phoneNumber : ""
+  };
 }
 
 export class LocalUserService implements UserService {
@@ -34,23 +44,41 @@ export class LocalUserService implements UserService {
     return this.userPromise;
   }
 
-  async updateDisplayName(displayName: string): Promise<LocalUser> {
-    const nextDisplayName = displayName.trim();
+  async updateProfile(profile: LocalUserProfileInput): Promise<LocalUser> {
+    const nextDisplayName = profile.displayName.trim();
+    const nextTag = normalizeTag(profile.tag);
+    const nextPhoneNumber = normalizePhoneNumber(profile.phoneNumber);
 
     if (!nextDisplayName) {
       throw new Error("Display name is required.");
     }
 
+    if (!nextTag && !nextPhoneNumber) {
+      throw new Error("Tag or phone number is required.");
+    }
+
     const currentUser = await this.getUser();
     const nextUser: LocalUser = {
       ...currentUser,
-      displayName: nextDisplayName
+      displayName: nextDisplayName,
+      tag: nextTag,
+      phoneNumber: nextPhoneNumber
     };
 
     this.userPromise = Promise.resolve(nextUser);
     await this.storage.write(userStorageKey, nextUser);
 
     return nextUser;
+  }
+
+  async updateDisplayName(displayName: string): Promise<LocalUser> {
+    const currentUser = await this.getUser();
+
+    return this.updateProfile({
+      displayName,
+      tag: currentUser.tag,
+      phoneNumber: currentUser.phoneNumber
+    });
   }
 
   async resetLocalData(): Promise<void> {
@@ -62,18 +90,41 @@ export class LocalUserService implements UserService {
     const storedUser = await this.storage.read<unknown>(userStorageKey);
 
     if (isLocalUser(storedUser)) {
-      return storedUser;
+      const normalizedUser = normalizeLocalUser(storedUser);
+
+      if (
+        normalizedUser.tag !== storedUser.tag ||
+        normalizedUser.phoneNumber !== storedUser.phoneNumber
+      ) {
+        await this.storage.write(userStorageKey, normalizedUser);
+      }
+
+      return normalizedUser;
     }
 
     const user: LocalUser = {
       id: createId(),
-      displayName: ""
+      displayName: "",
+      tag: "",
+      phoneNumber: ""
     };
 
     await this.storage.write(userStorageKey, user);
 
     return user;
   }
+}
+
+function normalizeTag(value: string) {
+  const tag = value.trim().replace(/^@+/, "");
+
+  return tag ? `@${tag}` : "";
+}
+
+function normalizePhoneNumber(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 10);
+
+  return digits ? `#${digits}` : "";
 }
 
 export const userService = new LocalUserService();
