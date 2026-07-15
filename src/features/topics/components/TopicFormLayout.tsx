@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { StyleSheet, TextInput as NativeTextInput, View } from "react-native";
+import { Platform, StyleSheet, TextInput as NativeTextInput, View } from "react-native";
 import { Icon, IconButton, TextInput, useTheme } from "react-native-paper";
 
 import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
@@ -12,6 +12,7 @@ interface TopicFormLayoutProps {
   titleAutoFocus?: boolean;
   memberError: boolean;
   memberSearchValue: string;
+  memberSearchVisible?: boolean;
   onChangeMemberSearch: (value: string) => void;
   onChangeAutoArchive: (value: string) => void;
   onClearMemberSearch: () => void;
@@ -28,6 +29,7 @@ export function TopicFormLayout({
   titleAutoFocus = true,
   memberError,
   memberSearchValue,
+  memberSearchVisible = true,
   onChangeMemberSearch,
   onChangeAutoArchive,
   onClearMemberSearch,
@@ -92,36 +94,39 @@ export function TopicFormLayout({
             { backgroundColor: theme.colors.elevation.level2 }
           ]}
         >
-          <View style={[styles.memberSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Icon
-              source="magnify"
-              size={24}
-              color={theme.colors.onSurfaceVariant}
-            />
-            <NativeTextInput
-              value={memberSearchValue}
-              onChangeText={onChangeMemberSearch}
-              placeholder="Search your network"
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              autoCapitalize="words"
-              accessibilityLabel="Search your network"
-              style={[
-                styles.memberSearch,
-                { color: theme.colors.onSurface },
-                memberError ? { color: theme.colors.error } : undefined
-              ]}
-            />
-            {memberSearchValue ? (
-              <IconButton
-                icon="close"
+          {memberSearchVisible ? (
+            <View style={[styles.memberSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <Icon
+                source="magnify"
                 size={24}
-                onPress={onClearMemberSearch}
-                accessibilityLabel="Clear member search"
-                iconColor={theme.colors.onSurfaceVariant}
-                style={styles.memberSearchClear}
+                color={theme.colors.onSurfaceVariant}
               />
-            ) : null}
-          </View>
+              <NativeTextInput
+                value={memberSearchValue}
+                onChangeText={onChangeMemberSearch}
+                placeholder="Search your network"
+                placeholderTextColor={theme.colors.onSurfaceVariant}
+                autoCapitalize="words"
+                accessibilityLabel="Search your network"
+                style={[
+                  styles.memberSearch,
+                  webInputFocusReset,
+                  { color: theme.colors.onSurface },
+                  memberError ? { color: theme.colors.error } : undefined
+                ]}
+              />
+              {memberSearchValue ? (
+                <IconButton
+                  icon="close"
+                  size={24}
+                  onPress={onClearMemberSearch}
+                  accessibilityLabel="Clear member search"
+                  iconColor={theme.colors.onSurfaceVariant}
+                  style={styles.memberSearchClear}
+                />
+              ) : null}
+            </View>
+          ) : null}
           {children}
         </View>
       </View>
@@ -177,3 +182,7 @@ const styles = StyleSheet.create({
     margin: spacing.none
   }
 });
+
+const webInputFocusReset = Platform.OS === "web"
+  ? ({ outlineStyle: "none" } as object)
+  : undefined;

@@ -61,13 +61,14 @@ export function CreateTopicScreen() {
   const memberError = hasSubmitted && selectedConnectionIds.length === 0;
   const autoArchiveError = hasSubmitted && autoArchiveIsInvalid;
   const canSubmit = hasRequiredSubmitFields && !isOverTitleLimit && !autoArchiveIsInvalid;
+  const memberSearchIsVisible = connections.length >= 6;
   const filteredConnections = useMemo(
     () => filterConnectionsForTopicForm({
       connections,
-      query: networkQuery,
+      query: memberSearchIsVisible ? networkQuery : "",
       selectedConnectionIds
     }),
-    [connections, networkQuery, selectedConnectionIds]
+    [connections, memberSearchIsVisible, networkQuery, selectedConnectionIds]
   );
 
   function handleToggleConnection(connection: Connection) {
@@ -119,6 +120,7 @@ export function CreateTopicScreen() {
             autoArchiveValue={autoArchiveDate}
             memberError={memberError}
             memberSearchValue={networkQuery}
+            memberSearchVisible={memberSearchIsVisible}
             onChangeAutoArchive={setAutoArchiveDate}
             onChangeMemberSearch={setNetworkQuery}
             onChangeTitle={setTitle}
@@ -130,6 +132,7 @@ export function CreateTopicScreen() {
           >
             <MemberGrid
               connections={filteredConnections}
+              contentTopPadding={memberSearchIsVisible ? spacing.xs : spacing.none}
               errorMessage={connectionErrorMessage}
               isLoading={connectionsAreLoading}
               onScroll={handleGridScroll}

@@ -10,6 +10,7 @@ interface MemberGridProps {
   connections: Connection[];
   emptyMessage?: string;
   errorMessage: string | null;
+  contentTopPadding?: number;
   isInteractive?: boolean;
   isLoading: boolean;
   onScroll: (offsetY: number) => void;
@@ -40,6 +41,7 @@ const keepInputFocusedProps =
 
 export function MemberGrid({
   connections,
+  contentTopPadding = spacing.xs,
   emptyMessage = "No matching network members",
   errorMessage,
   isInteractive = true,
@@ -85,7 +87,7 @@ export function MemberGrid({
 
   return (
     <ScrollView
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingTop: contentTopPadding }]}
       keyboardShouldPersistTaps="handled"
       onLayout={(event) => {
         const nextWidth = event.nativeEvent.layout.width;
@@ -205,8 +207,7 @@ const styles = StyleSheet.create({
   content: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.xxs,
-    paddingTop: spacing.xs
+    gap: spacing.xxs
   },
   item: {
     minHeight: 84,

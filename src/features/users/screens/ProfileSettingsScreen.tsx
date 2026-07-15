@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, TextInput as NativeTextInput, View } from "react-native";
+import { Platform, StyleSheet, TextInput as NativeTextInput, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
@@ -58,9 +58,10 @@ export function ProfileSettingsScreen() {
   const displayNameIsDirty = user ? displayName !== user.displayName : false;
   const profileIsInitialized = Boolean(user && initializedUserId === user.id);
   const canSave = trimmedDisplayName.length > 0 && !isSaving;
+  const canSearchNetwork = connections.length >= 6;
   const filteredConnections = useMemo(
-    () => filterNetworkConnections(connections, networkSearch),
-    [connections, networkSearch]
+    () => filterNetworkConnections(connections, canSearchNetwork ? networkSearch : ""),
+    [canSearchNetwork, connections, networkSearch]
   );
   const cardColor = theme.colors.elevation.level2;
   const screenFieldTheme = {
@@ -184,34 +185,41 @@ export function ProfileSettingsScreen() {
                 { backgroundColor: cardColor }
               ]}
             >
-              <View style={[styles.networkSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
-                <Icon
-                  source="magnify"
-                  size={24}
-                  color={theme.colors.onSurfaceVariant}
-                />
-                <NativeTextInput
-                  value={networkSearch}
-                  onChangeText={setNetworkSearch}
-                  placeholder="Search your network"
-                  placeholderTextColor={theme.colors.onSurfaceVariant}
-                  autoCapitalize="words"
-                  accessibilityLabel="Search your network"
-                  style={[styles.networkSearch, { color: theme.colors.onSurface }]}
-                />
-                {networkSearch ? (
-                  <IconButton
-                    icon="close"
+              {canSearchNetwork ? (
+                <View style={[styles.networkSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
+                  <Icon
+                    source="magnify"
                     size={24}
-                    onPress={() => setNetworkSearch("")}
-                    accessibilityLabel="Clear network search"
-                    iconColor={theme.colors.onSurfaceVariant}
-                    style={styles.networkSearchClear}
+                    color={theme.colors.onSurfaceVariant}
                   />
-                ) : null}
-              </View>
+                  <NativeTextInput
+                    value={networkSearch}
+                    onChangeText={setNetworkSearch}
+                    placeholder="Search your network"
+                    placeholderTextColor={theme.colors.onSurfaceVariant}
+                    autoCapitalize="words"
+                    accessibilityLabel="Search your network"
+                    style={[
+                      styles.networkSearch,
+                      webInputFocusReset,
+                      { color: theme.colors.onSurface }
+                    ]}
+                  />
+                  {networkSearch ? (
+                    <IconButton
+                      icon="close"
+                      size={24}
+                      onPress={() => setNetworkSearch("")}
+                      accessibilityLabel="Clear network search"
+                      iconColor={theme.colors.onSurfaceVariant}
+                      style={styles.networkSearchClear}
+                    />
+                  ) : null}
+                </View>
+              ) : null}
               <MemberGrid
                 connections={filteredConnections}
+                contentTopPadding={canSearchNetwork ? spacing.xs : spacing.none}
                 emptyMessage="No network members yet"
                 errorMessage={networkErrorMessage}
                 isInteractive={false}
@@ -417,3 +425,7 @@ const styles = StyleSheet.create({
     bottom: spacing.none
   }
 });
+
+const webInputFocusReset = Platform.OS === "web"
+  ? ({ outlineStyle: "none" } as object)
+  : undefined;
