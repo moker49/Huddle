@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
@@ -18,6 +18,7 @@ import { Screen } from "@/components/Screen";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { useUser } from "@/features/users/UserProvider";
+import { Connection } from "@/models/connection";
 import { shape, spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
@@ -36,6 +37,7 @@ export function ProfileSettingsScreen() {
   const [addDialogIsVisible, setAddDialogIsVisible] = useState(false);
   const [networkTag, setNetworkTag] = useState("");
   const [networkPhone, setNetworkPhone] = useState("");
+  const [networkSearch, setNetworkSearch] = useState("");
   const [networkIdentifierError, setNetworkIdentifierError] = useState("");
   const [isAddingNetworkMember, setIsAddingNetworkMember] = useState(false);
   const trimmedDisplayName = displayName.trim();
@@ -49,10 +51,15 @@ export function ProfileSettingsScreen() {
       : "";
   const displayNameIsDirty = user ? displayName !== user.displayName : false;
   const canSave = trimmedDisplayName.length > 0 && !isSaving;
+  const filteredConnections = useMemo(
+    () => filterNetworkConnections(connections, networkSearch),
+    [connections, networkSearch]
+  );
+  const cardColor = theme.colors.elevation.level2;
   const screenFieldTheme = {
     colors: {
-      background: theme.colors.background,
-      surfaceVariant: theme.colors.background
+      background: cardColor,
+      surfaceVariant: cardColor
     }
   };
 
@@ -132,7 +139,13 @@ export function ProfileSettingsScreen() {
           </Text>
         ) : (
           <>
-            <View style={styles.form}>
+            <View
+              style={[
+                styles.card,
+                styles.firstCard,
+                { backgroundColor: cardColor }
+              ]}
+            >
               <TextInput
                 mode="outlined"
                 label="Display name"
@@ -144,23 +157,40 @@ export function ProfileSettingsScreen() {
                 error={displayName.length > 0 && trimmedDisplayName.length === 0}
                 theme={screenFieldTheme}
               />
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                This name is saved on this device and attached to new messages.
-              </Text>
             </View>
             <View
               style={[
-                styles.networkCard,
-                { backgroundColor: theme.colors.elevation.level2 }
+                styles.card,
+                styles.lastCard,
+                { backgroundColor: cardColor }
               ]}
             >
-              <View style={styles.networkHeader}>
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>
-                  Network
-                </Text>
+              <View style={[styles.networkSearchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <TextInput
+                  mode="flat"
+                  dense
+                  value={networkSearch}
+                  onChangeText={setNetworkSearch}
+                  placeholder="Search network"
+                  autoCapitalize="words"
+                  accessibilityLabel="Search your network"
+                  underlineColor="transparent"
+                  activeUnderlineColor="transparent"
+                  left={<TextInput.Icon icon="magnify" />}
+                  right={
+                    networkSearch ? (
+                      <TextInput.Icon
+                        icon="close"
+                        onPress={() => setNetworkSearch("")}
+                        accessibilityLabel="Clear network search"
+                      />
+                    ) : undefined
+                  }
+                  style={styles.networkSearch}
+                />
               </View>
               <MemberGrid
-                connections={connections}
+                connections={filteredConnections}
                 emptyMessage="No network members yet"
                 errorMessage={networkErrorMessage}
                 isInteractive={false}
@@ -279,10 +309,24 @@ function formatPhoneInput(value: string) {
   return area;
 }
 
+function filterNetworkConnections(connections: Connection[], query: string) {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+
+  if (!normalizedQuery) {
+    return connections;
+  }
+
+  return connections.filter((connection) => (
+    connection.displayName.toLocaleLowerCase().startsWith(normalizedQuery) ||
+    connection.tag.toLocaleLowerCase().startsWith(normalizedQuery) ||
+    connection.phoneNumber.toLocaleLowerCase().startsWith(normalizedQuery)
+  ));
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    gap: spacing.lg,
+    gap: spacing.xxs,
     paddingTop: spacing.sm
   },
   centerContent: {
@@ -290,18 +334,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
-  form: {
-    gap: spacing.sm
-  },
-  networkCard: {
-    gap: spacing.xs,
-    borderRadius: shape.large,
+  card: {
     padding: spacing.md
   },
-  networkHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm
+  firstCard: {
+    borderTopLeftRadius: shape.large,
+    borderTopRightRadius: shape.large,
+    borderBottomLeftRadius: spacing.xxs,
+    borderBottomRightRadius: spacing.xxs
+  },
+  lastCard: {
+    gap: spacing.xs,
+    borderTopLeftRadius: spacing.xxs,
+    borderTopRightRadius: spacing.xxs,
+    borderBottomLeftRadius: shape.large,
+    borderBottomRightRadius: shape.large
+  },
+  networkSearchShell: {
+    height: 56,
+    borderRadius: 28,
+    overflow: "hidden"
+  },
+  networkSearch: {
+    height: 56,
+    backgroundColor: "transparent"
   },
   fieldError: {
     paddingTop: spacing.xs,
