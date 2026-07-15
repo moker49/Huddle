@@ -1,13 +1,17 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
-import { Snackbar } from "react-native-paper";
+import { Button, Dialog, Portal, Snackbar, Text } from "react-native-paper";
 
 import { HuddleFab } from "@/components/HuddleFab";
 import { Screen } from "@/components/Screen";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { TopicFormLayout } from "@/features/topics/components/TopicFormLayout";
+import {
+  DuplicateTopicMatch,
+  findDuplicateTopicMatch
+} from "@/features/topics/duplicateTopics";
 import { useTopics } from "@/features/topics/TopicProvider";
 import {
   collapseFabScrollOffset,
@@ -23,7 +27,7 @@ import { goBackOrReplace } from "@/utils/navigation";
 
 export function CreateTopicScreen() {
   const params = useLocalSearchParams<{ title?: string; memberIds?: string }>();
-  const { createTopic } = useTopics();
+  const { createTopic, topics } = useTopics();
   const {
     connections,
     errorMessage: connectionErrorMessage,
@@ -48,6 +52,7 @@ export function CreateTopicScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [fabIsExtended, setFabIsExtended] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [duplicateMatch, setDuplicateMatch] = useState<DuplicateTopicMatch | null>(null);
   const titleShouldAutoFocus = !params.title;
 
   const {
@@ -84,11 +89,20 @@ export function CreateTopicScreen() {
     );
   }
 
-  async function handleSubmit() {
+  async function handleSubmit({ skipDuplicateWarning = false } = {}) {
     setHasSubmitted(true);
 
     if (!canSubmit) {
       return;
+    }
+
+    if (!skipDuplicateWarning) {
+      const nextDuplicateMatch = findDuplicateTopicMatch(title, topics);
+
+      if (nextDuplicateMatch) {
+        setDuplicateMatch(nextDuplicateMatch);
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -106,6 +120,23 @@ export function CreateTopicScreen() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function openDuplicateHuddle() {
+    if (!duplicateMatch) {
+      return;
+    }
+
+    router.replace(`/topics/${duplicateMatch.topic.id}`);
+  }
+
+  function closeDuplicateDialog() {
+    setDuplicateMatch(null);
+  }
+
+  async function createAnyway() {
+    setDuplicateMatch(null);
+    await handleSubmit({ skipDuplicateWarning: true });
   }
 
   return (
@@ -156,6 +187,31 @@ export function CreateTopicScreen() {
       <Snackbar visible={Boolean(errorMessage)} onDismiss={() => setErrorMessage("")}>
         {errorMessage}
       </Snackbar>
+      <Portal>
+        <Dialog visible={Boolean(duplicateMatch)} onDismiss={closeDuplicateDialog}>
+          <Dialog.Title>
+            {duplicateMatch?.level === "prevent" ? "Huddle already exists" : "Similar huddle found"}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              {duplicateMatch?.level === "prevent"
+                ? "A huddle with this title already exists."
+                : "A huddle with a similar title already exists."}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={closeDuplicateDialog}>
+              {duplicateMatch?.level === "prevent" ? "Close" : "Cancel"}
+            </Button>
+            {duplicateMatch?.level === "warn" ? (
+              <Button onPress={createAnyway} loading={isSaving} disabled={isSaving}>
+                Create anyway
+              </Button>
+            ) : null}
+            <Button onPress={openDuplicateHuddle}>View huddle</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </Screen>
   );
 }
@@ -173,5 +229,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: spacing.none,
     bottom: spacing.none
+  },
+  duplicateTitle: {
+    marginTop: spacing.sm
   }
 });

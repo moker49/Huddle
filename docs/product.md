@@ -93,7 +93,7 @@ Huddle creation should be contextual:
 
 Huddle title and at least one member are required. Members are added from the user's network.
 
-The app should warn about likely duplicate huddles with similar title and similar members, but duplicates should remain possible. Huddles are loose, so uniqueness should not be enforced as a hard rule.
+Duplicate detection should be title-driven because a huddle represents a subject or shared context, not a fixed member set. Compare new huddle titles only against huddles the current user is part of. Prevent creation when title similarity is at least 90 percent, and warn when title similarity is at least 75 percent. Members may be shown as context, but they should not affect the duplicate score.
 
 ## Membership and History
 
