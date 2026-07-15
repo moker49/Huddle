@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
   ActivityIndicator,
   Button,
@@ -95,10 +95,10 @@ export function ProfileSettingsScreen() {
     [canSearchNetwork, connections, networkSearch]
   );
   const cardColor = theme.colors.elevation.level2;
-  const displayNameAdornmentLabels = {
-    tag: profileTag ? `@${profileTag}` : "@tag",
-    phone: formattedProfilePhone ? `#${formattedProfilePhone}` : "#phone"
-  };
+  const displayNameAdornmentText = [
+    profileTag ? `@${profileTag}` : "@tag",
+    formattedProfilePhone ? `#${formattedProfilePhone}` : "#phone"
+  ].join("  ");
   const screenFieldTheme = {
     colors: {
       background: cardColor,
@@ -297,50 +297,25 @@ export function ProfileSettingsScreen() {
                 { backgroundColor: cardColor }
               ]}
             >
-              <View style={styles.displayNameFieldShell}>
-                <TextInput
-                  mode="outlined"
-                  label="Display name"
-                  value={displayName}
-                  onChangeText={handleChangeDisplayName}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  accessibilityLabel="Display name"
-                  error={displayNameHasError}
-                  theme={screenFieldTheme}
-                  contentStyle={styles.displayNameFieldContent}
-                />
-                <View pointerEvents="box-none" style={styles.displayNameAdornments}>
-                  <Pressable
+              <TextInput
+                mode="outlined"
+                label="Display name"
+                value={displayName}
+                onChangeText={handleChangeDisplayName}
+                autoCapitalize="words"
+                autoCorrect={false}
+                accessibilityLabel="Display name"
+                error={displayNameHasError}
+                theme={screenFieldTheme}
+                right={
+                  <TextInput.Affix
+                    text={displayNameAdornmentText}
                     onPress={openIdentityDialog}
-                    accessibilityLabel="Set profile tag"
-                    accessibilityRole="button"
-                    style={styles.displayNameAdornment}
-                  >
-                    <Text
-                      variant="labelLarge"
-                      numberOfLines={1}
-                      style={{ color: theme.colors.primary }}
-                    >
-                      {displayNameAdornmentLabels.tag}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={openIdentityDialog}
-                    accessibilityLabel="Set profile phone"
-                    accessibilityRole="button"
-                    style={styles.displayNameAdornment}
-                  >
-                    <Text
-                      variant="labelLarge"
-                      numberOfLines={1}
-                      style={{ color: theme.colors.primary }}
-                    >
-                      {displayNameAdornmentLabels.phone}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
+                    accessibilityLabel="Set profile tag or phone"
+                    textStyle={{ color: theme.colors.primary }}
+                  />
+                }
+              />
             </View>
             {userHasCompleteIdentity ? (
               <NetworkMemberSection
@@ -600,26 +575,6 @@ const styles = StyleSheet.create({
   singleCard: {
     borderRadius: shape.large,
     gap: spacing.xs
-  },
-  displayNameFieldShell: {
-    position: "relative"
-  },
-  displayNameFieldContent: {
-    paddingRight: 148
-  },
-  displayNameAdornments: {
-    position: "absolute",
-    top: 4,
-    right: spacing.sm,
-    bottom: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs
-  },
-  displayNameAdornment: {
-    minHeight: 40,
-    justifyContent: "center",
-    maxWidth: 68
   },
   fieldError: {
     paddingTop: spacing.xs,
