@@ -5,7 +5,14 @@ import { createId } from "@/utils/createId";
 export interface MessageService {
   listMessages(topicId: string): Promise<Message[]>;
   createMessage(input: CreateMessageInput): Promise<Message>;
+  createActivity(input: CreateActivityInput): Promise<Message>;
   resetLocalData(): Promise<void>;
+}
+
+export interface CreateActivityInput {
+  topicId: string;
+  body: string;
+  activityType: NonNullable<Message["activityType"]>;
 }
 
 const initialMessages: Message[] = [];
@@ -24,6 +31,8 @@ function isMessage(value: unknown): value is Message {
     typeof value.id === "string" &&
     typeof value.topicId === "string" &&
     typeof value.body === "string" &&
+    (!("kind" in value) || value.kind === "user" || value.kind === "system") &&
+    (!("activityType" in value) || typeof value.activityType === "string") &&
     typeof value.authorName === "string" &&
     typeof value.createdAt === "string"
   );
@@ -53,14 +62,35 @@ export class LocalMessageService implements MessageService {
       id: createId(),
       topicId: input.topicId,
       body,
+      kind: "user",
       authorId: input.authorId,
       authorName: input.authorName,
       createdAt: new Date().toISOString()
     };
 
-    this.messages = [...(await this.loadMessages()), message];
-    this.messagesPromise = Promise.resolve(this.messages);
-    await this.storage.write(messageStorageKey, this.messages);
+    await this.appendMessage(message);
+
+    return message;
+  }
+
+  async createActivity(input: CreateActivityInput): Promise<Message> {
+    const body = input.body.trim();
+
+    if (!body) {
+      throw new Error("Activity message is required.");
+    }
+
+    const message: Message = {
+      id: createId(),
+      topicId: input.topicId,
+      body,
+      kind: "system",
+      activityType: input.activityType,
+      authorName: "System",
+      createdAt: new Date().toISOString()
+    };
+
+    await this.appendMessage(message);
 
     return message;
   }
@@ -83,6 +113,12 @@ export class LocalMessageService implements MessageService {
     }
 
     return this.messagesPromise;
+  }
+
+  private async appendMessage(message: Message) {
+    this.messages = [...(await this.loadMessages()), message];
+    this.messagesPromise = Promise.resolve(this.messages);
+    await this.storage.write(messageStorageKey, this.messages);
   }
 }
 

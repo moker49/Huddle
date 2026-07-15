@@ -12,6 +12,27 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const theme = useTheme();
 
+  if (message.kind === "system") {
+    return (
+      <View style={styles.systemRow}>
+        <Text
+          variant="bodySmall"
+          numberOfLines={2}
+          style={[styles.systemText, { color: theme.colors.outline }]}
+        >
+          {message.body}
+        </Text>
+        <Text
+          variant="bodySmall"
+          numberOfLines={1}
+          style={[styles.systemTime, { color: theme.colors.outline }]}
+        >
+          {formatMessageTime(message.createdAt)}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.row}>
       <View
@@ -94,5 +115,20 @@ const styles = StyleSheet.create({
     alignItems: "baseline",
     gap: spacing.xs,
     flexWrap: "wrap"
+  },
+  systemRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    paddingVertical: spacing.xxs
+  },
+  systemText: {
+    flex: 1,
+    textAlign: "left"
+  },
+  systemTime: {
+    flexShrink: 0,
+    textAlign: "right"
   }
 });

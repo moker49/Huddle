@@ -8,6 +8,7 @@ import {
 } from "@/services/directoryUsers";
 import { JsonStorage } from "@/services/localJsonStorage";
 import { LocalConnectionService } from "@/services/connectionService";
+import { LocalMessageService } from "@/services/messageService";
 import { LocalTopicService } from "@/services/topicService";
 import { LocalUserService } from "@/services/userService";
 
@@ -41,6 +42,7 @@ class MemoryJsonStorage implements JsonStorage {
 interface ServiceSet {
   connections: LocalConnectionService;
   directory: DirectoryUserService;
+  messages: LocalMessageService;
   topics: LocalTopicService;
   users: LocalUserService;
 }
@@ -345,13 +347,84 @@ test("updating identifiers merges with existing directory identity instead of du
   assert.equal(matchingUsers[0].phoneNumber, "#27");
 });
 
+test("creating a huddle records a huddle-created activity", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Activity huddle",
+    memberIds: ["phone:#27"]
+  });
+  const messages = await efrenSession.messages.listMessages(topic.id);
+
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].kind, "system");
+  assert.equal(messages[0].activityType, "huddle_created");
+  assert.equal(messages[0].body, "Huddle created");
+  assert.equal(typeof messages[0].createdAt, "string");
+});
+
+test("updating a huddle title records a title-updated activity", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Old title",
+    memberIds: ["phone:#27"]
+  });
+
+  await efrenSession.topics.updateTopic(topic.id, {
+    title: "New title",
+    memberIds: ["phone:#27"]
+  });
+  const messages = await efrenSession.messages.listMessages(topic.id);
+  const titleActivity = messages.find((message) => message.activityType === "title_updated");
+
+  assert.equal(titleActivity?.kind, "system");
+  assert.equal(titleActivity?.body, "Title updated from \"Old title\" to \"New title\"");
+  assert.equal(typeof titleActivity?.createdAt, "string");
+});
+
+test("updating huddle members records member-added and member-removed activities", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Member activity",
+    memberIds: ["phone:#27"]
+  });
+
+  await efrenSession.topics.updateTopic(topic.id, {
+    title: "Member activity",
+    memberIds: ["andre"]
+  });
+  const messages = await efrenSession.messages.listMessages(topic.id);
+  const addedActivity = messages.find((message) => message.activityType === "member_added");
+  const removedActivity = messages.find((message) => message.activityType === "member_removed");
+
+  assert.equal(addedActivity?.kind, "system");
+  assert.equal(addedActivity?.body, "Member added: andre");
+  assert.equal(removedActivity?.kind, "system");
+  assert.equal(removedActivity?.body, "Member removed: phone:#27");
+});
+
 function createServices(storage: JsonStorage): ServiceSet {
   const directory = new LocalDirectoryUserService(storage);
   const users = new LocalUserService(storage, directory);
-  const topics = new LocalTopicService(storage, users, directory);
+  const messages = new LocalMessageService(storage);
+  const topics = new LocalTopicService(storage, users, directory, messages);
   const connections = new LocalConnectionService(storage, users, directory);
 
-  return { connections, directory, topics, users };
+  return { connections, directory, messages, topics, users };
 }
 
 function assertMemberDisplays(

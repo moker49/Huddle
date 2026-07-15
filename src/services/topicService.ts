@@ -8,6 +8,7 @@ import {
 } from "@/services/directoryUsers";
 import { getVisibleInboundHuddleTopics } from "@/services/inboundHuddleFixtures";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
+import { MessageService, messageService } from "@/services/messageService";
 import { topicIsVisibleToUser } from "@/services/topicVisibility";
 import { UserService, userService } from "@/services/userService";
 import { createId } from "@/utils/createId";
@@ -52,7 +53,8 @@ export class LocalTopicService implements TopicService {
   constructor(
     private readonly storage: JsonStorage = localJsonStorage,
     private readonly users: UserService = userService,
-    private readonly directoryUsers: DirectoryUserService = directoryUserService
+    private readonly directoryUsers: DirectoryUserService = directoryUserService,
+    private readonly messages: MessageService = messageService
   ) {}
 
   async listTopics(): Promise<Topic[]> {
@@ -105,6 +107,11 @@ export class LocalTopicService implements TopicService {
 
     this.topics = [topic, ...(await this.loadTopics())];
     await this.saveTopics();
+    await this.messages.createActivity({
+      topicId: topic.id,
+      body: "Huddle created",
+      activityType: "huddle_created"
+    });
 
     return topic;
   }
@@ -129,10 +136,11 @@ export class LocalTopicService implements TopicService {
     }
 
     const currentTopic = topics[topicIndex];
+    const nextMemberIds = getTopicMemberIds(input.memberIds, currentTopic, directoryUsers);
     const topic: Topic = {
       ...currentTopic,
       title,
-      memberIds: getTopicMemberIds(input.memberIds, currentTopic, directoryUsers),
+      memberIds: nextMemberIds,
       autoArchiveAt: input.autoArchiveAt
     };
 
@@ -140,6 +148,7 @@ export class LocalTopicService implements TopicService {
       currentTopic.id === id ? topic : currentTopic
     ));
     await this.saveTopics();
+    await this.createUpdateActivities(currentTopic, topic);
 
     return topic;
   }
@@ -172,6 +181,37 @@ export class LocalTopicService implements TopicService {
   private async saveTopics() {
     this.topicsPromise = Promise.resolve(this.topics);
     await this.storage.write(topicStorageKey, this.topics);
+  }
+
+  private async createUpdateActivities(previousTopic: Topic, nextTopic: Topic) {
+    if (previousTopic.title !== nextTopic.title) {
+      await this.messages.createActivity({
+        topicId: nextTopic.id,
+        body: `Title updated from "${previousTopic.title}" to "${nextTopic.title}"`,
+        activityType: "title_updated"
+      });
+    }
+
+    const previousMemberIds = new Set(previousTopic.memberIds);
+    const nextMemberIds = new Set(nextTopic.memberIds);
+    const addedMemberIds = nextTopic.memberIds.filter((memberId) => !previousMemberIds.has(memberId));
+    const removedMemberIds = previousTopic.memberIds.filter((memberId) => !nextMemberIds.has(memberId));
+
+    for (const memberId of addedMemberIds) {
+      await this.messages.createActivity({
+        topicId: nextTopic.id,
+        body: `Member added: ${memberId}`,
+        activityType: "member_added"
+      });
+    }
+
+    for (const memberId of removedMemberIds) {
+      await this.messages.createActivity({
+        topicId: nextTopic.id,
+        body: `Member removed: ${memberId}`,
+        activityType: "member_removed"
+      });
+    }
   }
 }
 
