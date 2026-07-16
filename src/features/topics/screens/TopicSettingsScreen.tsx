@@ -54,6 +54,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const [fabIsExtended, setFabIsExtended] = useState(true);
   const [discardDialogIsVisible, setDiscardDialogIsVisible] = useState(false);
   const [deleteDialogIsVisible, setDeleteDialogIsVisible] = useState(false);
+  const [memberHistoryDialogIsVisible, setMemberHistoryDialogIsVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const initializedTopicIdRef = useRef<string | null>(null);
   const topicIsInitialized = Boolean(topic && initializedTopicIdRef.current === topic.id);
@@ -134,6 +135,19 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
       return;
     }
 
+    if (hasNewMembers(topic.memberIds, selectedConnectionIds)) {
+      setMemberHistoryDialogIsVisible(true);
+      return;
+    }
+
+    await saveTopicChanges();
+  }
+
+  async function saveTopicChanges() {
+    if (!topic) {
+      return;
+    }
+
     setIsSaving(true);
     setErrorMessage("");
 
@@ -149,6 +163,11 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  async function confirmMemberHistoryWarning() {
+    setMemberHistoryDialogIsVisible(false);
+    await saveTopicChanges();
   }
 
   async function handleDelete() {
@@ -294,6 +313,23 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
             </Button>
           </Dialog.Actions>
         </Dialog>
+        <Dialog
+          visible={memberHistoryDialogIsVisible}
+          onDismiss={() => setMemberHistoryDialogIsVisible(false)}
+        >
+          <Dialog.Title>Add members?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              New members will be able to see the full huddle history.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setMemberHistoryDialogIsVisible(false)}>Cancel</Button>
+            <Button onPress={confirmMemberHistoryWarning} loading={isSaving} disabled={isSaving}>
+              Save
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
       </Portal>
     </Screen>
   );
@@ -321,3 +357,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg
   }
 });
+
+function hasNewMembers(previousMemberIds: string[], nextMemberIds: string[]) {
+  const previousMemberIdSet = new Set(previousMemberIds);
+
+  return nextMemberIds.some((memberId) => !previousMemberIdSet.has(memberId));
+}

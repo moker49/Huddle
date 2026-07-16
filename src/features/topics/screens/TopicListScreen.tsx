@@ -66,7 +66,7 @@ export function TopicListScreen() {
     reloadConnections
   } = useConnections();
   const { clearLoadedMessages } = useMessages();
-  const { reloadUser } = useUser();
+  const { reloadUser, user } = useUser();
   const searchInputRef = useRef<FocusHandle | null>(null);
   const observedCreatedTopicIdRef = useRef(lastCreatedTopicId);
   const drawerAnimation = useRef(new Animated.Value(0)).current;
@@ -248,7 +248,15 @@ export function TopicListScreen() {
       .map((memberId) => connectionNameById[memberId])
       .filter((name): name is string => Boolean(name));
 
-    return names.length > 0 ? names.join(", ") : "No members yet";
+    if (names.length > 0) {
+      return names.join(", ");
+    }
+
+    if (user && getUserMemberAliases(user).some((alias) => memberIds.includes(alias))) {
+      return user.displayName || user.tag || user.phoneNumber;
+    }
+
+    return "No members yet";
   }
 
   return (
@@ -611,6 +619,22 @@ function getConnectionMemberAliases(connection: Connection) {
     connection.tag,
     connection.phoneNumber,
     connection.phoneNumber ? `phone:${connection.phoneNumber}` : ""
+  ].filter(Boolean);
+}
+
+function getUserMemberAliases(user: {
+  id: string;
+  phoneNumber: string;
+  tag: string;
+}) {
+  const tagId = user.tag.startsWith("@") ? user.tag.slice(1) : user.tag;
+
+  return [
+    user.id,
+    user.tag,
+    tagId,
+    user.phoneNumber,
+    user.phoneNumber ? `phone:${user.phoneNumber}` : ""
   ].filter(Boolean);
 }
 
