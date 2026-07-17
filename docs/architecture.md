@@ -71,6 +71,8 @@ Create service interfaces around app-specific operations, not generic data frame
 
 Local, in-memory, or file-backed implementations are acceptable for prototypes when the interface can later be backed by an API without rewriting screens.
 
+The current runtime uses Supabase-backed profile and direct-network services. The required tables and RLS policies are maintained in [`supabase/schema.sql`](../supabase/schema.sql). Local implementations remain available for focused tests and offline development. The service contract is the boundary; screens and providers should not branch on storage technology.
+
 ## Platform Strategy
 
 The app targets Expo on Android, iOS, and mobile web. It should retain one coherent Material Design identity across platforms while respecting platform essentials such as safe areas, keyboard behavior, browser focus behavior, system navigation areas, and accessibility.

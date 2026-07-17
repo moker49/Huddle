@@ -10,6 +10,7 @@ import {
 
 import { Connection } from "@/models/connection";
 import { ConnectionService, connectionService } from "@/services/connectionService";
+import { useAuth } from "@/features/auth/AuthProvider";
 
 interface ConnectionContextValue {
   connections: Connection[];
@@ -29,6 +30,7 @@ export function ConnectionProvider({
   children,
   service = connectionService
 }: ConnectionProviderProps) {
+  const { session } = useAuth();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -47,6 +49,15 @@ export function ConnectionProvider({
   }, [service]);
 
   useEffect(() => {
+    service.setAccountScope(session?.user.id ?? null);
+
+    if (!session) {
+      setConnections([]);
+      setErrorMessage(null);
+      setIsLoading(false);
+      return;
+    }
+
     let isActive = true;
 
     service
@@ -71,7 +82,7 @@ export function ConnectionProvider({
     return () => {
       isActive = false;
     };
-  }, [service]);
+  }, [service, session]);
 
   const value = useMemo<ConnectionContextValue>(
     () => ({

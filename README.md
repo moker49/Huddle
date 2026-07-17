@@ -33,6 +33,10 @@ Before introducing a new measurement, color, typography style, component pattern
 npm install
 ```
 
+## Supabase Setup
+
+The current runtime uses Google authentication plus Supabase-backed profiles and direct network relationships. Run [`supabase/schema.sql`](supabase/schema.sql) once in the Supabase SQL editor before testing profile or network sync. Phone verification remains deferred until the core app is substantially complete.
+
 ## Run
 
 ```sh

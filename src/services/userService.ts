@@ -185,4 +185,140 @@ function normalizePhoneNumber(value: string) {
   return digits ? `#${digits}` : "";
 }
 
-export const userService = new LocalUserService();
+export class SupabaseUserService implements UserService {
+  private accountScope: string | null = null;
+  private userPromise: Promise<LocalUser> | null = null;
+
+  setAccountScope(accountId: string | null): void {
+    if (this.accountScope === accountId) {
+      return;
+    }
+
+    this.accountScope = accountId;
+    this.userPromise = null;
+  }
+
+  async getUser(): Promise<LocalUser> {
+    if (!this.accountScope) {
+      throw new Error("An authenticated account is required.");
+    }
+
+    if (!this.userPromise) {
+      this.userPromise = this.loadUser();
+    }
+
+    return this.userPromise;
+  }
+
+  async updateProfile(profile: LocalUserProfileInput): Promise<LocalUser> {
+    const nextDisplayName = normalizeDisplayName(profile.displayName);
+    const nextTag = normalizeTag(profile.tag);
+    const nextPhoneNumber = normalizePhoneNumber(profile.phoneNumber);
+
+    if (!nextDisplayName) {
+      throw new Error("Display name is required.");
+    }
+
+    if (!nextTag && !nextPhoneNumber) {
+      throw new Error("Tag or phone number is required.");
+    }
+
+    return this.saveUser({
+      ...(await this.getUser()),
+      displayName: nextDisplayName,
+      tag: nextTag,
+      phoneNumber: nextPhoneNumber
+    });
+  }
+
+  async updateIdentifiers(
+    identifiers: Pick<LocalUserProfileInput, "tag" | "phoneNumber">
+  ): Promise<LocalUser> {
+    const nextTag = normalizeTag(identifiers.tag);
+    const nextPhoneNumber = normalizePhoneNumber(identifiers.phoneNumber);
+
+    if (!nextTag && !nextPhoneNumber) {
+      throw new Error("Tag or phone number is required.");
+    }
+
+    return this.saveUser({
+      ...(await this.getUser()),
+      tag: nextTag,
+      phoneNumber: nextPhoneNumber
+    });
+  }
+
+  async updateDisplayName(displayName: string): Promise<LocalUser> {
+    const currentUser = await this.getUser();
+
+    return this.updateProfile({
+      displayName,
+      tag: currentUser.tag,
+      phoneNumber: currentUser.phoneNumber
+    });
+  }
+
+  async resetLocalData(): Promise<void> {
+    this.userPromise = null;
+  }
+
+  private async loadUser(): Promise<LocalUser> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, display_name, tag, phone_number, created_at")
+      .eq("id", this.accountScope)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (data) {
+      return mapProfile(data);
+    }
+
+    const user: LocalUser = {
+      id: this.accountScope as string,
+      displayName: "",
+      tag: "",
+      phoneNumber: ""
+    };
+
+    return this.saveUser(user);
+  }
+
+  private async saveUser(user: LocalUser): Promise<LocalUser> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      display_name: user.displayName,
+      tag: user.tag,
+      phone_number: user.phoneNumber
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    this.userPromise = Promise.resolve(user);
+    return user;
+  }
+}
+
+function mapProfile(value: {
+  id: string;
+  display_name: string | null;
+  tag: string | null;
+  phone_number: string | null;
+}): LocalUser {
+  return {
+    id: value.id,
+    displayName: normalizeDisplayName(value.display_name ?? ""),
+    tag: normalizeTag(value.tag ?? ""),
+    phoneNumber: normalizePhoneNumber(value.phone_number ?? "")
+  };
+}
+
+export const localUserService = new LocalUserService();
+export const userService = new SupabaseUserService();

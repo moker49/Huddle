@@ -15,6 +15,7 @@ import { getLocalMemberIds, topicIsVisibleToUser } from "@/services/topicVisibil
 import { UserService, userService } from "@/services/userService";
 
 export interface ConnectionService {
+  setAccountScope(accountId: string | null): void;
   listConnections(): Promise<Connection[]>;
   addConnection(identifier: string): Promise<Connection>;
   resetLocalData(): Promise<void>;
@@ -36,6 +37,8 @@ export class LocalConnectionService implements ConnectionService {
     private readonly users: UserService = userService,
     private readonly directoryUsers: DirectoryUserService = directoryUserService
   ) {}
+
+  setAccountScope(_accountId: string | null): void {}
 
   async listConnections(): Promise<Connection[]> {
     const networkUserIds = await this.loadNetworkUserIds();
@@ -122,6 +125,92 @@ export class LocalConnectionService implements ConnectionService {
   }
 }
 
+export class SupabaseConnectionService implements ConnectionService {
+  private accountScope: string | null = null;
+
+  constructor(private readonly directoryUsers: DirectoryUserService = directoryUserService) {}
+
+  setAccountScope(accountId: string | null): void {
+    this.accountScope = accountId;
+  }
+
+  async listConnections(): Promise<Connection[]> {
+    const ownerId = this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error } = await supabase
+      .from("network_members")
+      .select("member_id, member_tag, member_phone_number, created_at")
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    const users = await this.directoryUsers.listUsers();
+
+    return (data ?? [])
+      .map((entry) => resolveCloudConnection(entry, users))
+      .filter((connection): connection is Connection => Boolean(connection))
+      .sort((a, b) => getConnectionDisplayName(a).localeCompare(getConnectionDisplayName(b)));
+  }
+
+  async addConnection(identifier: string): Promise<Connection> {
+    const ownerId = this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const normalizedIdentifier = normalizeIdentifier(identifier);
+
+    if (!normalizedIdentifier) {
+      throw new Error("User could not be found.");
+    }
+
+    const users = await this.directoryUsers.listUsers();
+    const user = findDirectoryUser(users, normalizedIdentifier);
+    const memberTag = normalizedIdentifier.startsWith("@") ? normalizedIdentifier : null;
+    const memberPhoneNumber = normalizedIdentifier.startsWith("#") ? normalizedIdentifier : null;
+    const { data: existingEntries, error: existingError } = await supabase
+      .from("network_members")
+      .select("id")
+      .eq("owner_id", ownerId)
+      .or(
+        user
+          ? `member_id.eq.${user.id}`
+          : memberTag
+            ? `member_tag.eq.${memberTag}`
+            : `member_phone_number.eq.${memberPhoneNumber}`
+      );
+
+    if (existingError) {
+      throw existingError;
+    }
+
+    if (!existingEntries?.length) {
+      const { error } = await supabase.from("network_members").insert({
+        owner_id: ownerId,
+        member_id: user?.id ?? null,
+        member_tag: memberTag,
+        member_phone_number: memberPhoneNumber
+      });
+
+      if (error) {
+        throw error;
+      }
+    }
+
+    return user ? userToConnection(user) : createPhoneConnection(normalizedIdentifier);
+  }
+
+  async resetLocalData(): Promise<void> {}
+
+  private requireAccountScope() {
+    if (!this.accountScope) {
+      throw new Error("An authenticated account is required.");
+    }
+
+    return this.accountScope;
+  }
+}
+
 function resolveNetworkEntry(
   networkEntry: string,
   directoryUsers: Awaited<ReturnType<DirectoryUserService["listUsers"]>>
@@ -161,6 +250,39 @@ function createPhoneConnection(identifier: string): Connection {
   };
 }
 
+function resolveCloudConnection(
+  entry: {
+    member_id: string | null;
+    member_tag: string | null;
+    member_phone_number: string | null;
+    created_at: string;
+  },
+  users: Awaited<ReturnType<DirectoryUserService["listUsers"]>>
+) {
+  const user = entry.member_id
+    ? getDirectoryConnectionForMemberId(users, entry.member_id)
+    : entry.member_tag
+      ? getDirectoryConnectionForMemberId(users, entry.member_tag)
+      : entry.member_phone_number
+        ? getDirectoryConnectionForMemberId(users, entry.member_phone_number)
+        : null;
+
+  if (user) {
+    return user;
+  }
+
+  const identifier = entry.member_tag ?? entry.member_phone_number;
+
+  if (!identifier || entry.member_tag) {
+    return null;
+  }
+
+  return {
+    ...createPhoneConnection(identifier),
+    createdAt: entry.created_at
+  };
+}
+
 function isStoredTopic(value: unknown): value is Topic {
   return (
     typeof value === "object" &&
@@ -177,4 +299,5 @@ function isStoredTopic(value: unknown): value is Topic {
   );
 }
 
-export const connectionService = new LocalConnectionService();
+export const localConnectionService = new LocalConnectionService();
+export const connectionService = new SupabaseConnectionService();

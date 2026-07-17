@@ -98,6 +98,40 @@ export class LocalDirectoryUserService implements DirectoryUserService {
   }
 }
 
+export class SupabaseDirectoryUserService implements DirectoryUserService {
+  async listUsers(): Promise<DirectoryUser[]> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, display_name, tag, phone_number, created_at")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map(mapProfileToDirectoryUser);
+  }
+
+  async upsertLocalUser(user: LocalUser): Promise<void> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      display_name: user.displayName,
+      tag: user.tag,
+      phone_number: user.phoneNumber
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async resetLocalData(): Promise<void> {
+    // This service is cloud-backed. Local-data clearing must not delete cloud identity data.
+  }
+}
+
 export function findDirectoryUser(users: DirectoryUser[], identifier: string) {
   const normalizedIdentifier = normalizeIdentifier(identifier);
 
@@ -162,6 +196,22 @@ export function userToConnection(user: DirectoryUser): Connection {
   };
 }
 
+function mapProfileToDirectoryUser(value: {
+  id: string;
+  display_name: string | null;
+  tag: string | null;
+  phone_number: string | null;
+  created_at: string;
+}): DirectoryUser {
+  return {
+    id: value.id,
+    displayName: value.display_name ?? "",
+    tag: value.tag ?? "",
+    phoneNumber: value.phone_number ?? "",
+    createdAt: value.created_at
+  };
+}
+
 function localUserToDirectoryUser(user: LocalUser, id: string = user.id): DirectoryUser {
   return {
     id,
@@ -190,4 +240,5 @@ function usersIdentifySamePerson(left: DirectoryUser, right: DirectoryUser) {
   );
 }
 
-export const directoryUserService = new LocalDirectoryUserService();
+export const localDirectoryUserService = new LocalDirectoryUserService();
+export const directoryUserService = new SupabaseDirectoryUserService();
