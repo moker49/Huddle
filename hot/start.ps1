@@ -1,4 +1,7 @@
 Set-Location (Join-Path $PSScriptRoot "..")
+Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue |
+  Select-Object -ExpandProperty OwningProcess -Unique |
+  ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
 Import-Module WebAdministration -ErrorAction Stop
 $siteName = "Huddle"
 $targetPath = (Resolve-Path $PSScriptRoot).Path
