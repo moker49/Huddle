@@ -118,7 +118,7 @@ export function CreateTopicScreen() {
       });
       router.replace(`/topics/${topic.id}`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Huddle could not be created.");
+      setErrorMessage(getCreationErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
@@ -216,6 +216,23 @@ export function CreateTopicScreen() {
       </Portal>
     </Screen>
   );
+}
+
+function getCreationErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return "Huddle could not be created.";
 }
 
 const styles = StyleSheet.create({
