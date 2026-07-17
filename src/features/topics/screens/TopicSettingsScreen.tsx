@@ -326,7 +326,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
           <Dialog.Actions>
             <Button onPress={() => setMemberHistoryDialogIsVisible(false)}>Cancel</Button>
             <Button onPress={confirmMemberHistoryWarning} loading={isSaving} disabled={isSaving}>
-              Save
+              Yes
             </Button>
           </Dialog.Actions>
         </Dialog>
