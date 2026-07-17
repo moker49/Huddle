@@ -12,13 +12,9 @@ import {
 import {
   ActivityIndicator,
   Appbar,
-  Button,
-  Dialog,
-  Drawer,
   Icon,
   IconButton,
   Portal,
-  Snackbar,
   Text,
   TextInput,
   useTheme
@@ -27,13 +23,12 @@ import {
 import { Screen } from "@/components/Screen";
 import { MemberRail } from "@/features/connections/components/MemberRail";
 import { useConnections } from "@/features/connections/ConnectionProvider";
-import { useMessages } from "@/features/messages/MessageProvider";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
 import { connectionMatchesText, getConnectionDisplayName } from "@/models/connectionDisplay";
-import { clearLocalAppData } from "@/services/localDataService";
+import { Topic } from "@/models/topic";
 import { layout, shape, spacing } from "@/theme/tokens";
 
 type TopicListItemPosition = "single" | "first" | "middle" | "last";
@@ -58,24 +53,19 @@ const drawerWidth = 304;
 
 export function TopicListScreen() {
   const theme = useTheme();
-  const { errorMessage, isLoading, lastCreatedTopicId, reloadTopics, topics } = useTopics();
+  const { errorMessage, isLoading, lastCreatedTopicId, topics } = useTopics();
   const {
     connections,
     errorMessage: connectionErrorMessage,
-    isLoading: connectionsAreLoading,
-    reloadConnections
+    isLoading: connectionsAreLoading
   } = useConnections();
-  const { clearLoadedMessages } = useMessages();
-  const { reloadUser, user } = useUser();
+  const { user } = useUser();
   const searchInputRef = useRef<FocusHandle | null>(null);
   const observedCreatedTopicIdRef = useRef(lastCreatedTopicId);
   const drawerAnimation = useRef(new Animated.Value(0)).current;
   const [query, setQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
   const [drawerIsMounted, setDrawerIsMounted] = useState(false);
-  const [clearDialogIsVisible, setClearDialogIsVisible] = useState(false);
-  const [isClearingLocalData, setIsClearingLocalData] = useState(false);
-  const [localDataMessage, setLocalDataMessage] = useState("");
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
   const hasNetworkMembers = connections.length > 0;
@@ -223,27 +213,7 @@ export function TopicListScreen() {
     });
   }
 
-  async function handleClearLocalData() {
-    setIsClearingLocalData(true);
-    setLocalDataMessage("");
-
-    try {
-      await clearLocalAppData();
-      clearLoadedMessages();
-      await Promise.all([reloadConnections(), reloadTopics(), reloadUser()]);
-      setQuery("");
-      setSelectedConnectionIds([]);
-      setClearDialogIsVisible(false);
-      closeSideMenu();
-      setLocalDataMessage("Local data cleared.");
-    } catch {
-      setLocalDataMessage("Local data could not be cleared.");
-    } finally {
-      setIsClearingLocalData(false);
-    }
-  }
-
-  function getMemberSummary(memberIds: string[]) {
+  function getMemberSummary(memberIds: string[], topic?: Topic) {
     const names = memberIds
       .map((memberId) => connectionNameById[memberId])
       .filter((name): name is string => Boolean(name));
@@ -252,11 +222,18 @@ export function TopicListScreen() {
       return names.join(", ");
     }
 
-    if (user && getUserMemberAliases(user).some((alias) => memberIds.includes(alias))) {
+    const userIsMember = user && getUserMemberAliases(user).some((alias) => memberIds.includes(alias));
+    const userIsOwner = user && topic && (
+      topic.ownerId === user.id ||
+      topic.ownerTag === user.tag ||
+      topic.ownerPhoneNumber === user.phoneNumber
+    );
+
+    if (user && (userIsMember || userIsOwner || memberIds.length === 0)) {
       return user.displayName || user.tag || user.phoneNumber;
     }
 
-    return "No members yet";
+    return user?.displayName || user?.tag || user?.phoneNumber || "Member details unavailable";
   }
 
   return (
@@ -345,7 +322,7 @@ export function TopicListScreen() {
               <View key={topic.id}>
                 <TopicListItem
                   topic={topic}
-                  memberSummary={getMemberSummary(topic.memberIds)}
+                  memberSummary={getMemberSummary(topic.memberIds, topic)}
                   position={getTopicListItemPosition(index, activeListItemCount)}
                   onPress={() => router.push(`/topics/${topic.id}`)}
                 />
@@ -416,7 +393,7 @@ export function TopicListScreen() {
                     <View key={topic.id}>
                       <TopicListItem
                         topic={topic}
-                        memberSummary={getMemberSummary(topic.memberIds)}
+                        memberSummary={getMemberSummary(topic.memberIds, topic)}
                         position={getTopicListItemPosition(index, archivedTopics.length)}
                         onPress={() => router.push(`/topics/${topic.id}`)}
                       />
@@ -516,52 +493,10 @@ export function TopicListScreen() {
               >
                 Huddle
               </Text>
-              <Drawer.Item
-                icon="delete-outline"
-                label="Clear local storage"
-                onPress={() => setClearDialogIsVisible(true)}
-                accessibilityLabel="Clear local storage"
-              />
             </Animated.View>
           </View>
         ) : null}
-        <Dialog
-          visible={clearDialogIsVisible}
-          onDismiss={() => {
-            if (!isClearingLocalData) {
-              setClearDialogIsVisible(false);
-            }
-          }}
-        >
-          <Dialog.Title>Clear local storage?</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              This resets huddles, messages, network members, and profile data stored on this device.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button
-              onPress={() => setClearDialogIsVisible(false)}
-              disabled={isClearingLocalData}
-            >
-              Cancel
-            </Button>
-            <Button
-              onPress={handleClearLocalData}
-              loading={isClearingLocalData}
-              disabled={isClearingLocalData}
-            >
-              Clear
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
       </Portal>
-      <Snackbar
-        visible={Boolean(localDataMessage)}
-        onDismiss={() => setLocalDataMessage("")}
-      >
-        {localDataMessage}
-      </Snackbar>
     </Screen>
   );
 }

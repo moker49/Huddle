@@ -253,11 +253,20 @@ export function ProfileSettingsScreen() {
     setIdentityDialogError("");
 
     try {
-      const nextUser = await updateIdentifiers({
+      let nextUser = await updateIdentifiers({
         tag: identityDialogTag,
         phoneNumber: identityDialogPhone
       });
 
+      if (!nextUser.displayName && trimmedDisplayName) {
+        nextUser = await updateProfile({
+          displayName: trimmedDisplayName,
+          tag: nextUser.tag,
+          phoneNumber: nextUser.phoneNumber
+        });
+      }
+
+      setDisplayName(nextUser.displayName);
       setProfileTag(nextUser.tag.replace(/^@/, ""));
       setProfilePhone(nextUser.phoneNumber.replace(/\D/g, ""));
       await Promise.all([reloadConnections(), reloadTopics()]);
