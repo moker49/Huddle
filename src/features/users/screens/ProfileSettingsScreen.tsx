@@ -253,20 +253,11 @@ export function ProfileSettingsScreen() {
     setIdentityDialogError("");
 
     try {
-      let nextUser = await updateIdentifiers({
+      const nextUser = await updateIdentifiers({
         tag: identityDialogTag,
         phoneNumber: identityDialogPhone
       });
 
-      if (!nextUser.displayName && trimmedDisplayName) {
-        nextUser = await updateProfile({
-          displayName: trimmedDisplayName,
-          tag: nextUser.tag,
-          phoneNumber: nextUser.phoneNumber
-        });
-      }
-
-      setDisplayName(nextUser.displayName);
       setProfileTag(nextUser.tag.replace(/^@/, ""));
       setProfilePhone(nextUser.phoneNumber.replace(/\D/g, ""));
       await Promise.all([reloadConnections(), reloadTopics()]);
@@ -317,7 +308,7 @@ export function ProfileSettingsScreen() {
   return (
     <Screen
       title="Profile"
-      onBack={handleBack}
+      onBack={userHasIdentifier ? handleBack : undefined}
       action={
         <Appbar.Action
           icon="logout"
@@ -407,7 +398,7 @@ export function ProfileSettingsScreen() {
         <Dialog
           visible={identityDialogIsVisible}
           onDismiss={() => {
-            if (!isSavingIdentity && userHasIdentifier) {
+            if (!isSavingIdentity) {
               setIdentityDialogIsVisible(false);
             }
           }}
@@ -435,14 +426,12 @@ export function ProfileSettingsScreen() {
             ) : null}
           </Dialog.Content>
           <Dialog.Actions>
-            {userHasIdentifier ? (
-              <Button
-                onPress={() => setIdentityDialogIsVisible(false)}
-                disabled={isSavingIdentity}
-              >
-                Cancel
-              </Button>
-            ) : null}
+            <Button
+              onPress={() => setIdentityDialogIsVisible(false)}
+              disabled={isSavingIdentity}
+            >
+              Cancel
+            </Button>
             <Button
               onPress={handleSaveIdentity}
               loading={isSavingIdentity}
