@@ -46,6 +46,8 @@ npx expo start --android
 npx expo start --ios
 ```
 
+On Windows Server, configure `.env` and run [`setup-and-start.bat`](C:\Dev\Huddle\setup-and-start.bat). It installs the required Node.js version and dependencies when missing, then starts Expo for LAN access on port `8081`.
+
 ## Quality Checks
 
 ```sh
