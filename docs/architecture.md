@@ -71,7 +71,7 @@ Create service interfaces around app-specific operations, not generic data frame
 
 Local, in-memory, or file-backed implementations are acceptable for prototypes when the interface can later be backed by an API without rewriting screens.
 
-The current runtime uses Supabase-backed profile and direct-network services. The required tables and RLS policies are maintained in [`supabase/schema.sql`](../supabase/schema.sql). Local implementations remain available for focused tests and offline development. The service contract is the boundary; screens and providers should not branch on storage technology.
+The current runtime uses Supabase-backed profile, direct-network, and huddle services. The required tables, visibility function, and RLS policies are maintained in [`supabase/schema.sql`](../supabase/schema.sql). Local implementations remain available for focused tests and offline development. Messages and huddle activities remain local until their own migration slice. The service contract is the boundary; screens and providers should not branch on storage technology.
 
 ## Platform Strategy
 

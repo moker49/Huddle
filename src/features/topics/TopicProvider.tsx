@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { CreateTopicInput, Topic, UpdateTopicInput } from "@/models/topic";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { TopicService, topicService } from "@/services/topicService";
 
 interface TopicContextValue {
@@ -30,6 +31,7 @@ interface TopicProviderProps extends PropsWithChildren {
 }
 
 export function TopicProvider({ children, service = topicService }: TopicProviderProps) {
+  const { session } = useAuth();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,6 +51,15 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
   }, [service]);
 
   useEffect(() => {
+    service.setAccountScope(session?.user.id ?? null);
+
+    if (!session) {
+      setTopics([]);
+      setErrorMessage(null);
+      setIsLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     setIsLoading(true);
@@ -74,7 +85,7 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
     return () => {
       isMounted = false;
     };
-  }, [service]);
+  }, [service, session]);
 
   const value = useMemo<TopicContextValue>(
     () => ({

@@ -5,8 +5,10 @@ import { formatPublicIdentifier } from "@/models/identifierDisplay";
 import {
   DirectoryUserService,
   directoryUserService,
+  findDirectoryUser,
   getDirectoryConnectionForMemberId,
-  getDirectoryUserIdForIdentifier
+  getDirectoryUserIdForIdentifier,
+  normalizeIdentifier
 } from "@/services/directoryUsers";
 import { getVisibleInboundHuddleTopics } from "@/services/inboundHuddleFixtures";
 import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
@@ -16,6 +18,7 @@ import { UserService, userService } from "@/services/userService";
 import { createId } from "@/utils/createId";
 
 export interface TopicService {
+  setAccountScope(accountId: string | null): void;
   listTopics(): Promise<Topic[]>;
   getTopic(id: string): Promise<Topic | null>;
   createTopic(input: CreateTopicInput): Promise<Topic>;
@@ -58,6 +61,8 @@ export class LocalTopicService implements TopicService {
     private readonly directoryUsers: DirectoryUserService = directoryUserService,
     private readonly messages: MessageService = messageService
   ) {}
+
+  setAccountScope(_accountId: string | null): void {}
 
   async listTopics(): Promise<Topic[]> {
     const topics = await this.loadTopics();
@@ -221,6 +226,181 @@ export class LocalTopicService implements TopicService {
   }
 }
 
+interface SupabaseHuddleRow {
+  id: string;
+  title: string;
+  owner_id: string;
+  owner_tag: string | null;
+  owner_phone_number: string | null;
+  created_at: string;
+  auto_archive_at: string | null;
+  member_ids: string[];
+}
+
+interface CloudMemberInput {
+  member_id: string | null;
+  member_tag: string | null;
+  member_phone_number: string | null;
+}
+
+export class SupabaseTopicService implements TopicService {
+  private accountScope: string | null = null;
+
+  constructor(
+    private readonly users: UserService = userService,
+    private readonly directoryUsers: DirectoryUserService = directoryUserService
+  ) {}
+
+  setAccountScope(accountId: string | null): void {
+    this.accountScope = accountId;
+  }
+
+  async listTopics(): Promise<Topic[]> {
+    this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error } = await supabase.rpc("list_visible_huddles");
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as SupabaseHuddleRow[])
+      .map(mapSupabaseHuddle)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async getTopic(id: string): Promise<Topic | null> {
+    const topics = await this.listTopics();
+
+    return topics.find((topic) => topic.id === id) ?? null;
+  }
+
+  async createTopic(input: CreateTopicInput): Promise<Topic> {
+    const title = input.title.trim();
+    const localUser = await this.users.getUser();
+    const directoryUsers = await this.directoryUsers.listUsers();
+
+    if (!title) {
+      throw new Error("Huddle title is required.");
+    }
+
+    if (!input.memberIds || input.memberIds.length === 0) {
+      throw new Error("At least one member is required.");
+    }
+
+    const memberInputs = getCloudMemberInputs(input.memberIds, localUser, directoryUsers);
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data: huddle, error: huddleError } = await supabase
+      .from("huddles")
+      .insert({
+        owner_id: localUser.id,
+        title,
+        auto_archive_at: input.autoArchiveAt ?? null
+      })
+      .select("id, title, owner_id, created_at, auto_archive_at")
+      .single();
+
+    if (huddleError || !huddle) {
+      throw huddleError ?? new Error("Huddle could not be created.");
+    }
+
+    const { error: memberError } = await supabase.from("huddle_members").insert(
+      memberInputs.map((member) => ({ huddle_id: huddle.id, ...member }))
+    );
+
+    if (memberError) {
+      await supabase.from("huddles").delete().eq("id", huddle.id);
+      throw memberError;
+    }
+
+    return {
+      id: huddle.id,
+      title: huddle.title,
+      memberIds: memberInputs.map(getCloudMemberReference),
+      ownerId: huddle.owner_id,
+      ownerTag: localUser.tag,
+      ownerPhoneNumber: localUser.phoneNumber,
+      createdAt: huddle.created_at,
+      autoArchiveAt: huddle.auto_archive_at ?? undefined
+    };
+  }
+
+  async updateTopic(id: string, input: UpdateTopicInput): Promise<Topic> {
+    const title = input.title.trim();
+
+    if (!title) {
+      throw new Error("Huddle title is required.");
+    }
+
+    if (!input.memberIds || input.memberIds.length === 0) {
+      throw new Error("At least one member is required.");
+    }
+
+    const currentTopic = await this.getTopic(id);
+
+    if (!currentTopic) {
+      throw new Error("Huddle could not be found.");
+    }
+
+    const localUser = await this.users.getUser();
+    const directoryUsers = await this.directoryUsers.listUsers();
+    const memberInputs = getCloudMemberInputs(input.memberIds, localUser, directoryUsers);
+    const { supabase } = await import("@/services/supabaseClient");
+    const { error: huddleError } = await supabase
+      .from("huddles")
+      .update({ title, auto_archive_at: input.autoArchiveAt ?? null })
+      .eq("id", id);
+
+    if (huddleError) {
+      throw huddleError;
+    }
+
+    const { error: deleteMembersError } = await supabase
+      .from("huddle_members")
+      .delete()
+      .eq("huddle_id", id);
+
+    if (deleteMembersError) {
+      throw deleteMembersError;
+    }
+
+    const { error: memberError } = await supabase.from("huddle_members").insert(
+      memberInputs.map((member) => ({ huddle_id: id, ...member }))
+    );
+
+    if (memberError) {
+      throw memberError;
+    }
+
+    return {
+      ...currentTopic,
+      title,
+      memberIds: memberInputs.map(getCloudMemberReference),
+      autoArchiveAt: input.autoArchiveAt
+    };
+  }
+
+  async deleteTopic(id: string): Promise<void> {
+    this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const { error } = await supabase.from("huddles").delete().eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async resetLocalData(): Promise<void> {}
+
+  private requireAccountScope() {
+    if (!this.accountScope) {
+      throw new Error("An authenticated account is required.");
+    }
+
+    return this.accountScope;
+  }
+}
+
 function getTopicMemberIds(
   inputMemberIds: string[],
   creator: LocalUser | Topic,
@@ -265,4 +445,75 @@ function getMemberDisplayName(memberId: string, directoryUsers: DirectoryUser[])
   );
 }
 
-export const topicService = new LocalTopicService();
+export const localTopicService = new LocalTopicService();
+export const topicService = new SupabaseTopicService();
+
+function mapSupabaseHuddle(row: SupabaseHuddleRow): Topic {
+  return {
+    id: row.id,
+    title: row.title,
+    memberIds: row.member_ids ?? [],
+    ownerId: row.owner_id,
+    ownerTag: row.owner_tag ?? undefined,
+    ownerPhoneNumber: row.owner_phone_number ?? undefined,
+    createdAt: row.created_at,
+    autoArchiveAt: row.auto_archive_at ?? undefined
+  };
+}
+
+function getCloudMemberInputs(
+  inputMemberIds: string[],
+  creator: LocalUser,
+  directoryUsers: DirectoryUser[]
+): CloudMemberInput[] {
+  const inputs = inputMemberIds.map((memberId) => {
+    const directoryUser = getDirectoryUserForMemberId(memberId, directoryUsers);
+
+    if (directoryUser) {
+      return { member_id: directoryUser.id, member_tag: null, member_phone_number: null };
+    }
+
+    const normalizedMemberId = normalizeIdentifier(memberId);
+
+    if (normalizedMemberId.startsWith("#") || /^\d/.test(normalizedMemberId)) {
+      const phoneNumber = normalizedMemberId.startsWith("#")
+        ? normalizedMemberId
+        : `#${normalizedMemberId}`;
+
+      return { member_id: null, member_tag: null, member_phone_number: phoneNumber };
+    }
+
+    throw new Error("Every huddle member must be in your network.");
+  });
+
+  const creatorInput: CloudMemberInput = {
+    member_id: creator.id,
+    member_tag: null,
+    member_phone_number: null
+  };
+
+  return deduplicateCloudMembers([creatorInput, ...inputs]);
+}
+
+function getDirectoryUserForMemberId(memberId: string, directoryUsers: DirectoryUser[]) {
+  return findDirectoryUser(directoryUsers, memberId);
+}
+
+function deduplicateCloudMembers(members: CloudMemberInput[]) {
+  const seen = new Set<string>();
+
+  return members.filter((member) => {
+    const reference = getCloudMemberReference(member);
+
+    if (seen.has(reference)) {
+      return false;
+    }
+
+    seen.add(reference);
+    return true;
+  });
+}
+
+function getCloudMemberReference(member: CloudMemberInput) {
+  return member.member_id ?? member.member_tag ?? member.member_phone_number ?? "";
+}

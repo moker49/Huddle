@@ -28,6 +28,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Focused service tests for identity, directory, huddle visibility, and network resolution.
 - Google authentication and authenticated local account scoping.
 - Supabase-backed profile identity and direct-network persistence.
+- Supabase-backed huddle persistence and identity-scoped visibility.
 
 ## Current
 
@@ -43,6 +44,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Validate compact mobile-web layouts.
 - Complete the remaining core huddle workflows before expanding authentication.
 - Validate profile and network sync across browsers and devices.
+- Validate huddle creation and phone-claimed visibility across browsers and devices.
 
 ## Future
 
