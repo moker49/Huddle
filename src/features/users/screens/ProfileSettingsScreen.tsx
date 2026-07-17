@@ -150,7 +150,9 @@ export function ProfileSettingsScreen() {
       !hasOpenedInitialIdentityDialog
     ) {
       setHasOpenedInitialIdentityDialog(true);
-      setIdentityDialogTag(profileTag);
+      setIdentityDialogTag(
+        profileTag || getGoogleDisplayName(session).toLocaleLowerCase()
+      );
       setIdentityDialogPhone(profilePhoneDigits);
       setIdentityDialogError("");
       setIdentityDialogIsVisible(true);
@@ -160,6 +162,7 @@ export function ProfileSettingsScreen() {
     profileIsInitialized,
     profilePhoneDigits,
     profileTag,
+    session,
     userHasIdentifier
   ]);
 
@@ -552,6 +555,7 @@ function IdentifierDialogFields({
     <View style={styles.addFields}>
       <AffixTextField
         affix="@"
+        autoFocus={false}
         label="Tag"
         value={tag}
         onChangeText={onChangeTag}
@@ -574,6 +578,7 @@ function IdentifierDialogFields({
       ) : null}
       <AffixTextField
         affix="#"
+        autoFocus={false}
         label="Phone"
         value={phone}
         onChangeText={onChangePhone}
