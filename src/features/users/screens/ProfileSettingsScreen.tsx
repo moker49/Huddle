@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
+import type { Session } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import {
@@ -35,7 +36,7 @@ import { goBackOrReplace } from "@/utils/navigation";
 export function ProfileSettingsScreen() {
   const params = useLocalSearchParams<{ addNetwork?: string }>();
   const theme = useTheme();
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const {
     errorMessage,
     isLoading,
@@ -123,12 +124,12 @@ export function ProfileSettingsScreen() {
 
   useEffect(() => {
     if (user && initializedUserId !== user.id) {
-      setDisplayName(user.displayName);
+      setDisplayName(user.displayName || getGoogleDisplayName(session));
       setProfileTag(user.tag.replace(/^@/, ""));
       setProfilePhone(user.phoneNumber.replace(/\D/g, ""));
       setInitializedUserId(user.id);
     }
-  }, [initializedUserId, user]);
+  }, [initializedUserId, session, user]);
 
   useEffect(() => {
     if (
@@ -607,6 +608,13 @@ function formatPhoneInput(value: string) {
 
 function sanitizeDisplayNameInput(value: string) {
   return value.replace(/[#@]/g, "");
+}
+
+function getGoogleDisplayName(currentSession: Session | null) {
+  const metadata = currentSession?.user.user_metadata;
+  const displayName = metadata?.full_name ?? metadata?.name;
+
+  return typeof displayName === "string" ? sanitizeDisplayNameInput(displayName) : "";
 }
 
 function sanitizeTagInput(value: string) {
