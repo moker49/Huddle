@@ -610,9 +610,10 @@ function sanitizeDisplayNameInput(value: string) {
 
 function getGoogleDisplayName(currentSession: Session | null) {
   const metadata = currentSession?.user.user_metadata;
-  const displayName = metadata?.full_name ?? metadata?.name;
+  const displayName = metadata?.given_name ?? metadata?.full_name ?? metadata?.name;
+  const firstName = typeof displayName === "string" ? displayName.trim().split(/\s+/)[0] : "";
 
-  return typeof displayName === "string" ? sanitizeDisplayNameInput(displayName) : "";
+  return sanitizeDisplayNameInput(firstName);
 }
 
 function sanitizeTagInput(value: string) {
