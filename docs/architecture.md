@@ -77,6 +77,12 @@ The app targets Expo on Android, iOS, and mobile web. It should retain one coher
 
 Use platform-specific code only when behavior genuinely differs.
 
+## Authentication Strategy
+
+Google authentication is the supported sign-in method for the current product phase. Keep authentication small and stable while the core huddle experience is completed; do not add additional providers or phone verification yet.
+
+Phone numbers may be used as an app identity identifier, but that is separate from authenticating an account. Revisit phone verification only after the main product is substantially complete and the remaining need is clear. Authentication flows should remain behind the auth provider and should not leak provider-specific details into feature screens.
+
 ## Adding Features
 
 Implement features as complete vertical slices whenever practical: route, screen, UI, state, service contract, local implementation, and verification.

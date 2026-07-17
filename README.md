@@ -4,9 +4,9 @@ Huddle is a lightweight, mobile-first group discussion prototype built with Expo
 
 ## Current Scope
 
-The app includes huddle search, network search with member chips, member-based huddle filtering, contextual huddle creation, huddle details, profile setup, and local in-huddle messaging. Huddles are seeded and session-local; network and message data use local service implementations that can later be replaced by backend services.
+The app includes Google authentication, huddle search, network search with member chips, member-based huddle filtering, contextual huddle creation, huddle details, profile setup, and local in-huddle messaging. Huddles are local-first; network and message data use local service implementations that can later be replaced by backend services.
 
-Not implemented yet: authentication, backend APIs, real-time messaging, push notifications, polls or voting, host permissions, profiles, contacts, file uploads, analytics, and complex animation.
+Not implemented yet: backend APIs, phone verification, real-time messaging, push notifications, polls or voting, host permissions, contacts, file uploads, analytics, and complex animation.
 
 ## Project Documentation
 

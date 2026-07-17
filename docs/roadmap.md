@@ -26,11 +26,13 @@ Features should generally be implemented as complete vertical slices rather than
 - Huddle list subtitles showing members.
 - Member-based huddle filtering.
 - Focused service tests for identity, directory, huddle visibility, and network resolution.
+- Google authentication and authenticated local account scoping.
 
 ## Current
 
 - Continue aligning existing screens with Material Design 3 guidance.
 - Keep documentation current as UI and service patterns stabilize.
+- Keep Google authentication stable while the core huddle product is completed.
 
 ## Next
 
@@ -38,11 +40,12 @@ Features should generally be implemented as complete vertical slices rather than
 - Add message delivery metadata suitable for a future backend.
 - Validate keyboard and safe-area behavior on physical Android and iOS devices.
 - Validate compact mobile-web layouts.
+- Complete the remaining core huddle workflows before expanding authentication.
 
 ## Future
 
 - API-backed huddle and message services.
-- Authentication.
+- Phone verification, after the core app is substantially complete and the need is validated.
 - Real-time messaging.
 - Push notifications.
 - Host permissions.
