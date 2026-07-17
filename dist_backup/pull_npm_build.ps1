@@ -3,10 +3,14 @@ git pull
 npm ci
 npx expo export --platform web
 Copy-Item (Join-Path $PSScriptRoot "web.config") (Join-Path $PSScriptRoot "..\dist\web.config") -Force
+Import-Module WebAdministration -ErrorAction Stop
 $siteName = "Huddle"
 $targetPath = (Resolve-Path (Join-Path $PSScriptRoot "..\dist")).Path
-$currentPath = (Get-ItemProperty "IIS:\Sites\$siteName" -Name physicalPath).physicalPath
+$site = Get-Website -Name $siteName -ErrorAction Stop
+$currentPath = $site.PhysicalPath
 if ($currentPath.TrimEnd('\') -ne $targetPath.TrimEnd('\')) {
-  Set-ItemProperty "IIS:\Sites\$siteName" -Name physicalPath -Value $targetPath
-  Restart-WebSite -Name $siteName
+  $appcmd = Join-Path $env:windir "System32\inetsrv\appcmd.exe"
+  & $appcmd set vdir "$siteName/" "/physicalPath:$targetPath"
+  & $appcmd stop site /site.name:"$siteName"
+  & $appcmd start site /site.name:"$siteName"
 }
