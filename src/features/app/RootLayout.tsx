@@ -1,4 +1,6 @@
 import { Stack, router, usePathname } from "expo-router";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import { PropsWithChildren, useEffect } from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
@@ -17,6 +19,7 @@ export function RootLayout() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const paperTheme = isDark ? darkTheme : lightTheme;
+  const [iconsLoaded] = useFonts(MaterialCommunityIcons.font);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") {
@@ -54,6 +57,10 @@ export function RootLayout() {
       root.style.backgroundColor = backgroundColor;
     }
   }, [paperTheme.colors.background]);
+
+  if (!iconsLoaded) {
+    return <View style={[styles.identityGate, { backgroundColor: paperTheme.colors.background }]} />;
+  }
 
   return (
     <SafeAreaProvider>
