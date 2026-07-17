@@ -11,6 +11,11 @@
       "bundler": "metro",
       "output": "single"
     },
+    "extra": {
+      "router": {
+        "origin": "https://huddle.efren.org"
+      }
+    },
     "experiments": {
       "typedRoutes": true
     },
