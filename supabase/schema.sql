@@ -170,6 +170,14 @@ $$;
 alter table public.huddles enable row level security;
 alter table public.huddle_members enable row level security;
 
+drop policy if exists "Members can read visible huddles" on public.huddles;
+drop policy if exists "Authenticated users can create huddles" on public.huddles;
+drop policy if exists "Members can update visible huddles" on public.huddles;
+drop policy if exists "Members can delete visible huddles" on public.huddles;
+drop policy if exists "Members can read visible huddle members" on public.huddle_members;
+drop policy if exists "Huddle members can be added to visible huddles" on public.huddle_members;
+drop policy if exists "Huddle members can be removed from visible huddles" on public.huddle_members;
+
 create policy "Members can read visible huddles"
   on public.huddles for select
   to authenticated

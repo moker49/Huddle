@@ -277,6 +277,7 @@ export class SupabaseTopicService implements TopicService {
 
   async createTopic(input: CreateTopicInput): Promise<Topic> {
     const title = input.title.trim();
+    const ownerId = this.requireAccountScope();
     const localUser = await this.users.getUser();
     const directoryUsers = await this.directoryUsers.listUsers();
 
@@ -288,12 +289,16 @@ export class SupabaseTopicService implements TopicService {
       throw new Error("At least one member is required.");
     }
 
-    const memberInputs = getCloudMemberInputs(input.memberIds, localUser, directoryUsers);
+    const memberInputs = getCloudMemberInputs(
+      input.memberIds,
+      { ...localUser, id: ownerId },
+      directoryUsers
+    );
     const { supabase } = await import("@/services/supabaseClient");
     const { data: huddle, error: huddleError } = await supabase
       .from("huddles")
       .insert({
-        owner_id: localUser.id,
+        owner_id: ownerId,
         title,
         auto_archive_at: input.autoArchiveAt ?? null
       })
