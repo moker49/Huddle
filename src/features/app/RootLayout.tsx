@@ -101,6 +101,10 @@ function AuthGate({ children }: PropsWithChildren) {
     if (!isLoading && !errorMessage && !session && !authIsCurrentRoute) {
       router.replace("/auth" as never);
     }
+
+    if (!isLoading && !errorMessage && session && authIsCurrentRoute) {
+      router.replace("/" as never);
+    }
   }, [authIsCurrentRoute, errorMessage, isLoading, session]);
 
   if (isLoading || (!session && !authIsCurrentRoute) || (session && authIsCurrentRoute)) {
