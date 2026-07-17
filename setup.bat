@@ -90,8 +90,5 @@ if not exist "node_modules" (
 )
 
 echo.
-echo Starting Expo for web on the LAN...
-echo Open http://SERVER-NAME:8081 from another device.
-echo Press Ctrl+C to stop the server.
-call npx expo start --web --host lan
+echo Ready...
 
