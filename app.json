@@ -15,7 +15,8 @@
       "typedRoutes": true
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-web-browser"
     ]
   }
 }

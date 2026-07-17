@@ -17,6 +17,7 @@ import {
 import { AffixTextField } from "@/components/AffixTextField";
 import { HuddleFab } from "@/components/HuddleFab";
 import { Screen } from "@/components/Screen";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { MemberGrid } from "@/features/connections/components/MemberGrid";
 import {
   NetworkMemberSection,
@@ -28,17 +29,16 @@ import { hasCompleteLocalIdentity } from "@/features/users/identity";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
 import { connectionMatchesText } from "@/models/connectionDisplay";
-import { logOutLocalUser } from "@/services/localDataService";
 import { shape, spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
 export function ProfileSettingsScreen() {
   const params = useLocalSearchParams<{ addNetwork?: string }>();
   const theme = useTheme();
+  const { signOut } = useAuth();
   const {
     errorMessage,
     isLoading,
-    reloadUser,
     updateIdentifiers,
     updateProfile,
     user
@@ -295,18 +295,8 @@ export function ProfileSettingsScreen() {
     setSaveError("");
 
     try {
-      await logOutLocalUser();
-      await Promise.all([reloadConnections(), reloadTopics(), reloadUser()]);
-      setInitializedUserId(null);
-      setDisplayName("");
-      setProfileTag("");
-      setProfilePhone("");
-      setNetworkSearch("");
-      setDisplayNameWasValidated(false);
-      setHasOpenedInitialAddDialog(false);
-      setHasOpenedInitialIdentityDialog(false);
+      await signOut();
       setLogoutDialogIsVisible(false);
-      router.replace("/profile");
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Could not log out.");
     } finally {

@@ -7,6 +7,7 @@ import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
 import { createId } from "@/utils/createId";
 
 export interface UserService {
+  setAccountScope(accountId: string | null): void;
   getUser(): Promise<LocalUser>;
   updateIdentifiers(identifiers: Pick<LocalUserProfileInput, "tag" | "phoneNumber">): Promise<LocalUser>;
   updateProfile(profile: LocalUserProfileInput): Promise<LocalUser>;
@@ -14,7 +15,7 @@ export interface UserService {
   resetLocalData(): Promise<void>;
 }
 
-const userStorageKey = "huddle:local-user";
+const userStorageKeyPrefix = "huddle:local-user";
 
 function isLocalUser(value: unknown): value is LocalUser {
   return (
@@ -38,11 +39,21 @@ function normalizeLocalUser(value: LocalUser): LocalUser {
 
 export class LocalUserService implements UserService {
   private userPromise: Promise<LocalUser> | null = null;
+  private accountScope: string | null = null;
 
   constructor(
     private readonly storage: JsonStorage = localJsonStorage,
     private readonly directoryUsers: DirectoryUserService = directoryUserService
   ) {}
+
+  setAccountScope(accountId: string | null): void {
+    if (this.accountScope === accountId) {
+      return;
+    }
+
+    this.accountScope = accountId;
+    this.userPromise = null;
+  }
 
   async getUser(): Promise<LocalUser> {
     if (!this.userPromise) {
@@ -74,7 +85,7 @@ export class LocalUserService implements UserService {
     };
 
     this.userPromise = Promise.resolve(nextUser);
-    await this.storage.write(userStorageKey, nextUser);
+    await this.storage.write(this.getStorageKey(), nextUser);
     await this.directoryUsers.upsertLocalUser(nextUser);
 
     return nextUser;
@@ -98,7 +109,7 @@ export class LocalUserService implements UserService {
     };
 
     this.userPromise = Promise.resolve(nextUser);
-    await this.storage.write(userStorageKey, nextUser);
+    await this.storage.write(this.getStorageKey(), nextUser);
     await this.directoryUsers.upsertLocalUser(nextUser);
 
     return nextUser;
@@ -116,11 +127,11 @@ export class LocalUserService implements UserService {
 
   async resetLocalData(): Promise<void> {
     this.userPromise = null;
-    await this.storage.remove(userStorageKey);
+    await this.storage.remove(this.getStorageKey());
   }
 
   private async loadUser(): Promise<LocalUser> {
-    const storedUser = await this.storage.read<unknown>(userStorageKey);
+    const storedUser = await this.storage.read<unknown>(this.getStorageKey());
 
     if (isLocalUser(storedUser)) {
       const normalizedUser = normalizeLocalUser(storedUser);
@@ -130,22 +141,28 @@ export class LocalUserService implements UserService {
         normalizedUser.tag !== storedUser.tag ||
         normalizedUser.phoneNumber !== storedUser.phoneNumber
       ) {
-        await this.storage.write(userStorageKey, normalizedUser);
+        await this.storage.write(this.getStorageKey(), normalizedUser);
       }
 
       return normalizedUser;
     }
 
     const user: LocalUser = {
-      id: createId(),
+      id: this.accountScope ?? createId(),
       displayName: "",
       tag: "",
       phoneNumber: ""
     };
 
-    await this.storage.write(userStorageKey, user);
+    await this.storage.write(this.getStorageKey(), user);
 
     return user;
+  }
+
+  private getStorageKey(): string {
+    return this.accountScope
+      ? `${userStorageKeyPrefix}:${this.accountScope}`
+      : userStorageKeyPrefix;
   }
 }
 

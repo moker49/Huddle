@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { LocalUser, LocalUserProfileInput } from "@/models/user";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { UserService, userService } from "@/services/userService";
 
 interface UserContextValue {
@@ -28,11 +29,19 @@ interface UserProviderProps extends PropsWithChildren {
 }
 
 export function UserProvider({ children, service = userService }: UserProviderProps) {
+  const { session } = useAuth();
   const [user, setUser] = useState<LocalUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadUser = useCallback(async () => {
+    if (!session) {
+      setUser(null);
+      setErrorMessage(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -43,9 +52,18 @@ export function UserProvider({ children, service = userService }: UserProviderPr
     } finally {
       setIsLoading(false);
     }
-  }, [service]);
+  }, [service, session]);
 
   useEffect(() => {
+    service.setAccountScope(session?.user.id ?? null);
+
+    if (!session) {
+      setUser(null);
+      setErrorMessage(null);
+      setIsLoading(false);
+      return;
+    }
+
     let isActive = true;
 
     service
@@ -70,7 +88,7 @@ export function UserProvider({ children, service = userService }: UserProviderPr
     return () => {
       isActive = false;
     };
-  }, [service]);
+  }, [service, session]);
 
   const value = useMemo<UserContextValue>(
     () => ({

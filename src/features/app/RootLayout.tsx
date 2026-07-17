@@ -6,6 +6,7 @@ import { ActivityIndicator, PaperProvider, useTheme } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ConnectionProvider } from "@/features/connections/ConnectionProvider";
+import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
 import { MessageProvider } from "@/features/messages/MessageProvider";
 import { TopicProvider } from "@/features/topics/TopicProvider";
 import { hasCompleteLocalIdentity } from "@/features/users/identity";
@@ -57,42 +58,70 @@ export function RootLayout() {
   return (
     <SafeAreaProvider>
       <PaperProvider theme={paperTheme}>
-        <UserProvider>
-          <IdentityGate>
-            <ConnectionProvider>
-              <TopicProvider>
-                <MessageProvider>
-                  <StatusBar style={isDark ? "light" : "dark"} />
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      contentStyle: { backgroundColor: paperTheme.colors.background }
-                    }}
-                  />
-                </MessageProvider>
-              </TopicProvider>
-            </ConnectionProvider>
-          </IdentityGate>
-        </UserProvider>
+        <AuthProvider>
+          <UserProvider>
+            <AuthGate>
+              <IdentityGate>
+                <ConnectionProvider>
+                  <TopicProvider>
+                    <MessageProvider>
+                      <StatusBar style={isDark ? "light" : "dark"} />
+                      <Stack
+                        screenOptions={{
+                          headerShown: false,
+                          contentStyle: { backgroundColor: paperTheme.colors.background }
+                        }}
+                      />
+                    </MessageProvider>
+                  </TopicProvider>
+                </ConnectionProvider>
+              </IdentityGate>
+            </AuthGate>
+          </UserProvider>
+        </AuthProvider>
       </PaperProvider>
     </SafeAreaProvider>
   );
 }
 
+function AuthGate({ children }: PropsWithChildren) {
+  const pathname = usePathname();
+  const theme = useTheme();
+  const { errorMessage, isLoading, session } = useAuth();
+  const authIsCurrentRoute = pathname === "/auth";
+
+  useEffect(() => {
+    if (!isLoading && !errorMessage && !session && !authIsCurrentRoute) {
+      router.replace("/auth" as never);
+    }
+  }, [authIsCurrentRoute, errorMessage, isLoading, session]);
+
+  if (isLoading || (!session && !authIsCurrentRoute) || (session && authIsCurrentRoute)) {
+    return (
+      <View style={[styles.identityGate, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator accessibilityLabel="Loading authentication" />
+      </View>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 function IdentityGate({ children }: PropsWithChildren) {
   const pathname = usePathname();
   const theme = useTheme();
+  const { session } = useAuth();
   const { errorMessage, isLoading, user } = useUser();
   const profileIsCurrentRoute = pathname === "/profile";
   const hasIdentity = hasCompleteLocalIdentity(user);
 
   useEffect(() => {
-    if (!isLoading && !errorMessage && !hasIdentity && !profileIsCurrentRoute) {
+    if (session && !isLoading && !errorMessage && !hasIdentity && !profileIsCurrentRoute) {
       router.replace("/profile");
     }
-  }, [errorMessage, hasIdentity, isLoading, profileIsCurrentRoute]);
+  }, [errorMessage, hasIdentity, isLoading, profileIsCurrentRoute, session]);
 
-  if ((isLoading || !hasIdentity) && !profileIsCurrentRoute && !errorMessage) {
+  if (session && (isLoading || !hasIdentity) && !profileIsCurrentRoute && !errorMessage) {
     return (
       <View style={[styles.identityGate, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator accessibilityLabel="Loading profile" />
