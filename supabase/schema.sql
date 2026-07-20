@@ -37,6 +37,15 @@ create unique index if not exists network_members_owner_phone_key
 alter table public.profiles enable row level security;
 alter table public.network_members enable row level security;
 
+-- PostgreSQL does not support CREATE POLICY IF NOT EXISTS. Recreate named
+-- policies so this schema remains safe to rerun and policy changes apply.
+drop policy if exists "Authenticated users can read profiles" on public.profiles;
+drop policy if exists "Users can create their own profile" on public.profiles;
+drop policy if exists "Users can update their own profile" on public.profiles;
+drop policy if exists "Users can read their network" on public.network_members;
+drop policy if exists "Users can add to their network" on public.network_members;
+drop policy if exists "Users can remove from their network" on public.network_members;
+
 create policy "Authenticated users can read profiles"
   on public.profiles for select
   to authenticated

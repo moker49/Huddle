@@ -133,14 +133,15 @@ export class SupabaseDirectoryUserService implements DirectoryUserService {
 }
 
 export function findDirectoryUser(users: DirectoryUser[], identifier: string) {
+  const rawIdentifier = identifier.trim().toLocaleLowerCase();
   const normalizedIdentifier = normalizeIdentifier(identifier);
 
-  if (!normalizedIdentifier) {
+  if (!rawIdentifier || !normalizedIdentifier) {
     return null;
   }
 
   return users.find((user) => (
-    user.id.toLocaleLowerCase() === normalizedIdentifier ||
+    user.id.toLocaleLowerCase() === rawIdentifier ||
     user.tag.toLocaleLowerCase() === normalizedIdentifier ||
     user.phoneNumber.toLocaleLowerCase() === normalizedIdentifier
   )) ?? null;

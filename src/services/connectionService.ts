@@ -174,8 +174,10 @@ export class SupabaseConnectionService implements ConnectionService {
 
     const users = await this.directoryUsers.listUsers();
     const user = findDirectoryUser(users, normalizedIdentifier);
-    const memberTag = normalizedIdentifier.startsWith("@") ? normalizedIdentifier : null;
-    const memberPhoneNumber = normalizedIdentifier.startsWith("#") ? normalizedIdentifier : null;
+    const memberTag = !user && normalizedIdentifier.startsWith("@") ? normalizedIdentifier : null;
+    const memberPhoneNumber = !user && normalizedIdentifier.startsWith("#")
+      ? normalizedIdentifier
+      : null;
     const { data: existingEntries, error: existingError } = await supabase
       .from("network_members")
       .select("id")
