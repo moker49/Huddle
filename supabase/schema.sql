@@ -167,6 +167,66 @@ as $$
   group by h.id, owner_profile.tag, owner_profile.phone_number;
 $$;
 
+create or replace function public.create_huddle(
+  p_title text,
+  p_auto_archive_at timestamptz,
+  p_members jsonb
+)
+returns table (
+  id uuid,
+  title text,
+  owner_id uuid,
+  created_at timestamptz,
+  auto_archive_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_huddle public.huddles;
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  if coalesce(trim(p_title), '') = '' then
+    raise exception 'Huddle title is required.';
+  end if;
+
+  if jsonb_array_length(coalesce(p_members, '[]'::jsonb)) = 0 then
+    raise exception 'At least one huddle member is required.';
+  end if;
+
+  insert into public.huddles (owner_id, title, auto_archive_at)
+  values (auth.uid(), trim(p_title), p_auto_archive_at)
+  returning * into new_huddle;
+
+  insert into public.huddle_members (
+    huddle_id,
+    member_id,
+    member_tag,
+    member_phone_number
+  )
+  select
+    new_huddle.id,
+    nullif(member.value ->> 'member_id', '')::uuid,
+    nullif(member.value ->> 'member_tag', ''),
+    nullif(member.value ->> 'member_phone_number', '')
+  from jsonb_array_elements(p_members) as member(value);
+
+  return query
+  select
+    new_huddle.id,
+    new_huddle.title,
+    new_huddle.owner_id,
+    new_huddle.created_at,
+    new_huddle.auto_archive_at;
+end;
+$$;
+
+grant execute on function public.create_huddle(text, timestamptz, jsonb) to authenticated;
+
 alter table public.huddles enable row level security;
 alter table public.huddle_members enable row level security;
 

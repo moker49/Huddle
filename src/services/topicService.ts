@@ -295,27 +295,15 @@ export class SupabaseTopicService implements TopicService {
       directoryUsers
     );
     const { supabase } = await import("@/services/supabaseClient");
-    const { data: huddle, error: huddleError } = await supabase
-      .from("huddles")
-      .insert({
-        owner_id: ownerId,
-        title,
-        auto_archive_at: input.autoArchiveAt ?? null
-      })
-      .select("id, title, owner_id, created_at, auto_archive_at")
-      .single();
+    const { data, error: huddleError } = await supabase.rpc("create_huddle", {
+      p_title: title,
+      p_auto_archive_at: input.autoArchiveAt ?? null,
+      p_members: memberInputs
+    });
+    const huddle = Array.isArray(data) ? data[0] : null;
 
     if (huddleError || !huddle) {
       throw huddleError ?? new Error("Huddle could not be created.");
-    }
-
-    const { error: memberError } = await supabase.from("huddle_members").insert(
-      memberInputs.map((member) => ({ huddle_id: huddle.id, ...member }))
-    );
-
-    if (memberError) {
-      await supabase.from("huddles").delete().eq("id", huddle.id);
-      throw memberError;
     }
 
     return {
