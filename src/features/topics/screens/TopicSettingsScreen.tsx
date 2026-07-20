@@ -23,6 +23,7 @@ import {
   collapseFabScrollOffset,
   filterConnectionsForTopicForm,
   formatTopicAutoArchiveInputValue,
+  getConnectionIdsForTopicMemberIds,
   getTopicFormValidation,
   maxTopicTitleLength,
   toggleConnectionId
@@ -58,17 +59,20 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const initializedTopicIdRef = useRef<string | null>(null);
   const topicIsInitialized = Boolean(topic && initializedTopicIdRef.current === topic.id);
+  const initialSelectedConnectionIds = useMemo(() => (
+    topic ? getConnectionIdsForTopicMemberIds(topic.memberIds, connections) : []
+  ), [connections, topic]);
 
   useEffect(() => {
-    if (!topic || initializedTopicIdRef.current === topic.id) {
+    if (!topic || connectionsAreLoading || initializedTopicIdRef.current === topic.id) {
       return;
     }
 
     initializedTopicIdRef.current = topic.id;
     setTitle(topic.title);
     setAutoArchiveDate(formatTopicAutoArchiveInputValue(topic.autoArchiveAt));
-    setSelectedConnectionIds(topic.memberIds);
-  }, [topic]);
+    setSelectedConnectionIds(initialSelectedConnectionIds);
+  }, [connectionsAreLoading, initialSelectedConnectionIds, topic]);
 
   const {
     autoArchiveIsInvalid,
@@ -83,7 +87,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const hasChanges = topic ? (
     title !== topic.title ||
     autoArchiveDate !== formatTopicAutoArchiveInputValue(topic.autoArchiveAt) ||
-    !arraysMatch(selectedConnectionIds, topic.memberIds)
+    !arraysMatch(selectedConnectionIds, initialSelectedConnectionIds)
   ) : false;
   const canSubmit = hasRequiredSubmitFields && !isOverTitleLimit && !autoArchiveIsInvalid;
   const memberSearchIsVisible = connections.length >= 6;
@@ -135,7 +139,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
       return;
     }
 
-    if (hasNewMembers(topic.memberIds, selectedConnectionIds)) {
+    if (hasNewMembers(initialSelectedConnectionIds, selectedConnectionIds)) {
       setMemberHistoryDialogIsVisible(true);
       return;
     }

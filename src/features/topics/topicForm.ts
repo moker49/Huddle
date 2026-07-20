@@ -64,6 +64,19 @@ export function toggleConnectionId(currentIds: string[], connectionId: string) {
   return [...currentIds, connectionId];
 }
 
+export function getConnectionIdsForTopicMemberIds(
+  topicMemberIds: string[],
+  connections: Connection[]
+) {
+  const memberIdSet = new Set(topicMemberIds.map(normalizeMemberAlias));
+
+  return connections
+    .filter((connection) => getConnectionMemberAliases(connection).some((alias) => (
+      memberIdSet.has(normalizeMemberAlias(alias))
+    )))
+    .map((connection) => connection.id);
+}
+
 export function parseAutoArchiveDate(value: string) {
   const trimmedValue = value.trim();
 
@@ -97,4 +110,18 @@ export function arraysMatch(firstArray: string[], secondArray: string[]) {
     firstArray.length === secondArray.length &&
     firstArray.every((value, index) => value === secondArray[index])
   );
+}
+
+function getConnectionMemberAliases(connection: Connection) {
+  return [
+    connection.id,
+    connection.tag,
+    connection.phoneNumber,
+    connection.tag ? `tag:${connection.tag}` : "",
+    connection.phoneNumber ? `phone:${connection.phoneNumber}` : ""
+  ].filter(Boolean);
+}
+
+function normalizeMemberAlias(value: string) {
+  return value.trim().toLocaleLowerCase();
 }
