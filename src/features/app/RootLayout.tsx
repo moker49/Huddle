@@ -11,7 +11,7 @@ import { ConnectionProvider } from "@/features/connections/ConnectionProvider";
 import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
 import { MessageProvider } from "@/features/messages/MessageProvider";
 import { TopicProvider } from "@/features/topics/TopicProvider";
-import { hasCompleteLocalIdentity } from "@/features/users/identity";
+import { getIdentityGateState } from "@/features/app/identityGate";
 import { UserProvider, useUser } from "@/features/users/UserProvider";
 import { darkTheme, lightTheme } from "@/theme/theme";
 
@@ -124,15 +124,21 @@ function IdentityGate({ children }: PropsWithChildren) {
   const { session } = useAuth();
   const { errorMessage, isLoading, user } = useUser();
   const profileIsCurrentRoute = pathname === "/profile";
-  const hasIdentity = hasCompleteLocalIdentity(user);
+  const { shouldRedirectToProfile, shouldShowLoading } = getIdentityGateState({
+    hasSession: Boolean(session),
+    isProfileLoading: isLoading,
+    profileErrorMessage: errorMessage,
+    profileIsCurrentRoute,
+    user
+  });
 
   useEffect(() => {
-    if (session && !isLoading && !errorMessage && !hasIdentity && !profileIsCurrentRoute) {
+    if (shouldRedirectToProfile) {
       router.replace("/profile");
     }
-  }, [errorMessage, hasIdentity, isLoading, profileIsCurrentRoute, session]);
+  }, [shouldRedirectToProfile]);
 
-  if (session && (isLoading || !hasIdentity) && !profileIsCurrentRoute && !errorMessage) {
+  if (shouldShowLoading) {
     return (
       <View style={[styles.identityGate, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator accessibilityLabel="Loading profile" />

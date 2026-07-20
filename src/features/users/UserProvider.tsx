@@ -64,6 +64,10 @@ export function UserProvider({ children, service = userService }: UserProviderPr
       return;
     }
 
+    setIsLoading(true);
+    setUser(null);
+    setErrorMessage(null);
+
     let isActive = true;
 
     service
