@@ -1,5 +1,4 @@
 import { CreateTopicInput, Topic, UpdateTopicInput } from "@/models/topic";
-import { LocalUser } from "@/models/user";
 import { DirectoryUser } from "@/models/directoryUser";
 import { formatPublicIdentifier } from "@/models/identifierDisplay";
 import {
@@ -104,7 +103,12 @@ export class LocalTopicService implements TopicService {
     const topic: Topic = {
       id: createId(),
       title,
-      memberIds: getTopicMemberIds(input.memberIds, localUser, directoryUsers),
+      memberIds: Array.from(new Set([
+        getDirectoryUserIdForIdentifier(directoryUsers, localUser.tag) ??
+          getDirectoryUserIdForIdentifier(directoryUsers, localUser.phoneNumber) ??
+          localUser.id,
+        ...input.memberIds
+      ])),
       ownerId: localUser.id,
       ownerTag: localUser.tag,
       ownerPhoneNumber: localUser.phoneNumber,
@@ -143,7 +147,7 @@ export class LocalTopicService implements TopicService {
     }
 
     const currentTopic = topics[topicIndex];
-    const nextMemberIds = getTopicMemberIds(input.memberIds, currentTopic, directoryUsers);
+    const nextMemberIds = Array.from(new Set(input.memberIds));
     const topic: Topic = {
       ...currentTopic,
       title,
@@ -289,11 +293,7 @@ export class SupabaseTopicService implements TopicService {
       throw new Error("At least one member is required.");
     }
 
-    const memberInputs = getCloudMemberInputs(
-      input.memberIds,
-      ownerId,
-      directoryUsers
-    );
+    const memberInputs = getCloudMemberInputs(input.memberIds, directoryUsers);
     const { supabase } = await import("@/services/supabaseClient");
     const { data, error: huddleError } = await supabase.rpc("create_huddle", {
       p_title: title,
@@ -309,7 +309,7 @@ export class SupabaseTopicService implements TopicService {
     return {
       id: huddle.id,
       title: huddle.title,
-      memberIds: memberInputs.map(getCloudMemberReference),
+      memberIds: Array.from(new Set([ownerId, ...memberInputs.map(getCloudMemberReference)])),
       ownerId: huddle.owner_id,
       ownerTag: localUser.tag,
       ownerPhoneNumber: localUser.phoneNumber,
@@ -336,11 +336,7 @@ export class SupabaseTopicService implements TopicService {
     }
 
     const directoryUsers = await this.directoryUsers.listUsers();
-    const memberInputs = getCloudMemberInputs(
-      input.memberIds,
-      currentTopic.ownerId ?? this.requireAccountScope(),
-      directoryUsers
-    );
+    const memberInputs = getCloudMemberInputs(input.memberIds, directoryUsers);
     const { supabase } = await import("@/services/supabaseClient");
     const { data, error: huddleError } = await supabase.rpc("update_huddle", {
       p_huddle_id: id,
@@ -383,39 +379,6 @@ export class SupabaseTopicService implements TopicService {
   }
 }
 
-function getTopicMemberIds(
-  inputMemberIds: string[],
-  creator: LocalUser | Topic,
-  directoryUsers: DirectoryUser[]
-) {
-  const creatorMemberId = getCreatorMemberId(creator, directoryUsers);
-
-  return Array.from(new Set([
-    ...(creatorMemberId ? [creatorMemberId] : []),
-    ...inputMemberIds
-  ]));
-}
-
-function getCreatorMemberId(creator: LocalUser | Topic, directoryUsers: DirectoryUser[]) {
-  if ("memberIds" in creator) {
-    const directoryMemberId =
-      getDirectoryUserIdForIdentifier(directoryUsers, creator.ownerTag ?? "") ??
-      getDirectoryUserIdForIdentifier(directoryUsers, creator.ownerPhoneNumber ?? "");
-
-    return directoryMemberId
-      ?? creator.ownerId
-      ?? null;
-  }
-
-  const directoryMemberId =
-    getDirectoryUserIdForIdentifier(directoryUsers, creator.tag) ??
-    getDirectoryUserIdForIdentifier(directoryUsers, creator.phoneNumber);
-
-  return directoryMemberId
-    ?? creator.id
-    ?? null;
-}
-
 function getMemberDisplayName(memberId: string, directoryUsers: DirectoryUser[]) {
   const connection = getDirectoryConnectionForMemberId(directoryUsers, memberId);
 
@@ -445,7 +408,6 @@ function mapSupabaseHuddle(row: SupabaseHuddleRow): Topic {
 
 function getCloudMemberInputs(
   inputMemberIds: string[],
-  creatorId: string,
   directoryUsers: DirectoryUser[]
 ): CloudMemberInput[] {
   const inputs = inputMemberIds.map((memberId) => {
@@ -468,13 +430,7 @@ function getCloudMemberInputs(
     throw new Error("Every huddle member must be in your network.");
   });
 
-  const creatorInput: CloudMemberInput = {
-    member_id: creatorId,
-    member_tag: null,
-    member_phone_number: null
-  };
-
-  return deduplicateCloudMembers([creatorInput, ...inputs]);
+  return deduplicateCloudMembers(inputs);
 }
 
 function getDirectoryUserForMemberId(memberId: string, directoryUsers: DirectoryUser[]) {

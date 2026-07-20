@@ -60,29 +60,20 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const initializedTopicIdRef = useRef<string | null>(null);
   const topicIsInitialized = Boolean(topic && initializedTopicIdRef.current === topic.id);
-  const editableConnections = useMemo(() => (
-    topic?.ownerId
-      ? connections.filter((connection) => connection.id !== topic.ownerId)
-      : connections
-  ), [connections, topic?.ownerId]);
   const initialSelectedConnectionIds = useMemo(() => (
     topic
-      ? getConnectionIdsForTopicMemberIds(
-        topic.memberIds.filter((memberId) => memberId !== topic.ownerId),
-        editableConnections
-      )
+      ? getConnectionIdsForTopicMemberIds(topic.memberIds, connections)
       : []
-  ), [editableConnections, topic]);
+  ), [connections, topic]);
   const fixedMemberIds = useMemo(() => {
     if (!topic) {
       return [];
     }
 
     return Array.from(new Set([
-      ...(topic.ownerId ? [topic.ownerId] : []),
-      ...getTopicMemberIdsWithoutConnections(topic.memberIds, editableConnections)
+      ...getTopicMemberIdsWithoutConnections(topic.memberIds, connections)
     ]));
-  }, [editableConnections, topic]);
+  }, [connections, topic]);
 
   useEffect(() => {
     if (!topic || connectionsAreLoading || initializedTopicIdRef.current === topic.id) {
@@ -111,14 +102,14 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
     !arraysMatch(selectedConnectionIds, initialSelectedConnectionIds)
   ) : false;
   const canSubmit = hasRequiredSubmitFields && !isOverTitleLimit && !autoArchiveIsInvalid;
-  const memberSearchIsVisible = editableConnections.length >= 6;
+  const memberSearchIsVisible = connections.length >= 6;
   const filteredConnections = useMemo(
     () => filterConnectionsForTopicForm({
-      connections: editableConnections,
+      connections,
       query: memberSearchIsVisible ? networkQuery : "",
       selectedConnectionIds
     }),
-    [editableConnections, memberSearchIsVisible, networkQuery, selectedConnectionIds]
+    [connections, memberSearchIsVisible, networkQuery, selectedConnectionIds]
   );
 
   function handleToggleConnection(connection: Connection) {

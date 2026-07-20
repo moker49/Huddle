@@ -267,7 +267,7 @@ test("creating a huddle includes the creator as a member", async () => {
   assert.equal(topic.memberIds.includes(efren.id), true);
 });
 
-test("updating huddle members does not remove the creator", async () => {
+test("updating huddle members can remove the creator", async () => {
   const storage = new MemoryJsonStorage();
 
   const efrenSession = createServices(storage);
@@ -284,7 +284,7 @@ test("updating huddle members does not remove the creator", async () => {
     memberIds: ["andre"]
   });
 
-  assert.equal(updatedTopic.memberIds.includes(efren.id), true);
+  assert.equal(updatedTopic.memberIds.includes(efren.id), false);
   assert.equal(updatedTopic.memberIds.includes("phone:#27"), false);
   assert.equal(updatedTopic.memberIds.includes("andre"), true);
 });
@@ -465,10 +465,11 @@ test("updating huddle members records member-added and member-removed activities
   await returningEfrenSession.users.resetLocalData();
   await returningEfrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
   await returningEfrenSession.users.updateDisplayName("Efren");
+  const efrenMemberId = topic.memberIds.find((memberId) => memberId !== "phone:#27");
 
   await returningEfrenSession.topics.updateTopic(topic.id, {
     title: "Member activity",
-    memberIds: ["andre"]
+    memberIds: [efrenMemberId as string, "andre"]
   });
   const messages = await returningEfrenSession.messages.listMessages(topic.id);
   const addedActivity = messages.find((message) => message.activityType === "member_added");
@@ -491,10 +492,11 @@ test("member activities display public identifiers when no directory name exists
     title: "Identifier activity",
     memberIds: ["phone:#27"]
   });
+  const efrenMemberId = topic.memberIds.find((memberId) => memberId !== "phone:#27");
 
   await efrenSession.topics.updateTopic(topic.id, {
     title: "Identifier activity",
-    memberIds: ["andre"]
+    memberIds: [efrenMemberId as string, "andre"]
   });
   const messages = await efrenSession.messages.listMessages(topic.id);
   const removedActivity = messages.find((message) => message.activityType === "member_removed");

@@ -8,22 +8,6 @@ export function topicIsVisibleToUser(
   localUser: LocalUser,
   directoryUsers: DirectoryUser[]
 ) {
-  if (topic.ownerId === localUser.id) {
-    return true;
-  }
-
-  if (topic.ownerTag && localUser.tag && topic.ownerTag === localUser.tag) {
-    return true;
-  }
-
-  if (
-    topic.ownerPhoneNumber &&
-    localUser.phoneNumber &&
-    topic.ownerPhoneNumber === localUser.phoneNumber
-  ) {
-    return true;
-  }
-
   const localMemberIds = getLocalMemberIds(localUser, directoryUsers);
 
   return topic.memberIds.some((memberId) => localMemberIds.has(memberId));

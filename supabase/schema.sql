@@ -121,19 +121,16 @@ as $$
     select 1
     from public.huddles h
     where h.id = target_huddle_id
-      and (
-        h.owner_id = auth.uid()
-        or exists (
-          select 1
-          from public.huddle_members hm
-          left join public.profiles current_user_profile on current_user_profile.id = auth.uid()
-          where hm.huddle_id = h.id
-            and (
-              hm.member_id = auth.uid()
-              or hm.member_tag = current_user_profile.tag
-              or hm.member_phone_number = current_user_profile.phone_number
-            )
-        )
+      and exists (
+        select 1
+        from public.huddle_members hm
+        left join public.profiles current_user_profile on current_user_profile.id = auth.uid()
+        where hm.huddle_id = h.id
+          and (
+            hm.member_id = auth.uid()
+            or hm.member_tag = current_user_profile.tag
+            or hm.member_phone_number = current_user_profile.phone_number
+          )
       )
   );
 $$;
@@ -199,10 +196,9 @@ begin
   end if;
 
   with shared_huddles as (
-    select h.id, h.owner_id
+    select h.id
     from public.huddles h
-    where h.owner_id = current_profile.id
-      or exists (
+    where exists (
         select 1
         from public.huddle_members hm
         where hm.huddle_id = h.id
@@ -220,11 +216,6 @@ begin
       )
   ),
   candidate_members as (
-    select h.owner_id as member_id, null::text as member_tag, null::text as member_phone_number
-    from shared_huddles h
-
-    union all
-
     select
       coalesce(resolved_member.id, hm.member_id),
       case
@@ -325,12 +316,22 @@ begin
     member_tag,
     member_phone_number
   )
+  values (new_huddle.id, auth.uid(), null, null)
+  on conflict do nothing;
+
+  insert into public.huddle_members (
+    huddle_id,
+    member_id,
+    member_tag,
+    member_phone_number
+  )
   select
     new_huddle.id,
     nullif(member.value ->> 'member_id', '')::uuid,
     nullif(member.value ->> 'member_tag', ''),
     nullif(member.value ->> 'member_phone_number', '')
-  from jsonb_array_elements(p_members) as member(value);
+  from jsonb_array_elements(p_members) as member(value)
+  on conflict do nothing;
 
   return query
   select
@@ -395,15 +396,6 @@ begin
 
   delete from public.huddle_members
   where huddle_id = p_huddle_id;
-
-  insert into public.huddle_members (
-    huddle_id,
-    member_id,
-    member_tag,
-    member_phone_number
-  )
-  values (p_huddle_id, existing_huddle.owner_id, null, null)
-  on conflict do nothing;
 
   insert into public.huddle_members (
     huddle_id,

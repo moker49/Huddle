@@ -28,7 +28,6 @@ import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
 import { connectionMatchesText, getConnectionDisplayName } from "@/models/connectionDisplay";
-import { Topic } from "@/models/topic";
 import { layout, shape, spacing } from "@/theme/tokens";
 
 type TopicListItemPosition = "single" | "first" | "middle" | "last";
@@ -213,7 +212,7 @@ export function TopicListScreen() {
     });
   }
 
-  function getMemberSummary(memberIds: string[], topic?: Topic) {
+  function getMemberSummary(memberIds: string[]) {
     const names = memberIds
       .map((memberId) => connectionNameById[memberId])
       .filter((name): name is string => Boolean(name));
@@ -223,13 +222,7 @@ export function TopicListScreen() {
     }
 
     const userIsMember = user && getUserMemberAliases(user).some((alias) => memberIds.includes(alias));
-    const userIsOwner = user && topic && (
-      topic.ownerId === user.id ||
-      topic.ownerTag === user.tag ||
-      topic.ownerPhoneNumber === user.phoneNumber
-    );
-
-    if (user && (userIsMember || userIsOwner || memberIds.length === 0)) {
+    if (user && (userIsMember || memberIds.length === 0)) {
       return user.displayName || user.tag || user.phoneNumber;
     }
 
@@ -322,7 +315,7 @@ export function TopicListScreen() {
               <View key={topic.id}>
                 <TopicListItem
                   topic={topic}
-                  memberSummary={getMemberSummary(topic.memberIds, topic)}
+                  memberSummary={getMemberSummary(topic.memberIds)}
                   position={getTopicListItemPosition(index, activeListItemCount)}
                   onPress={() => router.push(`/topics/${topic.id}`)}
                 />
@@ -393,7 +386,7 @@ export function TopicListScreen() {
                     <View key={topic.id}>
                       <TopicListItem
                         topic={topic}
-                        memberSummary={getMemberSummary(topic.memberIds, topic)}
+                        memberSummary={getMemberSummary(topic.memberIds)}
                         position={getTopicListItemPosition(index, archivedTopics.length)}
                         onPress={() => router.push(`/topics/${topic.id}`)}
                       />
