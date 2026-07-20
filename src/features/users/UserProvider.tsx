@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { LocalUser, LocalUserProfileInput } from "@/models/user";
+import { isProfileLoadingForAccount } from "@/features/users/profileLoadState";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { UserService, userService } from "@/services/userService";
 
@@ -32,12 +33,14 @@ export function UserProvider({ children, service = userService }: UserProviderPr
   const { session } = useAuth();
   const [user, setUser] = useState<LocalUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadedAccountId, setLoadedAccountId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadUser = useCallback(async () => {
     if (!session) {
       setUser(null);
       setErrorMessage(null);
+      setLoadedAccountId(null);
       setIsLoading(false);
       return;
     }
@@ -85,6 +88,7 @@ export function UserProvider({ children, service = userService }: UserProviderPr
       })
       .finally(() => {
         if (isActive) {
+          setLoadedAccountId(session.user.id);
           setIsLoading(false);
         }
       });
@@ -94,10 +98,16 @@ export function UserProvider({ children, service = userService }: UserProviderPr
     };
   }, [service, session]);
 
+  const profileIsLoading = isProfileLoadingForAccount({
+    accountId: session?.user.id ?? null,
+    isLoading,
+    loadedAccountId
+  });
+
   const value = useMemo<UserContextValue>(
     () => ({
       user,
-      isLoading,
+      isLoading: profileIsLoading,
       errorMessage,
       reloadUser: loadUser,
       async updateIdentifiers(identifiers) {
@@ -119,7 +129,7 @@ export function UserProvider({ children, service = userService }: UserProviderPr
         return nextUser;
       }
     }),
-    [errorMessage, isLoading, loadUser, service, user]
+    [errorMessage, loadUser, profileIsLoading, service, user]
   );
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
