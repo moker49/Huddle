@@ -291,7 +291,7 @@ export class SupabaseTopicService implements TopicService {
 
     const memberInputs = getCloudMemberInputs(
       input.memberIds,
-      { ...localUser, id: ownerId },
+      ownerId,
       directoryUsers
     );
     const { supabase } = await import("@/services/supabaseClient");
@@ -335,41 +335,30 @@ export class SupabaseTopicService implements TopicService {
       throw new Error("Huddle could not be found.");
     }
 
-    const localUser = await this.users.getUser();
     const directoryUsers = await this.directoryUsers.listUsers();
-    const memberInputs = getCloudMemberInputs(input.memberIds, localUser, directoryUsers);
-    const { supabase } = await import("@/services/supabaseClient");
-    const { error: huddleError } = await supabase
-      .from("huddles")
-      .update({ title, auto_archive_at: input.autoArchiveAt ?? null })
-      .eq("id", id);
-
-    if (huddleError) {
-      throw huddleError;
-    }
-
-    const { error: deleteMembersError } = await supabase
-      .from("huddle_members")
-      .delete()
-      .eq("huddle_id", id);
-
-    if (deleteMembersError) {
-      throw deleteMembersError;
-    }
-
-    const { error: memberError } = await supabase.from("huddle_members").insert(
-      memberInputs.map((member) => ({ huddle_id: id, ...member }))
+    const memberInputs = getCloudMemberInputs(
+      input.memberIds,
+      currentTopic.ownerId ?? this.requireAccountScope(),
+      directoryUsers
     );
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error: huddleError } = await supabase.rpc("update_huddle", {
+      p_huddle_id: id,
+      p_title: title,
+      p_auto_archive_at: input.autoArchiveAt ?? null,
+      p_members: memberInputs
+    });
+    const huddle = Array.isArray(data) ? data[0] : null;
 
-    if (memberError) {
-      throw memberError;
+    if (huddleError || !huddle) {
+      throw huddleError ?? new Error("Huddle could not be saved.");
     }
 
     return {
       ...currentTopic,
-      title,
+      title: huddle.title,
       memberIds: memberInputs.map(getCloudMemberReference),
-      autoArchiveAt: input.autoArchiveAt
+      autoArchiveAt: huddle.auto_archive_at ?? undefined
     };
   }
 
@@ -456,7 +445,7 @@ function mapSupabaseHuddle(row: SupabaseHuddleRow): Topic {
 
 function getCloudMemberInputs(
   inputMemberIds: string[],
-  creator: LocalUser,
+  creatorId: string,
   directoryUsers: DirectoryUser[]
 ): CloudMemberInput[] {
   const inputs = inputMemberIds.map((memberId) => {
@@ -480,7 +469,7 @@ function getCloudMemberInputs(
   });
 
   const creatorInput: CloudMemberInput = {
-    member_id: creator.id,
+    member_id: creatorId,
     member_tag: null,
     member_phone_number: null
   };

@@ -344,6 +344,95 @@ $$;
 
 grant execute on function public.create_huddle(text, timestamptz, jsonb) to authenticated;
 
+create or replace function public.update_huddle(
+  p_huddle_id uuid,
+  p_title text,
+  p_auto_archive_at timestamptz,
+  p_members jsonb
+)
+returns table (
+  id uuid,
+  title text,
+  owner_id uuid,
+  created_at timestamptz,
+  auto_archive_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing_huddle public.huddles;
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  select *
+  into existing_huddle
+  from public.huddles
+  where id = p_huddle_id;
+
+  if not found then
+    raise exception 'Huddle could not be found.';
+  end if;
+
+  if not public.can_access_huddle(p_huddle_id) then
+    raise exception 'You are not allowed to update this huddle.';
+  end if;
+
+  if coalesce(trim(p_title), '') = '' then
+    raise exception 'Huddle title is required.';
+  end if;
+
+  if jsonb_array_length(coalesce(p_members, '[]'::jsonb)) = 0 then
+    raise exception 'At least one huddle member is required.';
+  end if;
+
+  update public.huddles
+  set title = trim(p_title), auto_archive_at = p_auto_archive_at
+  where id = p_huddle_id;
+
+  delete from public.huddle_members
+  where huddle_id = p_huddle_id;
+
+  insert into public.huddle_members (
+    huddle_id,
+    member_id,
+    member_tag,
+    member_phone_number
+  )
+  values (p_huddle_id, existing_huddle.owner_id, null, null)
+  on conflict do nothing;
+
+  insert into public.huddle_members (
+    huddle_id,
+    member_id,
+    member_tag,
+    member_phone_number
+  )
+  select
+    p_huddle_id,
+    nullif(member.value ->> 'member_id', '')::uuid,
+    nullif(member.value ->> 'member_tag', ''),
+    nullif(member.value ->> 'member_phone_number', '')
+  from jsonb_array_elements(p_members) as member(value)
+  on conflict do nothing;
+
+  return query
+  select
+    h.id,
+    h.title,
+    h.owner_id,
+    h.created_at,
+    h.auto_archive_at
+  from public.huddles h
+  where h.id = p_huddle_id;
+end;
+$$;
+
+grant execute on function public.update_huddle(uuid, text, timestamptz, jsonb) to authenticated;
+
 alter table public.huddles enable row level security;
 alter table public.huddle_members enable row level security;
 

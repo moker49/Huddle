@@ -77,6 +77,21 @@ export function getConnectionIdsForTopicMemberIds(
     .map((connection) => connection.id);
 }
 
+export function getTopicMemberIdsWithoutConnections(
+  topicMemberIds: string[],
+  connections: Connection[]
+) {
+  const connectionAliases = new Set(
+    connections
+      .flatMap(getConnectionMemberAliases)
+      .map(normalizeMemberAlias)
+  );
+
+  return topicMemberIds.filter((memberId) => (
+    !connectionAliases.has(normalizeMemberAlias(memberId))
+  ));
+}
+
 export function parseAutoArchiveDate(value: string) {
   const trimmedValue = value.trim();
 

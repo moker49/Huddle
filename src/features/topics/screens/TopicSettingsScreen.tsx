@@ -24,6 +24,7 @@ import {
   filterConnectionsForTopicForm,
   formatTopicAutoArchiveInputValue,
   getConnectionIdsForTopicMemberIds,
+  getTopicMemberIdsWithoutConnections,
   getTopicFormValidation,
   maxTopicTitleLength,
   toggleConnectionId
@@ -59,9 +60,29 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const [errorMessage, setErrorMessage] = useState("");
   const initializedTopicIdRef = useRef<string | null>(null);
   const topicIsInitialized = Boolean(topic && initializedTopicIdRef.current === topic.id);
+  const editableConnections = useMemo(() => (
+    topic?.ownerId
+      ? connections.filter((connection) => connection.id !== topic.ownerId)
+      : connections
+  ), [connections, topic?.ownerId]);
   const initialSelectedConnectionIds = useMemo(() => (
-    topic ? getConnectionIdsForTopicMemberIds(topic.memberIds, connections) : []
-  ), [connections, topic]);
+    topic
+      ? getConnectionIdsForTopicMemberIds(
+        topic.memberIds.filter((memberId) => memberId !== topic.ownerId),
+        editableConnections
+      )
+      : []
+  ), [editableConnections, topic]);
+  const fixedMemberIds = useMemo(() => {
+    if (!topic) {
+      return [];
+    }
+
+    return Array.from(new Set([
+      ...(topic.ownerId ? [topic.ownerId] : []),
+      ...getTopicMemberIdsWithoutConnections(topic.memberIds, editableConnections)
+    ]));
+  }, [editableConnections, topic]);
 
   useEffect(() => {
     if (!topic || connectionsAreLoading || initializedTopicIdRef.current === topic.id) {
@@ -90,14 +111,14 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
     !arraysMatch(selectedConnectionIds, initialSelectedConnectionIds)
   ) : false;
   const canSubmit = hasRequiredSubmitFields && !isOverTitleLimit && !autoArchiveIsInvalid;
-  const memberSearchIsVisible = connections.length >= 6;
+  const memberSearchIsVisible = editableConnections.length >= 6;
   const filteredConnections = useMemo(
     () => filterConnectionsForTopicForm({
-      connections,
+      connections: editableConnections,
       query: memberSearchIsVisible ? networkQuery : "",
       selectedConnectionIds
     }),
-    [connections, memberSearchIsVisible, networkQuery, selectedConnectionIds]
+    [editableConnections, memberSearchIsVisible, networkQuery, selectedConnectionIds]
   );
 
   function handleToggleConnection(connection: Connection) {
@@ -158,7 +179,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
     try {
       await updateTopic(topic.id, {
         title,
-        memberIds: selectedConnectionIds,
+        memberIds: Array.from(new Set([...selectedConnectionIds, ...fixedMemberIds])),
         autoArchiveAt: parsedAutoArchiveAt ?? undefined
       });
       goBackOrReplace(`/topics/${topic.id}`);
