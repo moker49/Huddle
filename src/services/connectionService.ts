@@ -61,10 +61,19 @@ export class LocalConnectionService implements ConnectionService {
   async addConnection(identifier: string): Promise<Connection> {
     const normalizedIdentifier = normalizeIdentifier(identifier);
     const directoryUsers = await this.directoryUsers.listUsers();
+    const localUser = await this.users.getUser();
     const user = findDirectoryUser(directoryUsers, normalizedIdentifier);
 
     if (!normalizedIdentifier) {
       throw new Error("User could not be found.");
+    }
+
+    if (
+      user?.id === localUser.id ||
+      normalizedIdentifier === normalizeIdentifier(localUser.tag) ||
+      normalizedIdentifier === normalizeIdentifier(localUser.phoneNumber)
+    ) {
+      throw new Error("You cannot add yourself to your network.");
     }
 
     const connection = user ? userToConnection(user) : createPhoneConnection(normalizedIdentifier);
@@ -174,6 +183,10 @@ export class SupabaseConnectionService implements ConnectionService {
 
     const users = await this.directoryUsers.listUsers();
     const user = findDirectoryUser(users, normalizedIdentifier);
+
+    if (user?.id === ownerId) {
+      throw new Error("You cannot add yourself to your network.");
+    }
     const memberTag = !user && normalizedIdentifier.startsWith("@") ? normalizedIdentifier : null;
     const memberPhoneNumber = !user && normalizedIdentifier.startsWith("#")
       ? normalizedIdentifier

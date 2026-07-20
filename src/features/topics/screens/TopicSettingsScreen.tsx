@@ -175,7 +175,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
       });
       goBackOrReplace(`/topics/${topic.id}`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Huddle could not be saved.");
+      setErrorMessage(getSaveErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
@@ -378,4 +378,21 @@ function hasNewMembers(previousMemberIds: string[], nextMemberIds: string[]) {
   const previousMemberIdSet = new Set(previousMemberIds);
 
   return nextMemberIds.some((memberId) => !previousMemberIdSet.has(memberId));
+}
+
+function getSaveErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return "Huddle could not be saved.";
 }

@@ -334,6 +334,54 @@ test("deleting the last huddle leaves the network available", async () => {
   assert.equal(network.some((connection) => connection.tag === "@jay"), true);
 });
 
+test("a huddle member can update the title, archive date, and membership", async () => {
+  const storage = new MemoryJsonStorage();
+  const accountASession = createServices(storage);
+
+  const accountA = await accountASession.users.updateIdentifiers({ tag: "accounta", phoneNumber: "" });
+  await accountASession.users.updateDisplayName("Account A");
+  await accountASession.connections.addConnection("#27");
+  const topic = await accountASession.topics.createTopic({
+    title: "Original huddle",
+    memberIds: ["phone:#27"]
+  });
+
+  const accountBSession = createServices(storage);
+  await accountBSession.users.resetLocalData();
+  const accountB = await accountBSession.users.updateIdentifiers({ tag: "accountb", phoneNumber: "27" });
+  await accountBSession.users.updateDisplayName("Account B");
+  await accountBSession.connections.addConnection("#99");
+
+  const updatedTopic = await accountBSession.topics.updateTopic(topic.id, {
+    title: "Updated huddle",
+    autoArchiveAt: "2026-08-01T23:59:59.999Z",
+    memberIds: [accountB.id, "phone:#99"]
+  });
+
+  assert.equal(updatedTopic.title, "Updated huddle");
+  assert.equal(updatedTopic.autoArchiveAt, "2026-08-01T23:59:59.999Z");
+  assert.equal(updatedTopic.memberIds.includes(accountA.id), false);
+  assert.equal(updatedTopic.memberIds.includes(accountB.id), true);
+  assert.equal(updatedTopic.memberIds.includes("phone:#99"), true);
+});
+
+test("users cannot add themselves to their network", async () => {
+  const storage = new MemoryJsonStorage();
+  const session = createServices(storage);
+
+  await session.users.updateIdentifiers({ tag: "efren", phoneNumber: "27" });
+  await session.users.updateDisplayName("Efren");
+
+  await assert.rejects(
+    session.connections.addConnection("#27"),
+    /cannot add yourself/i
+  );
+  await assert.rejects(
+    session.connections.addConnection("@efren"),
+    /cannot add yourself/i
+  );
+});
+
 test("manually adding an unknown phone creates a placeholder connection", async () => {
   const storage = new MemoryJsonStorage();
   const efrenSession = createServices(storage);
