@@ -85,7 +85,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       provider: "google",
       options: {
         redirectTo,
-        skipBrowserRedirect: Platform.OS !== "web"
+        skipBrowserRedirect: Platform.OS !== "web",
+        queryParams: {
+          prompt: "select_account"
+        }
       }
     });
 
