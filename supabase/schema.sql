@@ -217,15 +217,15 @@ begin
   ),
   candidate_members as (
     select
-      coalesce(resolved_member.id, hm.member_id),
+      coalesce(resolved_member.id, hm.member_id) as member_id,
       case
         when resolved_member.id is null and hm.member_id is null then hm.member_tag
         else null
-      end,
+      end as member_tag,
       case
         when resolved_member.id is null and hm.member_id is null then hm.member_phone_number
         else null
-      end
+      end as member_phone_number
     from shared_huddles h
     join public.huddle_members hm on hm.huddle_id = h.id
     left join public.profiles resolved_member on (

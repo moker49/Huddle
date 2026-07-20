@@ -316,6 +316,24 @@ test("shared huddles add members to each user's network", async () => {
   assert.equal(jayNetwork.some((connection) => connection.tag === "@efren"), true);
 });
 
+test("deleting the last huddle leaves the network available", async () => {
+  const storage = new MemoryJsonStorage();
+  const session = createServices(storage);
+
+  await session.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await session.users.updateDisplayName("Efren");
+  await session.connections.addConnection("@jay");
+  const topic = await session.topics.createTopic({
+    title: "Temporary huddle",
+    memberIds: ["jay"]
+  });
+
+  await session.topics.deleteTopic(topic.id);
+  const network = await session.connections.listConnections();
+
+  assert.equal(network.some((connection) => connection.tag === "@jay"), true);
+});
+
 test("manually adding an unknown phone creates a placeholder connection", async () => {
   const storage = new MemoryJsonStorage();
   const efrenSession = createServices(storage);
