@@ -226,6 +226,31 @@ test("tag-only identity cannot see a phone-invited huddle until claiming the mat
   assert.equal(visibleTopics.some((visibleTopic) => visibleTopic.id === topic.id), true);
 });
 
+test("claiming a phone invite adds peers and unclaimed phone members to the network", async () => {
+  const storage = new MemoryJsonStorage();
+
+  const efrenSession = createServices(storage);
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("@jay");
+  await efrenSession.connections.addConnection("#27");
+  await efrenSession.topics.createTopic({
+    title: "Phone invite network",
+    memberIds: ["jay", "phone:#27", "phone:#99"]
+  });
+
+  const phoneClaimSession = createServices(storage);
+  await phoneClaimSession.users.resetLocalData();
+  await phoneClaimSession.users.updateIdentifiers({ tag: "the27", phoneNumber: "27" });
+  await phoneClaimSession.users.updateDisplayName("The 27");
+
+  const network = await phoneClaimSession.connections.listConnections();
+
+  assert.equal(network.some((connection) => connection.tag === "@efren"), true);
+  assert.equal(network.some((connection) => connection.tag === "@jay"), true);
+  assert.equal(network.some((connection) => connection.id === "phone:#99"), true);
+});
+
 test("creating a huddle includes the creator as a member", async () => {
   const storage = new MemoryJsonStorage();
 

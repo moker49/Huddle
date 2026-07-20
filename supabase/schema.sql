@@ -167,6 +167,114 @@ as $$
   group by h.id, owner_profile.tag, owner_profile.phone_number;
 $$;
 
+create or replace function public.sync_current_user_huddle_network()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_profile public.profiles;
+begin
+  if auth.uid() is null then
+    return;
+  end if;
+
+  select *
+  into current_profile
+  from public.profiles
+  where id = auth.uid();
+
+  if not found then
+    return;
+  end if;
+
+  with shared_huddles as (
+    select h.id, h.owner_id
+    from public.huddles h
+    where h.owner_id = current_profile.id
+      or exists (
+        select 1
+        from public.huddle_members hm
+        where hm.huddle_id = h.id
+          and (
+            hm.member_id = current_profile.id
+            or (
+              current_profile.tag <> ''
+              and hm.member_tag = current_profile.tag
+            )
+            or (
+              current_profile.phone_number <> ''
+              and hm.member_phone_number = current_profile.phone_number
+            )
+          )
+      )
+  ),
+  candidate_members as (
+    select h.owner_id as member_id, null::text as member_tag, null::text as member_phone_number
+    from shared_huddles h
+
+    union all
+
+    select
+      coalesce(resolved_member.id, hm.member_id),
+      case
+        when resolved_member.id is null and hm.member_id is null then hm.member_tag
+        else null
+      end,
+      case
+        when resolved_member.id is null and hm.member_id is null then hm.member_phone_number
+        else null
+      end
+    from shared_huddles h
+    join public.huddle_members hm on hm.huddle_id = h.id
+    left join public.profiles resolved_member on (
+      resolved_member.id = hm.member_id
+      or (
+        hm.member_tag is not null
+        and hm.member_tag <> ''
+        and resolved_member.tag = hm.member_tag
+      )
+      or (
+        hm.member_phone_number is not null
+        and hm.member_phone_number <> ''
+        and resolved_member.phone_number = hm.member_phone_number
+      )
+    )
+  )
+  insert into public.network_members (
+    owner_id,
+    member_id,
+    member_tag,
+    member_phone_number
+  )
+  select
+    current_profile.id,
+    candidate.member_id,
+    candidate.member_tag,
+    candidate.member_phone_number
+  from candidate_members candidate
+  where (candidate.member_id is not null
+      or candidate.member_tag is not null
+      or candidate.member_phone_number is not null)
+    and (
+      candidate.member_id is null
+      or candidate.member_id <> current_profile.id
+    )
+    and (
+      candidate.member_tag is null
+      or candidate.member_tag <> current_profile.tag
+    )
+    and (
+      candidate.member_phone_number is null
+      or candidate.member_phone_number <> current_profile.phone_number
+    )
+  on conflict do nothing;
+end;
+$$;
+
+grant execute on function public.sync_current_user_huddle_network() to authenticated;
+
 create or replace function public.create_huddle(
   p_title text,
   p_auto_archive_at timestamptz,

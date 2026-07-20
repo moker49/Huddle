@@ -137,6 +137,14 @@ export class SupabaseConnectionService implements ConnectionService {
   async listConnections(): Promise<Connection[]> {
     const ownerId = this.requireAccountScope();
     const { supabase } = await import("@/services/supabaseClient");
+    const { error: synchronizationError } = await supabase.rpc(
+      "sync_current_user_huddle_network"
+    );
+
+    if (synchronizationError) {
+      throw synchronizationError;
+    }
+
     const { data, error } = await supabase
       .from("network_members")
       .select("member_id, member_tag, member_phone_number, created_at")
