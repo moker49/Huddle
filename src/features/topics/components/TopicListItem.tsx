@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { Badge, Text, useTheme } from "react-native-paper";
 
 import { Topic } from "@/models/topic";
 import { layout, shape, spacing } from "@/theme/tokens";
@@ -56,14 +56,27 @@ export function TopicListItem({
           {memberSummary}
         </Text>
       </View>
-      {autoArchiveDate ? (
-        <Text
-          variant="labelMedium"
-          numberOfLines={1}
-          style={[styles.expiryDate, { color: theme.colors.onSurfaceVariant }]}
-        >
-          {autoArchiveDate}
-        </Text>
+      {autoArchiveDate || topic.unreadCount ? (
+        <View style={styles.trailing}>
+          {autoArchiveDate ? (
+            <Text
+              variant="labelMedium"
+              numberOfLines={1}
+              style={[styles.expiryDate, { color: theme.colors.onSurfaceVariant }]}
+            >
+              {autoArchiveDate}
+            </Text>
+          ) : null}
+          {topic.unreadCount ? (
+            <Badge
+              size={20}
+              accessibilityLabel={`${topic.unreadCount} unread messages`}
+              style={{ backgroundColor: theme.colors.primary, color: theme.colors.onPrimary }}
+            >
+              {formatUnreadCount(topic.unreadCount)}
+            </Badge>
+          ) : null}
+        </View>
       ) : null}
     </Pressable>
   );
@@ -97,6 +110,10 @@ function formatAutoArchiveDate(autoArchiveAt: string | undefined) {
     month: "short",
     day: "numeric"
   }).format(date);
+}
+
+function formatUnreadCount(unreadCount: number) {
+  return unreadCount > 99 ? "99+" : String(unreadCount);
 }
 
 const styles = StyleSheet.create({
@@ -140,8 +157,12 @@ const styles = StyleSheet.create({
   members: {
     marginTop: spacing.xxs
   },
+  trailing: {
+    alignItems: "flex-end",
+    gap: spacing.xs,
+    minWidth: layout.appBarActionSize
+  },
   expiryDate: {
-    minWidth: layout.appBarActionSize,
     textAlign: "right"
   }
 });

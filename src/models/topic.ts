@@ -7,6 +7,7 @@ export interface Topic {
   ownerPhoneNumber?: string;
   createdAt: string;
   autoArchiveAt?: string;
+  unreadCount?: number;
 }
 
 export interface CreateTopicInput {

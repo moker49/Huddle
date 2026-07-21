@@ -19,11 +19,12 @@ interface TopicDetailsScreenProps {
 
 export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
-  const { getTopic, isLoading: topicsAreLoading } = useTopics();
+  const { getTopic, isLoading: topicsAreLoading, markTopicRead } = useTopics();
   const { getError, getMessages, loadMessages, sendMessage, subscribeToMessages } = useMessages();
   const { user } = useUser();
   const scrollViewRef = useRef<ScrollView>(null);
   const topic = topicId ? getTopic(topicId) : undefined;
+  const topicIsAvailable = Boolean(topic);
   const messages = topicId ? getMessages(topicId) : [];
   const messageError = topicId ? getError(topicId) : null;
   const hasDisplayName = Boolean(user?.displayName);
@@ -33,6 +34,12 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       void loadMessages(topicId);
     }
   }, [loadMessages, topic, topicId]);
+
+  useEffect(() => {
+    if (topicId && topicIsAvailable) {
+      void markTopicRead(topicId);
+    }
+  }, [markTopicRead, topicId, topicIsAvailable]);
 
   useEffect(() => {
     if (!topicId || !topic) {

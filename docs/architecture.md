@@ -75,6 +75,8 @@ The current runtime uses Supabase-backed profile, direct-network, huddle, and me
 
 Auto-archive is a derived list classification, not a permission state. Once the stored archive time passes, the huddle moves from the primary list to Archived while remaining readable and fully editable by its members.
 
+Read state is private per profile and huddle. It may power an unread count, but it must not become a shared read receipt or expose one member's viewing behavior to another.
+
 ## Platform Strategy
 
 The app targets Expo on Android, iOS, and mobile web. It should retain one coherent Material Design identity across platforms while respecting platform essentials such as safe areas, keyboard behavior, browser focus behavior, system navigation areas, and accessibility.

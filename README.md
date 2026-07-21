@@ -4,7 +4,7 @@ Huddle is a lightweight, mobile-first group discussion prototype built with Expo
 
 ## Current Scope
 
-The app includes Google authentication, Supabase-backed huddle search, visibility, messaging, and activity history; network search with member chips; member-based huddle filtering; contextual huddle creation; huddle details; and profile setup.
+The app includes Google authentication, Supabase-backed huddle search, visibility, messaging, activity history, and private unread counts; network search with member chips; member-based huddle filtering; contextual huddle creation; huddle details; and profile setup.
 
 Not implemented yet: backend APIs, phone verification, real-time messaging, push notifications, polls or voting, host permissions, contacts, file uploads, analytics, and complex animation.
 

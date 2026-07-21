@@ -23,6 +23,7 @@ export interface TopicService {
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
   deleteTopic(id: string): Promise<void>;
+  markTopicRead(id: string): Promise<void>;
   subscribeToTopicChanges(onChange: () => void): Promise<() => void>;
   resetLocalData(): Promise<void>;
 }
@@ -170,6 +171,8 @@ export class LocalTopicService implements TopicService {
     await this.saveTopics();
   }
 
+  async markTopicRead(_id: string): Promise<void> {}
+
   async subscribeToTopicChanges(_onChange: () => void): Promise<() => void> {
     return () => undefined;
   }
@@ -244,6 +247,7 @@ interface SupabaseHuddleRow {
   created_at: string;
   auto_archive_at: string | null;
   member_ids: string[];
+  unread_count: number | null;
 }
 
 interface CloudMemberInput {
@@ -373,12 +377,23 @@ export class SupabaseTopicService implements TopicService {
     }
   }
 
+  async markTopicRead(id: string): Promise<void> {
+    this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const { error } = await supabase.rpc("mark_huddle_read", { p_huddle_id: id });
+
+    if (error) {
+      throw error;
+    }
+  }
+
   async subscribeToTopicChanges(onChange: () => void): Promise<() => void> {
     const { supabase } = await import("@/services/supabaseClient");
     const channel = supabase
       .channel("huddle-topic-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "huddles" }, onChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "huddle_members" }, onChange)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "huddle_messages" }, onChange)
       .subscribe();
 
     return () => {
@@ -420,7 +435,8 @@ function mapSupabaseHuddle(row: SupabaseHuddleRow): Topic {
     ownerTag: row.owner_tag ?? undefined,
     ownerPhoneNumber: row.owner_phone_number ?? undefined,
     createdAt: row.created_at,
-    autoArchiveAt: row.auto_archive_at ?? undefined
+    autoArchiveAt: row.auto_archive_at ?? undefined,
+    unreadCount: row.unread_count ?? 0
   };
 }
 

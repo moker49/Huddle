@@ -131,6 +131,13 @@ create table if not exists public.huddle_messages (
 create index if not exists huddle_messages_huddle_created_key
   on public.huddle_messages(huddle_id, created_at, id);
 
+create table if not exists public.huddle_read_states (
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  huddle_id uuid not null references public.huddles(id) on delete cascade,
+  last_read_at timestamptz not null default now(),
+  primary key (profile_id, huddle_id)
+);
+
 alter table public.huddles replica identity full;
 alter table public.huddle_members replica identity full;
 alter table public.huddle_messages replica identity full;
@@ -235,7 +242,8 @@ returns table (
   owner_phone_number text,
   created_at timestamptz,
   auto_archive_at timestamptz,
-  member_ids text[]
+  member_ids text[],
+  unread_count integer
 )
 language sql
 stable
@@ -256,6 +264,17 @@ as $$
         order by hm.created_at
       ) filter (where hm.id is not null),
       '{}'::text[]
+    ),
+    (
+      select count(*)::integer
+      from public.huddle_messages message
+      left join public.huddle_read_states read_state on (
+        read_state.huddle_id = h.id
+        and read_state.profile_id = auth.uid()
+      )
+      where message.huddle_id = h.id
+        and message.created_at > coalesce(read_state.last_read_at, '-infinity'::timestamptz)
+        and message.author_id is distinct from auth.uid()
     )
   from public.huddles h
   join public.profiles owner_profile on owner_profile.id = h.owner_id
@@ -429,9 +448,10 @@ begin
     body,
     kind,
     activity_type,
+    author_id,
     author_name
   )
-  values (new_huddle.id, 'Huddle created', 'system', 'huddle_created', 'System');
+  values (new_huddle.id, 'Huddle created', 'system', 'huddle_created', auth.uid(), 'System');
 
   return query
   select
@@ -496,6 +516,7 @@ begin
       body,
       kind,
       activity_type,
+      author_id,
       author_name
     )
     values (
@@ -503,6 +524,7 @@ begin
       format('Title updated from "%s" to "%s"', existing_huddle.title, trim(p_title)),
       'system',
       'title_updated',
+      auth.uid(),
       'System'
     );
   end if;
@@ -512,6 +534,7 @@ begin
     body,
     kind,
     activity_type,
+    author_id,
     author_name
   )
   select
@@ -526,6 +549,7 @@ begin
     ),
     'system',
     'member_added',
+    auth.uid(),
     'System'
   from jsonb_array_elements(p_members) as member(value)
   where not exists (
@@ -548,6 +572,7 @@ begin
     body,
     kind,
     activity_type,
+    author_id,
     author_name
   )
   select
@@ -562,6 +587,7 @@ begin
     ),
     'system',
     'member_removed',
+    auth.uid(),
     'System'
   from public.huddle_members existing_member
   where existing_member.huddle_id = p_huddle_id
@@ -702,9 +728,38 @@ $$;
 
 grant execute on function public.create_huddle_message(uuid, text) to authenticated;
 
+create or replace function public.mark_huddle_read(p_huddle_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  if not public.can_access_huddle(p_huddle_id) then
+    raise exception 'You are not allowed to read this huddle.';
+  end if;
+
+  insert into public.huddle_read_states as read_state (
+    profile_id,
+    huddle_id,
+    last_read_at
+  )
+  values (auth.uid(), p_huddle_id, now())
+  on conflict (profile_id, huddle_id) do update
+  set last_read_at = greatest(read_state.last_read_at, excluded.last_read_at);
+end;
+$$;
+
+grant execute on function public.mark_huddle_read(uuid) to authenticated;
+
 alter table public.huddles enable row level security;
 alter table public.huddle_members enable row level security;
 alter table public.huddle_messages enable row level security;
+alter table public.huddle_read_states enable row level security;
 
 drop policy if exists "Members can read visible huddles" on public.huddles;
 drop policy if exists "Authenticated users can create huddles" on public.huddles;
@@ -715,6 +770,9 @@ drop policy if exists "Huddle members can be added to visible huddles" on public
 drop policy if exists "Huddle members can be removed from visible huddles" on public.huddle_members;
 drop policy if exists "Members can read visible huddle messages" on public.huddle_messages;
 drop policy if exists "Members can create user messages" on public.huddle_messages;
+drop policy if exists "Users can read their huddle read state" on public.huddle_read_states;
+drop policy if exists "Users can create their huddle read state" on public.huddle_read_states;
+drop policy if exists "Users can update their huddle read state" on public.huddle_read_states;
 
 create policy "Members can read visible huddles"
   on public.huddles for select
@@ -766,3 +824,19 @@ create policy "Members can create user messages"
     and activity_type is null
     and author_id = auth.uid()
   );
+
+create policy "Users can read their huddle read state"
+  on public.huddle_read_states for select
+  to authenticated
+  using (profile_id = auth.uid());
+
+create policy "Users can create their huddle read state"
+  on public.huddle_read_states for insert
+  to authenticated
+  with check (profile_id = auth.uid() and public.can_access_huddle(huddle_id));
+
+create policy "Users can update their huddle read state"
+  on public.huddle_read_states for update
+  to authenticated
+  using (profile_id = auth.uid())
+  with check (profile_id = auth.uid() and public.can_access_huddle(huddle_id));
