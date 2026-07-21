@@ -20,20 +20,30 @@ interface TopicDetailsScreenProps {
 export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
   const { getTopic, isLoading: topicsAreLoading, markTopicRead } = useTopics();
-  const { getError, getMessages, loadMessages, sendMessage, subscribeToMessages } = useMessages();
+  const {
+    getError,
+    getMessages,
+    hasLoadedMessages,
+    loadMessages,
+    sendMessage,
+    subscribeToMessages
+  } = useMessages();
   const { user } = useUser();
   const scrollViewRef = useRef<ScrollView>(null);
   const topic = topicId ? getTopic(topicId) : undefined;
   const topicIsAvailable = Boolean(topic);
   const messages = topicId ? getMessages(topicId) : [];
+  const messagesHaveLoaded = topicId ? hasLoadedMessages(topicId) : false;
   const messageError = topicId ? getError(topicId) : null;
   const hasDisplayName = Boolean(user?.displayName);
+  const userId = user?.id;
+  const userDisplayName = user?.displayName;
 
   useEffect(() => {
-    if (topicId && topic) {
+    if (topicId && topicIsAvailable) {
       void loadMessages(topicId);
     }
-  }, [loadMessages, topic, topicId]);
+  }, [loadMessages, topicId, topicIsAvailable]);
 
   useEffect(() => {
     if (topicId && topicIsAvailable) {
@@ -42,7 +52,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   }, [markTopicRead, topicId, topicIsAvailable]);
 
   useEffect(() => {
-    if (!topicId || !topic) {
+    if (!topicId || !topicIsAvailable) {
       return;
     }
 
@@ -61,7 +71,23 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       isActive = false;
       unsubscribe();
     };
-  }, [subscribeToMessages, topic, topicId]);
+  }, [subscribeToMessages, topicId, topicIsAvailable]);
+
+  const handleSendMessage = useCallback(
+    async (body: string) => {
+      if (!topicId || !userId || !userDisplayName) {
+        return;
+      }
+
+      await sendMessage({
+        topicId,
+        body,
+        authorId: userId,
+        authorName: userDisplayName
+      });
+    },
+    [sendMessage, topicId, userDisplayName, userId]
+  );
 
   const scrollToLatestMessage = useCallback((animated = true) => {
     requestAnimationFrame(() => {
@@ -157,6 +183,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           >
             <MessageList
               messages={messages}
+              hasLoaded={messagesHaveLoaded}
               errorMessage={messageError}
             />
           </ScrollView>
@@ -182,16 +209,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           ) : null}
           <MessageComposer
             disabled={!hasDisplayName}
-            onSend={(body) =>
-              user
-                ? sendMessage({
-                    topicId: topic.id,
-                    body,
-                    authorId: user.id,
-                    authorName: user.displayName
-                  }).then(() => undefined)
-                : Promise.resolve()
-            }
+            onSend={handleSendMessage}
           />
         </KeyboardAvoidingView>
       </View>

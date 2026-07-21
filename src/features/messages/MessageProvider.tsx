@@ -16,6 +16,7 @@ interface MessageContextValue {
   subscribeToMessages(topicId: string): Promise<() => void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
   clearLoadedMessages(): void;
+  hasLoadedMessages(topicId: string): boolean;
   getError(topicId: string): string | null;
 }
 
@@ -27,6 +28,7 @@ interface MessageProviderProps extends PropsWithChildren {
 
 export function MessageProvider({ children, service = messageService }: MessageProviderProps) {
   const [messagesByTopicId, setMessagesByTopicId] = useState<Record<string, Message[]>>({});
+  const [loadedTopicIds, setLoadedTopicIds] = useState<Record<string, boolean>>({});
   const [errorsByTopicId, setErrorsByTopicId] = useState<Record<string, string | null>>({});
 
   const loadMessages = useCallback(
@@ -34,6 +36,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       try {
         const messages = await service.listMessages(topicId);
         setMessagesByTopicId((current) => ({ ...current, [topicId]: messages }));
+        setLoadedTopicIds((current) => ({ ...current, [topicId]: true }));
         setErrorsByTopicId((current) => ({ ...current, [topicId]: null }));
       } catch {
         setErrorsByTopicId((current) => ({
@@ -106,13 +109,24 @@ export function MessageProvider({ children, service = messageService }: MessageP
       sendMessage,
       clearLoadedMessages() {
         setMessagesByTopicId({});
+        setLoadedTopicIds({});
         setErrorsByTopicId({});
+      },
+      hasLoadedMessages(topicId) {
+        return loadedTopicIds[topicId] ?? false;
       },
       getError(topicId) {
         return errorsByTopicId[topicId] ?? null;
       }
     }),
-    [errorsByTopicId, loadMessages, messagesByTopicId, sendMessage, subscribeToMessages]
+    [
+      errorsByTopicId,
+      loadMessages,
+      loadedTopicIds,
+      messagesByTopicId,
+      sendMessage,
+      subscribeToMessages
+    ]
   );
 
   return <MessageContext.Provider value={value}>{children}</MessageContext.Provider>;

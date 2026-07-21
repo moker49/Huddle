@@ -233,7 +233,11 @@ as $$
   limit 1;
 $$;
 
-create or replace function public.list_visible_huddles()
+-- Adding result columns changes the function's PostgreSQL row type, which
+-- cannot be updated in place. No database object depends on this RPC.
+drop function if exists public.list_visible_huddles();
+
+create function public.list_visible_huddles()
 returns table (
   id uuid,
   title text,

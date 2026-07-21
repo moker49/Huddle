@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import { IconButton, TextInput, useTheme } from "react-native-paper";
 
@@ -28,7 +28,7 @@ const keepTextInputFocusedProps =
       }
     : undefined;
 
-export function MessageComposer({ onSend, disabled = false }: MessageComposerProps) {
+export const MessageComposer = memo(function MessageComposer({ onSend, disabled = false }: MessageComposerProps) {
   const theme = useTheme();
   const inputRef = useRef<FocusHandle | null>(null);
   const [body, setBody] = useState("");
@@ -126,7 +126,7 @@ export function MessageComposer({ onSend, disabled = false }: MessageComposerPro
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

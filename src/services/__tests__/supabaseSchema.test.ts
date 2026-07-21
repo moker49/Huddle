@@ -49,9 +49,10 @@ test("cloud huddle tables are published for realtime updates", () => {
 
 test("cloud huddle lists derive private unread counts from read state", () => {
   const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
-  const visibleHuddles = schema.match(/create or replace function public\.list_visible_huddles\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const visibleHuddles = schema.match(/create function public\.list_visible_huddles\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
 
   assert.match(schema, /create table if not exists public\.huddle_read_states/i);
+  assert.match(schema, /drop function if exists public\.list_visible_huddles\(\);/i);
   assert.match(schema, /create or replace function public\.mark_huddle_read/i);
   assert.match(schema, /grant execute on function public\.mark_huddle_read\(uuid\) to authenticated/i);
   assert.match(visibleHuddles, /unread_count integer/i);

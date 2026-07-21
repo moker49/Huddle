@@ -39,17 +39,25 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastCreatedTopicId, setLastCreatedTopicId] = useState<string | null>(null);
   const topicReloadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasLoadedTopicsRef = useRef(false);
 
   const loadTopics = useCallback(async () => {
-    setIsLoading(true);
+    const shouldShowInitialLoading = !hasLoadedTopicsRef.current;
+
+    if (shouldShowInitialLoading) {
+      setIsLoading(true);
+    }
 
     try {
       setTopics(await service.listTopics());
       setErrorMessage(null);
+      hasLoadedTopicsRef.current = true;
     } catch {
       setErrorMessage("Huddles could not be loaded.");
     } finally {
-      setIsLoading(false);
+      if (shouldShowInitialLoading) {
+        setIsLoading(false);
+      }
     }
   }, [service]);
 
@@ -60,6 +68,7 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
       setTopics([]);
       setErrorMessage(null);
       setIsLoading(false);
+      hasLoadedTopicsRef.current = false;
       return;
     }
 
@@ -72,6 +81,7 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
         if (isMounted) {
           setTopics(nextTopics);
           setErrorMessage(null);
+          hasLoadedTopicsRef.current = true;
         }
       })
       .catch(() => {

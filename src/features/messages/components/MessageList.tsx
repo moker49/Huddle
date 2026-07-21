@@ -8,10 +8,11 @@ import { spacing } from "@/theme/tokens";
 
 interface MessageListProps {
   messages: Message[];
+  hasLoaded: boolean;
   errorMessage: string | null;
 }
 
-export function MessageList({ messages, errorMessage }: MessageListProps) {
+export function MessageList({ messages, hasLoaded, errorMessage }: MessageListProps) {
   const theme = useTheme();
 
   if (errorMessage) {
@@ -22,6 +23,10 @@ export function MessageList({ messages, errorMessage }: MessageListProps) {
         </Text>
       </View>
     );
+  }
+
+  if (!hasLoaded) {
+    return null;
   }
 
   if (messages.length === 0) {
