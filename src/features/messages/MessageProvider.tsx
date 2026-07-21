@@ -13,6 +13,7 @@ import { MessageService, messageService } from "@/services/messageService";
 interface MessageContextValue {
   getMessages(topicId: string): Message[];
   loadMessages(topicId: string): Promise<void>;
+  subscribeToMessages(topicId: string): Promise<() => void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
   clearLoadedMessages(): void;
   isLoading(topicId: string): boolean;
@@ -94,12 +95,20 @@ export function MessageProvider({ children, service = messageService }: MessageP
     [service]
   );
 
+  const subscribeToMessages = useCallback(
+    async (topicId: string) => service.subscribeToMessages(topicId, () => {
+      void loadMessages(topicId);
+    }),
+    [loadMessages, service]
+  );
+
   const value = useMemo<MessageContextValue>(
     () => ({
       getMessages(topicId) {
         return messagesByTopicId[topicId] ?? [];
       },
       loadMessages,
+      subscribeToMessages,
       sendMessage,
       clearLoadedMessages() {
         setMessagesByTopicId({});
@@ -113,7 +122,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
         return errorsByTopicId[topicId] ?? null;
       }
     }),
-    [errorsByTopicId, loadMessages, loadingTopicIds, messagesByTopicId, sendMessage]
+    [errorsByTopicId, loadMessages, loadingTopicIds, messagesByTopicId, sendMessage, subscribeToMessages]
   );
 
   return <MessageContext.Provider value={value}>{children}</MessageContext.Provider>;

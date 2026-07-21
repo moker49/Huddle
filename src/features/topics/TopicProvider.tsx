@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 
@@ -36,6 +37,7 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastCreatedTopicId, setLastCreatedTopicId] = useState<string | null>(null);
+  const topicReloadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadTopics = useCallback(async () => {
     setIsLoading(true);
@@ -86,6 +88,44 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
       isMounted = false;
     };
   }, [service, session]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    let isActive = true;
+    let unsubscribe: () => void = () => undefined;
+
+    const scheduleReload = () => {
+      if (topicReloadTimeoutRef.current) {
+        clearTimeout(topicReloadTimeoutRef.current);
+      }
+
+      topicReloadTimeoutRef.current = setTimeout(() => {
+        topicReloadTimeoutRef.current = null;
+        void loadTopics();
+      }, 100);
+    };
+
+    void service.subscribeToTopicChanges(scheduleReload).then((nextUnsubscribe) => {
+      if (isActive) {
+        unsubscribe = nextUnsubscribe;
+      } else {
+        nextUnsubscribe();
+      }
+    });
+
+    return () => {
+      isActive = false;
+      unsubscribe();
+
+      if (topicReloadTimeoutRef.current) {
+        clearTimeout(topicReloadTimeoutRef.current);
+        topicReloadTimeoutRef.current = null;
+      }
+    };
+  }, [loadTopics, service, session]);
 
   const value = useMemo<TopicContextValue>(
     () => ({

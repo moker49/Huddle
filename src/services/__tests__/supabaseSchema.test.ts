@@ -34,3 +34,12 @@ test("cloud messages are member-scoped and activities are created with huddle ch
   assert.match(schema, /'member_removed'/i);
   assert.match(schema, /'title_updated'/i);
 });
+
+test("cloud huddle tables are published for realtime updates", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+
+  assert.match(schema, /alter publication supabase_realtime add table public\.huddles/i);
+  assert.match(schema, /alter publication supabase_realtime add table public\.huddle_members/i);
+  assert.match(schema, /alter publication supabase_realtime add table public\.huddle_messages/i);
+  assert.match(schema, /alter table public\.huddle_messages replica identity full/i);
+});

@@ -20,7 +20,14 @@ interface TopicDetailsScreenProps {
 export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
   const { getTopic, isLoading: topicsAreLoading } = useTopics();
-  const { getError, getMessages, isLoading, loadMessages, sendMessage } = useMessages();
+  const {
+    getError,
+    getMessages,
+    isLoading,
+    loadMessages,
+    sendMessage,
+    subscribeToMessages
+  } = useMessages();
   const { user } = useUser();
   const scrollViewRef = useRef<ScrollView>(null);
   const topic = topicId ? getTopic(topicId) : undefined;
@@ -34,6 +41,28 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       void loadMessages(topicId);
     }
   }, [loadMessages, topic, topicId]);
+
+  useEffect(() => {
+    if (!topicId || !topic) {
+      return;
+    }
+
+    let isActive = true;
+    let unsubscribe: () => void = () => undefined;
+
+    void subscribeToMessages(topicId).then((nextUnsubscribe) => {
+      if (isActive) {
+        unsubscribe = nextUnsubscribe;
+      } else {
+        nextUnsubscribe();
+      }
+    });
+
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, [subscribeToMessages, topic, topicId]);
 
   const scrollToLatestMessage = useCallback((animated = true) => {
     requestAnimationFrame(() => {

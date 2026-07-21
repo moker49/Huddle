@@ -6,6 +6,7 @@ export interface MessageService {
   listMessages(topicId: string): Promise<Message[]>;
   createMessage(input: CreateMessageInput): Promise<Message>;
   createActivity(input: CreateActivityInput): Promise<Message>;
+  subscribeToMessages(topicId: string, onChange: () => void): Promise<() => void>;
   resetLocalData(): Promise<void>;
 }
 
@@ -111,6 +112,10 @@ export class LocalMessageService implements MessageService {
     return message;
   }
 
+  async subscribeToMessages(_topicId: string, _onChange: () => void): Promise<() => void> {
+    return () => undefined;
+  }
+
   async resetLocalData(): Promise<void> {
     this.messages = [...initialMessages];
     this.messagesPromise = Promise.resolve(this.messages);
@@ -192,6 +197,22 @@ export class SupabaseMessageService implements MessageService {
 
   async createActivity(_input: CreateActivityInput): Promise<Message> {
     throw new Error("Huddle activities are created with huddle changes.");
+  }
+
+  async subscribeToMessages(topicId: string, onChange: () => void): Promise<() => void> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const channel = supabase
+      .channel(`huddle-messages:${topicId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "huddle_messages", filter: `huddle_id=eq.${topicId}` },
+        onChange
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }
 
   async resetLocalData(): Promise<void> {}

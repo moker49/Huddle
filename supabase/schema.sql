@@ -131,6 +131,44 @@ create table if not exists public.huddle_messages (
 create index if not exists huddle_messages_huddle_created_key
   on public.huddle_messages(huddle_id, created_at, id);
 
+alter table public.huddles replica identity full;
+alter table public.huddle_members replica identity full;
+alter table public.huddle_messages replica identity full;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'huddles'
+  ) then
+    alter publication supabase_realtime add table public.huddles;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'huddle_members'
+  ) then
+    alter publication supabase_realtime add table public.huddle_members;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'huddle_messages'
+  ) then
+    alter publication supabase_realtime add table public.huddle_messages;
+  end if;
+end;
+$$;
+
 create or replace function public.can_access_huddle(target_huddle_id uuid)
 returns boolean
 language sql

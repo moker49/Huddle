@@ -23,6 +23,7 @@ export interface TopicService {
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
   deleteTopic(id: string): Promise<void>;
+  subscribeToTopicChanges(onChange: () => void): Promise<() => void>;
   resetLocalData(): Promise<void>;
 }
 
@@ -167,6 +168,10 @@ export class LocalTopicService implements TopicService {
   async deleteTopic(id: string): Promise<void> {
     this.topics = (await this.loadTopics()).filter((topic) => topic.id !== id);
     await this.saveTopics();
+  }
+
+  async subscribeToTopicChanges(_onChange: () => void): Promise<() => void> {
+    return () => undefined;
   }
 
   async resetLocalData(): Promise<void> {
@@ -366,6 +371,19 @@ export class SupabaseTopicService implements TopicService {
     if (error) {
       throw error;
     }
+  }
+
+  async subscribeToTopicChanges(onChange: () => void): Promise<() => void> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const channel = supabase
+      .channel("huddle-topic-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "huddles" }, onChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "huddle_members" }, onChange)
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }
 
   async resetLocalData(): Promise<void> {}

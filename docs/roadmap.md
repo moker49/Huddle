@@ -29,6 +29,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Google authentication and authenticated local account scoping.
 - Supabase-backed profile identity and direct-network persistence.
 - Supabase-backed huddle persistence and identity-scoped visibility.
+- Realtime synchronization for huddle lists and open message feeds.
 
 ## Current
 
@@ -43,11 +44,11 @@ Features should generally be implemented as complete vertical slices rather than
 - Complete the remaining core huddle workflows before expanding authentication.
 - Validate profile and network sync across browsers and devices.
 - Validate huddle creation and phone-claimed visibility across browsers and devices.
+- Validate realtime behavior across browsers and devices, including member removal.
 
 ## Future
 
 - Phone verification, after the core app is substantially complete and the need is validated.
-- Real-time messaging.
 - Push notifications.
 - Host permissions.
 - Polls or voting.

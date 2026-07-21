@@ -147,6 +147,15 @@ test("cloud messages reject blank text and client-created activities", async () 
   );
 });
 
+test("local message subscriptions are safe no-ops", async () => {
+  const messages = new LocalMessageService(new MemoryJsonStorage());
+  const unsubscribe = await messages.subscribeToMessages("topic-1", () => {
+    throw new Error("A local message subscription should not emit.");
+  });
+
+  unsubscribe();
+});
+
 class MemorySupabaseMessageRepository implements SupabaseMessageRepository {
   readonly createdBodies: string[] = [];
 
