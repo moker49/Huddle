@@ -371,8 +371,8 @@ begin
 
   select *
   into existing_huddle
-  from public.huddles
-  where id = p_huddle_id;
+  from public.huddles as huddle
+  where huddle.id = p_huddle_id;
 
   if not found then
     raise exception 'Huddle could not be found.';
@@ -390,9 +390,9 @@ begin
     raise exception 'At least one huddle member is required.';
   end if;
 
-  update public.huddles
+  update public.huddles as huddle
   set title = trim(p_title), auto_archive_at = p_auto_archive_at
-  where id = p_huddle_id;
+  where huddle.id = p_huddle_id;
 
   delete from public.huddle_members
   where huddle_id = p_huddle_id;
