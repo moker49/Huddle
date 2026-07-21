@@ -12,7 +12,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Create-huddle flow.
 - Huddle detail screen.
 - Session-local huddles through a service interface.
-- Local in-huddle messaging through a service interface.
+- Supabase-backed in-huddle messages and system activities through a service interface.
 - Chat-style message list and Material-aligned composer.
 - Shared Material top app bar pattern.
 - Direct route-load back navigation fallback.
@@ -38,8 +38,6 @@ Features should generally be implemented as complete vertical slices rather than
 
 ## Next
 
-- Add focused tests for message services.
-- Add message delivery metadata suitable for a future backend.
 - Validate keyboard and safe-area behavior on physical Android and iOS devices.
 - Validate compact mobile-web layouts.
 - Complete the remaining core huddle workflows before expanding authentication.
@@ -48,7 +46,6 @@ Features should generally be implemented as complete vertical slices rather than
 
 ## Future
 
-- API-backed huddle and message services.
 - Phone verification, after the core app is substantially complete and the need is validated.
 - Real-time messaging.
 - Push notifications.

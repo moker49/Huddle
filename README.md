@@ -4,7 +4,7 @@ Huddle is a lightweight, mobile-first group discussion prototype built with Expo
 
 ## Current Scope
 
-The app includes Google authentication, Supabase-backed huddle search and visibility, network search with member chips, member-based huddle filtering, contextual huddle creation, huddle details, profile setup, and local in-huddle messaging. Messages and huddle activities remain local until their own backend slice.
+The app includes Google authentication, Supabase-backed huddle search, visibility, messaging, and activity history; network search with member chips; member-based huddle filtering; contextual huddle creation; huddle details; and profile setup.
 
 Not implemented yet: backend APIs, phone verification, real-time messaging, push notifications, polls or voting, host permissions, contacts, file uploads, analytics, and complex animation.
 
@@ -35,7 +35,7 @@ npm install
 
 ## Supabase Setup
 
-The current runtime uses Google authentication plus Supabase-backed profiles, direct network relationships, and huddles. Run [`supabase/schema.sql`](supabase/schema.sql) once in the Supabase SQL editor before testing cloud sync. Phone verification remains deferred until the core app is substantially complete.
+The current runtime uses Google authentication plus Supabase-backed profiles, direct network relationships, huddles, messages, and activities. Run [`supabase/schema.sql`](supabase/schema.sql) in the Supabase SQL editor before testing cloud sync or after schema changes. Phone verification remains deferred until the core app is substantially complete.
 
 ## Run
 

@@ -110,6 +110,27 @@ create unique index if not exists huddle_members_huddle_phone_key
   on public.huddle_members(huddle_id, member_phone_number)
   where member_phone_number is not null;
 
+create table if not exists public.huddle_messages (
+  id uuid primary key default gen_random_uuid(),
+  huddle_id uuid not null references public.huddles(id) on delete cascade,
+  body text not null check (length(trim(body)) > 0),
+  kind text not null check (kind in ('user', 'system')),
+  activity_type text check (
+    activity_type is null
+    or activity_type in ('huddle_created', 'member_added', 'member_removed', 'title_updated')
+  ),
+  author_id uuid references public.profiles(id) on delete set null,
+  author_name text not null,
+  created_at timestamptz not null default now(),
+  constraint huddle_messages_kind_matches_activity check (
+    (kind = 'user' and activity_type is null)
+    or (kind = 'system' and activity_type is not null)
+  )
+);
+
+create index if not exists huddle_messages_huddle_created_key
+  on public.huddle_messages(huddle_id, created_at, id);
+
 create or replace function public.can_access_huddle(target_huddle_id uuid)
 returns boolean
 language sql
@@ -133,6 +154,38 @@ as $$
           )
       )
   );
+$$;
+
+create or replace function public.get_huddle_member_display_name(
+  p_member_id uuid,
+  p_member_tag text,
+  p_member_phone_number text
+)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    nullif(profile.display_name, ''),
+    nullif(profile.tag, ''),
+    nullif(profile.phone_number, ''),
+    nullif(p_member_tag, ''),
+    nullif(p_member_phone_number, ''),
+    'Unknown member'
+  )
+  from (select 1) as input
+  left join public.profiles profile on (
+    profile.id = p_member_id
+    or (p_member_tag is not null and p_member_tag <> '' and profile.tag = p_member_tag)
+    or (
+      p_member_phone_number is not null
+      and p_member_phone_number <> ''
+      and profile.phone_number = p_member_phone_number
+    )
+  )
+  limit 1;
 $$;
 
 create or replace function public.list_visible_huddles()
@@ -333,6 +386,15 @@ begin
   from jsonb_array_elements(p_members) as member(value)
   on conflict do nothing;
 
+  insert into public.huddle_messages (
+    huddle_id,
+    body,
+    kind,
+    activity_type,
+    author_name
+  )
+  values (new_huddle.id, 'Huddle created', 'system', 'huddle_created', 'System');
+
   return query
   select
     new_huddle.id,
@@ -390,6 +452,95 @@ begin
     raise exception 'At least one huddle member is required.';
   end if;
 
+  if existing_huddle.title <> trim(p_title) then
+    insert into public.huddle_messages (
+      huddle_id,
+      body,
+      kind,
+      activity_type,
+      author_name
+    )
+    values (
+      p_huddle_id,
+      format('Title updated from "%s" to "%s"', existing_huddle.title, trim(p_title)),
+      'system',
+      'title_updated',
+      'System'
+    );
+  end if;
+
+  insert into public.huddle_messages (
+    huddle_id,
+    body,
+    kind,
+    activity_type,
+    author_name
+  )
+  select
+    p_huddle_id,
+    format(
+      'Member added: %s',
+      public.get_huddle_member_display_name(
+        nullif(member.value ->> 'member_id', '')::uuid,
+        nullif(member.value ->> 'member_tag', ''),
+        nullif(member.value ->> 'member_phone_number', '')
+      )
+    ),
+    'system',
+    'member_added',
+    'System'
+  from jsonb_array_elements(p_members) as member(value)
+  where not exists (
+    select 1
+    from public.huddle_members existing_member
+    where existing_member.huddle_id = p_huddle_id
+      and coalesce(
+        existing_member.member_id::text,
+        existing_member.member_tag,
+        existing_member.member_phone_number
+      ) = coalesce(
+        nullif(member.value ->> 'member_id', ''),
+        nullif(member.value ->> 'member_tag', ''),
+        nullif(member.value ->> 'member_phone_number', '')
+      )
+  );
+
+  insert into public.huddle_messages (
+    huddle_id,
+    body,
+    kind,
+    activity_type,
+    author_name
+  )
+  select
+    p_huddle_id,
+    format(
+      'Member removed: %s',
+      public.get_huddle_member_display_name(
+        existing_member.member_id,
+        existing_member.member_tag,
+        existing_member.member_phone_number
+      )
+    ),
+    'system',
+    'member_removed',
+    'System'
+  from public.huddle_members existing_member
+  where existing_member.huddle_id = p_huddle_id
+    and not exists (
+      select 1
+      from jsonb_array_elements(p_members) as member(value)
+      where coalesce(
+        nullif(member.value ->> 'member_id', ''),
+        nullif(member.value ->> 'member_tag', ''),
+        nullif(member.value ->> 'member_phone_number', '')
+      ) = coalesce(
+        existing_member.member_id::text,
+        existing_member.member_tag,
+        existing_member.member_phone_number
+      )
+    );
+
   update public.huddles as huddle
   set title = trim(p_title), auto_archive_at = p_auto_archive_at
   where huddle.id = p_huddle_id;
@@ -425,8 +576,97 @@ $$;
 
 grant execute on function public.update_huddle(uuid, text, timestamptz, jsonb) to authenticated;
 
+create or replace function public.create_huddle_message(
+  p_huddle_id uuid,
+  p_body text
+)
+returns table (
+  id uuid,
+  huddle_id uuid,
+  body text,
+  kind text,
+  activity_type text,
+  author_id uuid,
+  author_name text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_profile public.profiles;
+  new_message_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  if not public.can_access_huddle(p_huddle_id) then
+    raise exception 'You are not allowed to send messages in this huddle.';
+  end if;
+
+  if coalesce(trim(p_body), '') = '' then
+    raise exception 'Message is required.';
+  end if;
+
+  select *
+  into current_profile
+  from public.profiles profile
+  where profile.id = auth.uid();
+
+  if not found then
+    raise exception 'A profile is required to send messages.';
+  end if;
+
+  if coalesce(
+    nullif(current_profile.display_name, ''),
+    nullif(current_profile.tag, ''),
+    nullif(current_profile.phone_number, '')
+  ) is null then
+    raise exception 'Set a profile identity before sending messages.';
+  end if;
+
+  insert into public.huddle_messages as message (
+    huddle_id,
+    body,
+    kind,
+    author_id,
+    author_name
+  )
+  values (
+    p_huddle_id,
+    trim(p_body),
+    'user',
+    auth.uid(),
+    coalesce(
+      nullif(current_profile.display_name, ''),
+      nullif(current_profile.tag, ''),
+      current_profile.phone_number
+    )
+  )
+  returning message.id into new_message_id;
+
+  return query
+  select
+    message.id,
+    message.huddle_id,
+    message.body,
+    message.kind,
+    message.activity_type,
+    message.author_id,
+    message.author_name,
+    message.created_at
+  from public.huddle_messages message
+  where message.id = new_message_id;
+end;
+$$;
+
+grant execute on function public.create_huddle_message(uuid, text) to authenticated;
+
 alter table public.huddles enable row level security;
 alter table public.huddle_members enable row level security;
+alter table public.huddle_messages enable row level security;
 
 drop policy if exists "Members can read visible huddles" on public.huddles;
 drop policy if exists "Authenticated users can create huddles" on public.huddles;
@@ -435,6 +675,8 @@ drop policy if exists "Members can delete visible huddles" on public.huddles;
 drop policy if exists "Members can read visible huddle members" on public.huddle_members;
 drop policy if exists "Huddle members can be added to visible huddles" on public.huddle_members;
 drop policy if exists "Huddle members can be removed from visible huddles" on public.huddle_members;
+drop policy if exists "Members can read visible huddle messages" on public.huddle_messages;
+drop policy if exists "Members can create user messages" on public.huddle_messages;
 
 create policy "Members can read visible huddles"
   on public.huddles for select
@@ -471,3 +713,18 @@ create policy "Huddle members can be removed from visible huddles"
   on public.huddle_members for delete
   to authenticated
   using (public.can_access_huddle(huddle_id));
+
+create policy "Members can read visible huddle messages"
+  on public.huddle_messages for select
+  to authenticated
+  using (public.can_access_huddle(huddle_id));
+
+create policy "Members can create user messages"
+  on public.huddle_messages for insert
+  to authenticated
+  with check (
+    public.can_access_huddle(huddle_id)
+    and kind = 'user'
+    and activity_type is null
+    and author_id = auth.uid()
+  );

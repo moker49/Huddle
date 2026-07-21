@@ -52,11 +52,44 @@ export function MessageProvider({ children, service = messageService }: MessageP
 
   const sendMessage = useCallback(
     async (input: CreateMessageInput) => {
-      const message = await service.createMessage(input);
-      const messages = await service.listMessages(input.topicId);
-      setMessagesByTopicId((current) => ({ ...current, [input.topicId]: messages }));
+      const optimisticMessage: Message = {
+        id: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        topicId: input.topicId,
+        body: input.body.trim(),
+        kind: "user",
+        authorId: input.authorId,
+        authorName: input.authorName,
+        createdAt: new Date().toISOString()
+      };
+
+      setMessagesByTopicId((current) => ({
+        ...current,
+        [input.topicId]: [...(current[input.topicId] ?? []), optimisticMessage]
+      }));
       setErrorsByTopicId((current) => ({ ...current, [input.topicId]: null }));
-      return message;
+
+      try {
+        const message = await service.createMessage(input);
+        setMessagesByTopicId((current) => ({
+          ...current,
+          [input.topicId]: (current[input.topicId] ?? []).map((currentMessage) =>
+            currentMessage.id === optimisticMessage.id ? message : currentMessage
+          )
+        }));
+        return message;
+      } catch (error) {
+        setMessagesByTopicId((current) => ({
+          ...current,
+          [input.topicId]: (current[input.topicId] ?? []).filter(
+            (currentMessage) => currentMessage.id !== optimisticMessage.id
+          )
+        }));
+        setErrorsByTopicId((current) => ({
+          ...current,
+          [input.topicId]: error instanceof Error ? error.message : "Message could not be sent."
+        }));
+        throw error;
+      }
     },
     [service]
   );

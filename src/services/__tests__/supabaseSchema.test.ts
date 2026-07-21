@@ -21,3 +21,16 @@ test("cloud huddle updates qualify id columns against return-field names", () =>
   assert.match(updateHuddle, /update public\.huddles as huddle\s+set[\s\S]*?where huddle\.id = p_huddle_id;/i);
   assert.doesNotMatch(updateHuddle, /\bwhere id = p_huddle_id;/i);
 });
+
+test("cloud messages are member-scoped and activities are created with huddle changes", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+
+  assert.match(schema, /create table if not exists public\.huddle_messages/i);
+  assert.match(schema, /on public\.huddle_messages for select[\s\S]*?using \(public\.can_access_huddle\(huddle_id\)\)/i);
+  assert.match(schema, /create or replace function public\.create_huddle_message/i);
+  assert.match(schema, /if not public\.can_access_huddle\(p_huddle_id\) then/i);
+  assert.match(schema, /values \(new_huddle\.id, 'Huddle created', 'system', 'huddle_created', 'System'\)/i);
+  assert.match(schema, /'member_added'/i);
+  assert.match(schema, /'member_removed'/i);
+  assert.match(schema, /'title_updated'/i);
+});

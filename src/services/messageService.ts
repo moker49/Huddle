@@ -15,6 +15,22 @@ export interface CreateActivityInput {
   activityType: NonNullable<Message["activityType"]>;
 }
 
+export interface SupabaseMessageRow {
+  id: string;
+  huddle_id: string;
+  body: string;
+  kind: "user" | "system";
+  activity_type: Message["activityType"] | null;
+  author_id: string | null;
+  author_name: string;
+  created_at: string;
+}
+
+export interface SupabaseMessageRepository {
+  listMessages(topicId: string): Promise<SupabaseMessageRow[]>;
+  createMessage(topicId: string, body: string): Promise<SupabaseMessageRow>;
+}
+
 const initialMessages: Message[] = [];
 
 const messageStorageKey = "huddle:messages:v2";
@@ -122,4 +138,77 @@ export class LocalMessageService implements MessageService {
   }
 }
 
-export const messageService = new LocalMessageService();
+class SupabaseMessageRepositoryClient implements SupabaseMessageRepository {
+  async listMessages(topicId: string): Promise<SupabaseMessageRow[]> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error } = await supabase
+      .from("huddle_messages")
+      .select("id, huddle_id, body, kind, activity_type, author_id, author_name, created_at")
+      .eq("huddle_id", topicId)
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []) as SupabaseMessageRow[];
+  }
+
+  async createMessage(topicId: string, body: string): Promise<SupabaseMessageRow> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error } = await supabase.rpc("create_huddle_message", {
+      p_huddle_id: topicId,
+      p_body: body
+    });
+    const message = Array.isArray(data) ? data[0] : null;
+
+    if (error || !message) {
+      throw error ?? new Error("Message could not be sent.");
+    }
+
+    return message as SupabaseMessageRow;
+  }
+}
+
+export class SupabaseMessageService implements MessageService {
+  constructor(
+    private readonly repository: SupabaseMessageRepository = new SupabaseMessageRepositoryClient()
+  ) {}
+
+  async listMessages(topicId: string): Promise<Message[]> {
+    return (await this.repository.listMessages(topicId)).map(mapSupabaseMessage);
+  }
+
+  async createMessage(input: CreateMessageInput): Promise<Message> {
+    const body = input.body.trim();
+
+    if (!body) {
+      throw new Error("Message is required.");
+    }
+
+    return mapSupabaseMessage(await this.repository.createMessage(input.topicId, body));
+  }
+
+  async createActivity(_input: CreateActivityInput): Promise<Message> {
+    throw new Error("Huddle activities are created with huddle changes.");
+  }
+
+  async resetLocalData(): Promise<void> {}
+}
+
+export function mapSupabaseMessage(row: SupabaseMessageRow): Message {
+  return {
+    id: row.id,
+    topicId: row.huddle_id,
+    body: row.body,
+    kind: row.kind,
+    activityType: row.activity_type ?? undefined,
+    authorId: row.author_id ?? undefined,
+    authorName: row.author_name,
+    createdAt: row.created_at
+  };
+}
+
+export const localMessageService = new LocalMessageService();
+export const messageService = new SupabaseMessageService();
