@@ -1,5 +1,5 @@
 import { StyleSheet, View } from "react-native";
-import { ActivityIndicator, Text, useTheme } from "react-native-paper";
+import { Text, useTheme } from "react-native-paper";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
 import { MessageBubble } from "@/features/messages/components/MessageBubble";
@@ -8,20 +8,11 @@ import { spacing } from "@/theme/tokens";
 
 interface MessageListProps {
   messages: Message[];
-  isLoading: boolean;
   errorMessage: string | null;
 }
 
-export function MessageList({ messages, isLoading, errorMessage }: MessageListProps) {
+export function MessageList({ messages, errorMessage }: MessageListProps) {
   const theme = useTheme();
-
-  if (isLoading) {
-    return (
-      <View style={styles.centerContent}>
-        <ActivityIndicator accessibilityLabel="Loading messages" />
-      </View>
-    );
-  }
 
   if (errorMessage) {
     return (

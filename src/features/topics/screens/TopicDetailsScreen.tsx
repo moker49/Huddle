@@ -20,20 +20,12 @@ interface TopicDetailsScreenProps {
 export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
   const { getTopic, isLoading: topicsAreLoading } = useTopics();
-  const {
-    getError,
-    getMessages,
-    isLoading,
-    loadMessages,
-    sendMessage,
-    subscribeToMessages
-  } = useMessages();
+  const { getError, getMessages, loadMessages, sendMessage, subscribeToMessages } = useMessages();
   const { user } = useUser();
   const scrollViewRef = useRef<ScrollView>(null);
   const topic = topicId ? getTopic(topicId) : undefined;
   const messages = topicId ? getMessages(topicId) : [];
   const messageError = topicId ? getError(topicId) : null;
-  const messagesAreLoading = topicId ? isLoading(topicId) : false;
   const hasDisplayName = Boolean(user?.displayName);
 
   useEffect(() => {
@@ -158,7 +150,6 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           >
             <MessageList
               messages={messages}
-              isLoading={messagesAreLoading}
               errorMessage={messageError}
             />
           </ScrollView>

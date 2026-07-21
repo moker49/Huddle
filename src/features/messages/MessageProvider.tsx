@@ -16,7 +16,6 @@ interface MessageContextValue {
   subscribeToMessages(topicId: string): Promise<() => void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
   clearLoadedMessages(): void;
-  isLoading(topicId: string): boolean;
   getError(topicId: string): string | null;
 }
 
@@ -28,13 +27,10 @@ interface MessageProviderProps extends PropsWithChildren {
 
 export function MessageProvider({ children, service = messageService }: MessageProviderProps) {
   const [messagesByTopicId, setMessagesByTopicId] = useState<Record<string, Message[]>>({});
-  const [loadingTopicIds, setLoadingTopicIds] = useState<Record<string, boolean>>({});
   const [errorsByTopicId, setErrorsByTopicId] = useState<Record<string, string | null>>({});
 
   const loadMessages = useCallback(
     async (topicId: string) => {
-      setLoadingTopicIds((current) => ({ ...current, [topicId]: true }));
-
       try {
         const messages = await service.listMessages(topicId);
         setMessagesByTopicId((current) => ({ ...current, [topicId]: messages }));
@@ -44,8 +40,6 @@ export function MessageProvider({ children, service = messageService }: MessageP
           ...current,
           [topicId]: "Messages could not be loaded."
         }));
-      } finally {
-        setLoadingTopicIds((current) => ({ ...current, [topicId]: false }));
       }
     },
     [service]
@@ -112,17 +106,13 @@ export function MessageProvider({ children, service = messageService }: MessageP
       sendMessage,
       clearLoadedMessages() {
         setMessagesByTopicId({});
-        setLoadingTopicIds({});
         setErrorsByTopicId({});
-      },
-      isLoading(topicId) {
-        return loadingTopicIds[topicId] ?? false;
       },
       getError(topicId) {
         return errorsByTopicId[topicId] ?? null;
       }
     }),
-    [errorsByTopicId, loadMessages, loadingTopicIds, messagesByTopicId, sendMessage, subscribeToMessages]
+    [errorsByTopicId, loadMessages, messagesByTopicId, sendMessage, subscribeToMessages]
   );
 
   return <MessageContext.Provider value={value}>{children}</MessageContext.Provider>;
