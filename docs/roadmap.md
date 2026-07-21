@@ -30,6 +30,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Supabase-backed profile identity and direct-network persistence.
 - Supabase-backed huddle persistence and identity-scoped visibility.
 - Realtime synchronization for huddle lists and open message feeds.
+- Derived auto-archive classification with active and archived huddle lists.
 
 ## Current
 

@@ -24,6 +24,7 @@ import { Screen } from "@/components/Screen";
 import { MemberRail } from "@/features/connections/components/MemberRail";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
+import { getNextTopicArchiveTime, isTopicArchived } from "@/features/topics/topicArchive";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
@@ -65,6 +66,7 @@ export function TopicListScreen() {
   const [query, setQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
   const [drawerIsMounted, setDrawerIsMounted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
   const hasNetworkMembers = connections.length > 0;
@@ -129,12 +131,16 @@ export function TopicListScreen() {
   const createHasTitle = impliedTopicTitle.length > 0;
   const createHasMembers = selectedConnectionIds.length > 0;
   const activeTopics = useMemo(
-    () => visibleTopics.filter((topic) => !topicIsArchived(topic.autoArchiveAt)),
-    [visibleTopics]
+    () => visibleTopics.filter((topic) => !isTopicArchived(topic.autoArchiveAt, currentTime)),
+    [currentTime, visibleTopics]
   );
   const archivedTopics = useMemo(
-    () => visibleTopics.filter((topic) => topicIsArchived(topic.autoArchiveAt)),
-    [visibleTopics]
+    () => visibleTopics.filter((topic) => isTopicArchived(topic.autoArchiveAt, currentTime)),
+    [currentTime, visibleTopics]
+  );
+  const nextArchiveTime = useMemo(
+    () => getNextTopicArchiveTime(visibleTopics, currentTime),
+    [currentTime, visibleTopics]
   );
   const canShowCreateOption = hasNetworkMembers && (
     createHasTitle || createHasMembers || activeTopics.length === 0
@@ -150,6 +156,18 @@ export function TopicListScreen() {
     setQuery("");
     setSelectedConnectionIds([]);
   }, [lastCreatedTopicId]);
+
+  useEffect(() => {
+    if (!nextArchiveTime) {
+      return;
+    }
+
+    const maximumTimerDelay = 2_147_483_647;
+    const delay = Math.min(Math.max(0, nextArchiveTime - Date.now()), maximumTimerDelay);
+    const timer = setTimeout(() => setCurrentTime(Date.now()), delay);
+
+    return () => clearTimeout(timer);
+  }, [nextArchiveTime]);
 
   function handleClearQuery() {
     setQuery("");
@@ -521,16 +539,6 @@ function getTopicListItemCornerStyle(position: TopicListItemPosition) {
     case "middle":
       return styles.middleCard;
   }
-}
-
-function topicIsArchived(autoArchiveAt: string | undefined) {
-  if (!autoArchiveAt) {
-    return false;
-  }
-
-  const archiveDate = new Date(autoArchiveAt);
-
-  return !Number.isNaN(archiveDate.getTime()) && archiveDate.getTime() <= Date.now();
 }
 
 function connectionMatchesQuery(connection: Connection, normalizedQuery: string) {

@@ -73,6 +73,8 @@ Local, in-memory, or file-backed implementations are acceptable for prototypes w
 
 The current runtime uses Supabase-backed profile, direct-network, huddle, and message services. The required tables, functions, RLS policies, and realtime publication are maintained in [`supabase/schema.sql`](../supabase/schema.sql). Local implementations remain available for focused tests and offline development. Huddle messages are readable only by members; message authors are derived from the authenticated profile, and system activities are written transactionally with the huddle change that caused them. Realtime subscriptions notify providers to reload canonical service data; they are not a separate state source. The service contract is the boundary; screens and providers should not branch on storage technology.
 
+Auto-archive is a derived list classification, not a permission state. Once the stored archive time passes, the huddle moves from the primary list to Archived while remaining readable and fully editable by its members.
+
 ## Platform Strategy
 
 The app targets Expo on Android, iOS, and mobile web. It should retain one coherent Material Design identity across platforms while respecting platform essentials such as safe areas, keyboard behavior, browser focus behavior, system navigation areas, and accessibility.
