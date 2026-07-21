@@ -12,7 +12,7 @@ import { MessageService, messageService } from "@/services/messageService";
 
 interface MessageContextValue {
   getMessages(topicId: string): Message[];
-  loadMessages(topicId: string): Promise<void>;
+  loadMessages(topicId: string): Promise<boolean>;
   subscribeToMessages(topicId: string): Promise<() => void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
   clearLoadedMessages(): void;
@@ -38,11 +38,13 @@ export function MessageProvider({ children, service = messageService }: MessageP
         setMessagesByTopicId((current) => ({ ...current, [topicId]: messages }));
         setLoadedTopicIds((current) => ({ ...current, [topicId]: true }));
         setErrorsByTopicId((current) => ({ ...current, [topicId]: null }));
+        return true;
       } catch {
         setErrorsByTopicId((current) => ({
           ...current,
           [topicId]: "Messages could not be loaded."
         }));
+        return false;
       }
     },
     [service]

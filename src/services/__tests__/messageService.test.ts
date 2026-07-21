@@ -116,6 +116,7 @@ test("cloud messages retain backend ordering and system activity data", async ()
   assert.equal(result[0].authorId, undefined);
   assert.equal(result[1].authorName, "Andre");
   assert.equal(result[1].authorId, "author-1");
+  assert.equal(result[1].isUnread, false);
 });
 
 test("cloud message creation trims text and uses the backend-resolved author", async () => {
@@ -188,6 +189,7 @@ function messageRow(overrides: Partial<SupabaseMessageRow> = {}): SupabaseMessag
     author_id: "profile-1",
     author_name: "Andre",
     created_at: "2026-07-21T12:00:00.000Z",
+    is_unread: false,
     ...overrides
   };
 }

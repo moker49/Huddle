@@ -32,6 +32,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Realtime synchronization for huddle lists and open message feeds.
 - Derived auto-archive classification with active and archived huddle lists.
 - Private Supabase-backed huddle unread counts.
+- Private in-feed unread boundary and initial unread-message positioning.
 
 ## Current
 

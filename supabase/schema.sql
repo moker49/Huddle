@@ -732,6 +732,57 @@ $$;
 
 grant execute on function public.create_huddle_message(uuid, text) to authenticated;
 
+create or replace function public.list_huddle_messages(p_huddle_id uuid)
+returns table (
+  id uuid,
+  huddle_id uuid,
+  body text,
+  kind text,
+  activity_type text,
+  author_id uuid,
+  author_name text,
+  created_at timestamptz,
+  is_unread boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  if not public.can_access_huddle(p_huddle_id) then
+    raise exception 'You are not allowed to read this huddle.';
+  end if;
+
+  return query
+  select
+    message.id,
+    message.huddle_id,
+    message.body,
+    message.kind,
+    message.activity_type,
+    message.author_id,
+    message.author_name,
+    message.created_at,
+    (
+      message.created_at > coalesce(read_state.last_read_at, '-infinity'::timestamptz)
+      and message.author_id is distinct from auth.uid()
+    )
+  from public.huddle_messages message
+  left join public.huddle_read_states read_state on (
+    read_state.huddle_id = message.huddle_id
+    and read_state.profile_id = auth.uid()
+  )
+  where message.huddle_id = p_huddle_id
+  order by message.created_at, message.id;
+end;
+$$;
+
+grant execute on function public.list_huddle_messages(uuid) to authenticated;
+
 create or replace function public.mark_huddle_read(p_huddle_id uuid)
 returns void
 language plpgsql

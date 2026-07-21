@@ -7,6 +7,7 @@ export interface Message {
   authorId?: string;
   authorName: string;
   createdAt: string;
+  isUnread?: boolean;
 }
 
 export interface CreateMessageInput {

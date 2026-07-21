@@ -1,5 +1,6 @@
-import { StyleSheet, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { Fragment } from "react";
+import { LayoutChangeEvent, StyleSheet, View } from "react-native";
+import { Divider, Text, useTheme } from "react-native-paper";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
 import { MessageBubble } from "@/features/messages/components/MessageBubble";
@@ -10,9 +11,15 @@ interface MessageListProps {
   messages: Message[];
   hasLoaded: boolean;
   errorMessage: string | null;
+  onUnreadMarkerLayout?: (event: LayoutChangeEvent) => void;
 }
 
-export function MessageList({ messages, hasLoaded, errorMessage }: MessageListProps) {
+export function MessageList({
+  messages,
+  hasLoaded,
+  errorMessage,
+  onUnreadMarkerLayout
+}: MessageListProps) {
   const theme = useTheme();
 
   if (errorMessage) {
@@ -35,9 +42,28 @@ export function MessageList({ messages, hasLoaded, errorMessage }: MessageListPr
 
   return (
     <View style={styles.list}>
-      {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
-      ))}
+      {messages.map((message, index) => {
+        const isFirstUnread = message.isUnread && !messages[index - 1]?.isUnread;
+
+        return (
+          <Fragment key={message.id}>
+            {isFirstUnread ? (
+              <View
+                onLayout={onUnreadMarkerLayout}
+                accessibilityLabel="Unread messages begin here"
+                style={styles.unreadMarker}
+              >
+                <Divider style={styles.unreadDivider} />
+                <Text variant="labelMedium" style={{ color: theme.colors.primary }}>
+                  Unread
+                </Text>
+                <Divider style={styles.unreadDivider} />
+              </View>
+            ) : null}
+            <MessageBubble message={message} />
+          </Fragment>
+        );
+      })}
     </View>
   );
 }
@@ -52,5 +78,14 @@ const styles = StyleSheet.create({
   list: {
     gap: spacing.md,
     paddingVertical: spacing.lg
+  },
+  unreadMarker: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.xs
+  },
+  unreadDivider: {
+    flex: 1
   }
 });

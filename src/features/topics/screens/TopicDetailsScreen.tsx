@@ -1,6 +1,14 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useRef } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  LayoutChangeEvent,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View
+} from "react-native";
 import { ActivityIndicator, Appbar, Button, Text, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -31,6 +39,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const { user } = useUser();
   const scrollViewRef = useRef<ScrollView>(null);
   const readTopicIdRef = useRef<string | null>(null);
+  const positionedTopicIdRef = useRef<string | null>(null);
   const topic = topicId ? getTopic(topicId) : undefined;
   const topicIsAvailable = Boolean(topic);
   const messages = topicId ? getMessages(topicId) : [];
@@ -39,12 +48,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const hasDisplayName = Boolean(user?.displayName);
   const userId = user?.id;
   const userDisplayName = user?.displayName;
-
-  useEffect(() => {
-    if (topicId && topicIsAvailable) {
-      void loadMessages(topicId);
-    }
-  }, [loadMessages, topicId, topicIsAvailable]);
+  const hasUnreadMessages = messages.some((message) => message.isUnread);
 
   useEffect(() => {
     if (!topicId || !topicIsAvailable || readTopicIdRef.current === topicId) {
@@ -52,12 +56,19 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     }
 
     readTopicIdRef.current = topicId;
-    void markTopicRead(topicId).catch(() => {
-      if (readTopicIdRef.current === topicId) {
+    void loadMessages(topicId).then((didLoadMessages) => {
+      if (!didLoadMessages) {
         readTopicIdRef.current = null;
+        return;
       }
+
+      void markTopicRead(topicId).catch(() => {
+        if (readTopicIdRef.current === topicId) {
+          readTopicIdRef.current = null;
+        }
+      });
     });
-  }, [markTopicRead, topicId, topicIsAvailable]);
+  }, [loadMessages, markTopicRead, topicId, topicIsAvailable]);
 
   useEffect(() => {
     if (!topicId || !topicIsAvailable) {
@@ -103,11 +114,26 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     });
   }, []);
 
+  const scrollToUnreadMarker = useCallback((event: LayoutChangeEvent) => {
+    if (!topicId || positionedTopicIdRef.current === topicId) {
+      return;
+    }
+
+    positionedTopicIdRef.current = topicId;
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(0, event.nativeEvent.layout.y - spacing.md),
+        animated: false
+      });
+    });
+  }, [topicId]);
+
   useEffect(() => {
-    if (messages.length > 0) {
+    if (topicId && positionedTopicIdRef.current !== topicId && messagesHaveLoaded && !hasUnreadMessages && messages.length > 0) {
+      positionedTopicIdRef.current = topicId;
       scrollToLatestMessage(false);
     }
-  }, [messages.length, scrollToLatestMessage]);
+  }, [hasUnreadMessages, messages.length, messagesHaveLoaded, scrollToLatestMessage, topicId]);
 
   if (topicsAreLoading) {
     return (
@@ -193,6 +219,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               messages={messages}
               hasLoaded={messagesHaveLoaded}
               errorMessage={messageError}
+              onUnreadMarkerLayout={scrollToUnreadMarker}
             />
           </ScrollView>
           {!hasDisplayName ? (

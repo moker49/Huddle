@@ -60,3 +60,13 @@ test("cloud huddle lists derive private unread counts from read state", () => {
   assert.match(visibleHuddles, /left join public\.huddle_read_states read_state/i);
   assert.match(visibleHuddles, /message\.author_id is distinct from auth\.uid\(\)/i);
 });
+
+test("cloud message lists expose the private unread boundary before marking a huddle read", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+  const messageList = schema.match(/create or replace function public\.list_huddle_messages\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+
+  assert.match(messageList, /is_unread boolean/i);
+  assert.match(messageList, /message\.created_at > coalesce\(read_state\.last_read_at/i);
+  assert.match(messageList, /message\.author_id is distinct from auth\.uid\(\)/i);
+  assert.match(schema, /grant execute on function public\.list_huddle_messages\(uuid\) to authenticated/i);
+});

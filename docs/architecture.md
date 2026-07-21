@@ -75,7 +75,7 @@ The current runtime uses Supabase-backed profile, direct-network, huddle, and me
 
 Auto-archive is a derived list classification, not a permission state. Once the stored archive time passes, the huddle moves from the primary list to Archived while remaining readable and fully editable by its members.
 
-Read state is private per profile and huddle. It may power an unread count, but it must not become a shared read receipt or expose one member's viewing behavior to another.
+Read state is private per profile and huddle. It may power an unread count and an in-feed unread boundary, but it must not become a shared read receipt or expose one member's viewing behavior to another. Load the feed before marking it read so the first unread item can be positioned for the member.
 
 ## Platform Strategy
 

@@ -25,6 +25,7 @@ export interface SupabaseMessageRow {
   author_id: string | null;
   author_name: string;
   created_at: string;
+  is_unread: boolean;
 }
 
 export interface SupabaseMessageRepository {
@@ -146,12 +147,7 @@ export class LocalMessageService implements MessageService {
 class SupabaseMessageRepositoryClient implements SupabaseMessageRepository {
   async listMessages(topicId: string): Promise<SupabaseMessageRow[]> {
     const { supabase } = await import("@/services/supabaseClient");
-    const { data, error } = await supabase
-      .from("huddle_messages")
-      .select("id, huddle_id, body, kind, activity_type, author_id, author_name, created_at")
-      .eq("huddle_id", topicId)
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true });
+    const { data, error } = await supabase.rpc("list_huddle_messages", { p_huddle_id: topicId });
 
     if (error) {
       throw error;
@@ -227,7 +223,8 @@ export function mapSupabaseMessage(row: SupabaseMessageRow): Message {
     activityType: row.activity_type ?? undefined,
     authorId: row.author_id ?? undefined,
     authorName: row.author_name,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    isUnread: row.is_unread
   };
 }
 
