@@ -30,6 +30,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   } = useMessages();
   const { user } = useUser();
   const scrollViewRef = useRef<ScrollView>(null);
+  const readTopicIdRef = useRef<string | null>(null);
   const topic = topicId ? getTopic(topicId) : undefined;
   const topicIsAvailable = Boolean(topic);
   const messages = topicId ? getMessages(topicId) : [];
@@ -46,9 +47,16 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   }, [loadMessages, topicId, topicIsAvailable]);
 
   useEffect(() => {
-    if (topicId && topicIsAvailable) {
-      void markTopicRead(topicId);
+    if (!topicId || !topicIsAvailable || readTopicIdRef.current === topicId) {
+      return;
     }
+
+    readTopicIdRef.current = topicId;
+    void markTopicRead(topicId).catch(() => {
+      if (readTopicIdRef.current === topicId) {
+        readTopicIdRef.current = null;
+      }
+    });
   }, [markTopicRead, topicId, topicIsAvailable]);
 
   useEffect(() => {

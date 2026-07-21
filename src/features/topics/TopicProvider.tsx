@@ -138,6 +138,14 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
     };
   }, [loadTopics, service, session]);
 
+  const markTopicRead = useCallback(
+    async (id: string) => {
+      await service.markTopicRead(id);
+      await loadTopics();
+    },
+    [loadTopics, service]
+  );
+
   const value = useMemo<TopicContextValue>(
     () => ({
       topics,
@@ -160,15 +168,12 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
         await service.deleteTopic(id);
         setTopics(await service.listTopics());
       },
-      async markTopicRead(id) {
-        await service.markTopicRead(id);
-        setTopics(await service.listTopics());
-      },
+      markTopicRead,
       getTopic(id) {
         return topics.find((topic) => topic.id === id);
       }
     }),
-    [errorMessage, isLoading, lastCreatedTopicId, loadTopics, service, topics]
+    [errorMessage, isLoading, lastCreatedTopicId, loadTopics, markTopicRead, service, topics]
   );
 
   return <TopicContext.Provider value={value}>{children}</TopicContext.Provider>;
