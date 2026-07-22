@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput as NativeTextInput,
   View
 } from "react-native";
 import {
@@ -16,7 +17,6 @@ import {
   IconButton,
   Portal,
   Text,
-  TextInput,
   useTheme
 } from "react-native-paper";
 
@@ -257,20 +257,16 @@ export function TopicListScreen() {
             { backgroundColor: theme.colors.elevation.level2 }
           ]}
         >
-          <TextInput
+          <NativeTextInput
             ref={(instance: FocusHandle | null) => {
               searchInputRef.current = instance;
             }}
-            dense
-            mode="flat"
             value={query}
             onChangeText={handleChangeQuery}
             placeholder="Search huddles and members"
+            placeholderTextColor={theme.colors.onSurfaceVariant}
             accessibilityLabel="Search huddles and members"
-            underlineColor="transparent"
-            activeUnderlineColor="transparent"
-            style={styles.searchInput}
-            contentStyle={styles.searchInputContent}
+            style={[styles.searchInput, { color: theme.colors.onSurface }]}
           />
           <IconButton
             {...keepSearchInputFocusedProps}
@@ -587,12 +583,13 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     minWidth: 88,
-    backgroundColor: "transparent"
-  },
-  searchInputContent: {
-    minHeight: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    paddingTop: spacing.none,
+    paddingRight: spacing.xs,
+    paddingBottom: spacing.none,
     paddingLeft: spacing.md,
-    paddingRight: spacing.xs
+    fontSize: 16,
+    backgroundColor: "transparent"
   },
   searchAdornment: {
     width: layout.minTouchTarget,
