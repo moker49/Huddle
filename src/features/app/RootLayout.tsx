@@ -166,13 +166,9 @@ function WebRouteRecovery({ children }: PropsWithChildren) {
 
     if (!hasCheckedInitialRouteRef.current) {
       hasCheckedInitialRouteRef.current = true;
-      const navigationEntry = window.performance
-        .getEntriesByType("navigation")
-        .at(0) as PerformanceNavigationTiming | undefined;
       const recoveredRoute = getReloadRouteRecovery({
         currentPath: pathname,
-        lastHuddleRoute: window.sessionStorage.getItem(lastHuddleRouteStorageKey),
-        navigationType: navigationEntry?.type
+        lastHuddleRoute: window.sessionStorage.getItem(lastHuddleRouteStorageKey)
       });
 
       if (recoveredRoute) {

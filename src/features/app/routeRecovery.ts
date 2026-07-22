@@ -3,17 +3,14 @@ export const lastHuddleRouteStorageKey = "huddle:last-huddle-route";
 interface ReloadRouteRecoveryInput {
   currentPath: string;
   lastHuddleRoute: string | null;
-  navigationType: string | undefined;
 }
 
 export function getReloadRouteRecovery({
   currentPath,
-  lastHuddleRoute,
-  navigationType
+  lastHuddleRoute
 }: ReloadRouteRecoveryInput) {
   if (
     currentPath !== "/" ||
-    navigationType !== "reload" ||
     !lastHuddleRoute ||
     !isHuddleRoute(lastHuddleRoute)
   ) {

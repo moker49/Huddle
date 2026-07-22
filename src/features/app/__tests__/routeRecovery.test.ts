@@ -4,39 +4,28 @@ import { getReloadRouteRecovery } from "@/features/app/routeRecovery";
 
 declare function test(name: string, run: () => Promise<void> | void): void;
 
-test("a browser reload at home restores the last huddle route", () => {
+test("a fresh app load at home restores the last huddle route", () => {
   assert.equal(
     getReloadRouteRecovery({
       currentPath: "/",
-      lastHuddleRoute: "/topics/huddle-1",
-      navigationType: "reload"
+      lastHuddleRoute: "/topics/huddle-1"
     }),
     "/topics/huddle-1"
   );
 });
 
-test("route recovery never overrides normal navigation or non-huddle routes", () => {
-  assert.equal(
-    getReloadRouteRecovery({
-      currentPath: "/",
-      lastHuddleRoute: "/topics/huddle-1",
-      navigationType: "navigate"
-    }),
-    null
-  );
+test("route recovery ignores non-home paths and non-huddle routes", () => {
   assert.equal(
     getReloadRouteRecovery({
       currentPath: "/profile",
-      lastHuddleRoute: "/topics/huddle-1",
-      navigationType: "reload"
+      lastHuddleRoute: "/topics/huddle-1"
     }),
     null
   );
   assert.equal(
     getReloadRouteRecovery({
       currentPath: "/",
-      lastHuddleRoute: "/profile",
-      navigationType: "reload"
+      lastHuddleRoute: "/profile"
     }),
     null
   );
