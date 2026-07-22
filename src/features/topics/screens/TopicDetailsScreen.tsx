@@ -46,6 +46,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const unreadMarkerYRef = useRef<number | null>(null);
   const conversationViewportHeightRef = useRef(0);
   const conversationContentHeightRef = useRef(0);
+  const pendingLatestScrollAnimationRef = useRef<boolean | null>(null);
   const latestMessageIdRef = useRef<string | null>(null);
   const [conversationIsPositioned, setConversationIsPositioned] = useState(false);
   const topic = topicId ? getTopic(topicId) : undefined;
@@ -68,6 +69,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     unreadMarkerYRef.current = null;
     conversationViewportHeightRef.current = 0;
     conversationContentHeightRef.current = 0;
+    pendingLatestScrollAnimationRef.current = null;
     latestMessageIdRef.current = null;
     setConversationIsPositioned(false);
   }, [topicId]);
@@ -131,9 +133,21 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   );
 
   const scrollToLatestMessage = useCallback((animated = true) => {
+    pendingLatestScrollAnimationRef.current = animated;
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        scrollViewRef.current?.scrollToEnd({ animated });
+        const pendingAnimation = pendingLatestScrollAnimationRef.current;
+
+        if (pendingAnimation === null || conversationContentHeightRef.current === 0) {
+          return;
+        }
+
+        pendingLatestScrollAnimationRef.current = null;
+        scrollViewRef.current?.scrollTo({
+          y: conversationContentHeightRef.current,
+          animated: pendingAnimation
+        });
       });
     });
   }, []);
@@ -208,6 +222,14 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
 
   const handleConversationContentSizeChange = useCallback((_width: number, height: number) => {
     conversationContentHeightRef.current = height;
+
+    const pendingAnimation = pendingLatestScrollAnimationRef.current;
+
+    if (pendingAnimation !== null) {
+      pendingLatestScrollAnimationRef.current = null;
+      scrollViewRef.current?.scrollTo({ y: height, animated: pendingAnimation });
+    }
+
     positionUnreadConversation();
     positionLatestConversation();
   }, [positionLatestConversation, positionUnreadConversation]);
