@@ -36,10 +36,10 @@ export const MessageComposer = memo(function MessageComposer({ onSend, disabled 
   const lineCount = Math.max(1, body.split(/\r\n|\r|\n/).length);
   const inputHeight =
     layout.composerControlSize + (lineCount - 1) * composerLineHeight;
-  const canSend = body.trim().length > 0 && !isSending && !disabled;
+  const canSend = body.trim().length > 0 && !disabled;
 
   async function handleSend() {
-    if (!canSend) {
+    if (!canSend || isSending) {
       return;
     }
 
@@ -116,7 +116,6 @@ export const MessageComposer = memo(function MessageComposer({ onSend, disabled 
         icon="send"
         size={24}
         disabled={!canSend}
-        loading={isSending}
         onPress={handleSend}
         accessibilityLabel="Send message"
         focusable={false}

@@ -6,11 +6,12 @@ import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 
 interface MessageBubbleProps {
-  message: Message;
+  messages: Message[];
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ messages }: MessageBubbleProps) {
   const theme = useTheme();
+  const message = messages[0];
 
   if (message.kind === "system") {
     return (
@@ -64,7 +65,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             {formatMessageTime(message.createdAt)}
           </Text>
         </View>
-        <Text variant="bodyLarge">{message.body}</Text>
+        <Text variant="bodyLarge">{messages.map((currentMessage) => currentMessage.body).join("\n")}</Text>
       </View>
     </View>
   );
@@ -108,7 +109,6 @@ const styles = StyleSheet.create({
   message: {
     flex: 1,
     gap: spacing.xxs,
-    paddingBottom: spacing.md
   },
   metaRow: {
     flexDirection: "row",

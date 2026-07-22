@@ -4,6 +4,7 @@ import { Divider, Text, useTheme } from "react-native-paper";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
 import { MessageBubble } from "@/features/messages/components/MessageBubble";
+import { groupMessages } from "@/features/messages/messageGrouping";
 import { Message } from "@/models/message";
 import { spacing } from "@/theme/tokens";
 
@@ -40,13 +41,17 @@ export function MessageList({
     return <EmptyMessageState />;
   }
 
+  const messageGroups = groupMessages(messages);
+
   return (
     <View style={styles.list}>
-      {messages.map((message, index) => {
-        const isFirstUnread = message.isUnread && !messages[index - 1]?.isUnread;
+      {messageGroups.map((messageGroup, index) => {
+        const firstMessage = messageGroup.messages[0];
+        const previousGroup = messageGroups[index - 1];
+        const isFirstUnread = firstMessage.isUnread && !previousGroup?.messages[0].isUnread;
 
         return (
-          <Fragment key={message.id}>
+          <Fragment key={firstMessage.id}>
             {isFirstUnread ? (
               <View
                 onLayout={onUnreadMarkerLayout}
@@ -60,7 +65,7 @@ export function MessageList({
                 <Divider style={styles.unreadDivider} />
               </View>
             ) : null}
-            <MessageBubble message={message} />
+            <MessageBubble messages={messageGroup.messages} />
           </Fragment>
         );
       })}
