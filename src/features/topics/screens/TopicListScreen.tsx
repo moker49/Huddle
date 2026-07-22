@@ -70,6 +70,7 @@ export function TopicListScreen() {
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
   const hasNetworkMembers = connections.length > 0;
+  const shouldShowNetworkCta = !connectionsAreLoading && !connectionErrorMessage && !hasNetworkMembers;
   const connectionNameById = useMemo(() => {
     return connections.reduce<Record<string, string>>((nameById, connection) => {
       getConnectionMemberAliases(connection).forEach((alias) => {
@@ -415,7 +416,7 @@ export function TopicListScreen() {
             ) : null}
           </ScrollView>
         )}
-        {!isLoading && !errorMessage && !hasNetworkMembers ? (
+        {!isLoading && !errorMessage && shouldShowNetworkCta ? (
           <View pointerEvents="box-none" style={styles.networkCtaLayer}>
             <Pressable
               onPress={() => router.push({
