@@ -2,13 +2,17 @@ import { Stack, router, usePathname } from "expo-router";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
-import { PropsWithChildren, useEffect } from "react";
+import { PropsWithChildren, useEffect, useRef } from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 import { ActivityIndicator, PaperProvider, useTheme } from "react-native-paper";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ConnectionProvider } from "@/features/connections/ConnectionProvider";
 import { AuthProvider, useAuth } from "@/features/auth/AuthProvider";
+import {
+  getReloadRouteRecovery,
+  lastHuddleRouteStorageKey
+} from "@/features/app/routeRecovery";
 import { MessageProvider } from "@/features/messages/MessageProvider";
 import { TopicProvider } from "@/features/topics/TopicProvider";
 import { getIdentityGateState } from "@/features/app/identityGate";
@@ -69,19 +73,21 @@ export function RootLayout() {
           <UserProvider>
             <AuthGate>
               <IdentityGate>
-                <ConnectionProvider>
-                  <TopicProvider>
-                    <MessageProvider>
-                      <StatusBar style={isDark ? "light" : "dark"} />
-                      <Stack
-                        screenOptions={{
-                          headerShown: false,
-                          contentStyle: { backgroundColor: paperTheme.colors.background }
-                        }}
-                      />
-                    </MessageProvider>
-                  </TopicProvider>
-                </ConnectionProvider>
+                <WebRouteRecovery>
+                  <ConnectionProvider>
+                    <TopicProvider>
+                      <MessageProvider>
+                        <StatusBar style={isDark ? "light" : "dark"} />
+                        <Stack
+                          screenOptions={{
+                            headerShown: false,
+                            contentStyle: { backgroundColor: paperTheme.colors.background }
+                          }}
+                        />
+                      </MessageProvider>
+                    </TopicProvider>
+                  </ConnectionProvider>
+                </WebRouteRecovery>
               </IdentityGate>
             </AuthGate>
           </UserProvider>
@@ -145,6 +151,42 @@ function IdentityGate({ children }: PropsWithChildren) {
       </View>
     );
   }
+
+  return <>{children}</>;
+}
+
+function WebRouteRecovery({ children }: PropsWithChildren) {
+  const pathname = usePathname();
+  const hasCheckedInitialRouteRef = useRef(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      return;
+    }
+
+    if (!hasCheckedInitialRouteRef.current) {
+      hasCheckedInitialRouteRef.current = true;
+      const navigationEntry = window.performance
+        .getEntriesByType("navigation")
+        .at(0) as PerformanceNavigationTiming | undefined;
+      const recoveredRoute = getReloadRouteRecovery({
+        currentPath: pathname,
+        lastHuddleRoute: window.sessionStorage.getItem(lastHuddleRouteStorageKey),
+        navigationType: navigationEntry?.type
+      });
+
+      if (recoveredRoute) {
+        router.replace(recoveredRoute as never);
+        return;
+      }
+    }
+
+    if (/^\/topics\/[^/]+(?:\/settings)?$/.test(pathname)) {
+      window.sessionStorage.setItem(lastHuddleRouteStorageKey, pathname);
+    } else if (pathname === "/") {
+      window.sessionStorage.removeItem(lastHuddleRouteStorageKey);
+    }
+  }, [pathname]);
 
   return <>{children}</>;
 }
