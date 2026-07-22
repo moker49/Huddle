@@ -312,7 +312,7 @@ export function TopicListScreen() {
             selectedConnectionIds={selectedConnectionIds}
           />
         )}
-        {isLoading ? (
+        {isLoading || connectionsAreLoading ? (
           <View style={styles.centerContent}>
             <ActivityIndicator accessibilityLabel="Loading huddles" />
           </View>

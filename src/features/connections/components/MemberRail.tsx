@@ -124,6 +124,7 @@ export function MemberRail({
 
 const styles = StyleSheet.create({
   area: {
+    height: 100,
     paddingTop: spacing.xxs,
     paddingBottom: spacing.sm
   },
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs
   },
   state: {
-    minHeight: 104,
+    height: 100,
     justifyContent: "center",
     paddingHorizontal: spacing.md
   },
