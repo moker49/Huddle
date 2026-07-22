@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   LayoutChangeEvent,
@@ -40,6 +40,9 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const readTopicIdRef = useRef<string | null>(null);
   const positionedTopicIdRef = useRef<string | null>(null);
+  const [unreadMarkerY, setUnreadMarkerY] = useState<number | null>(null);
+  const [conversationViewportHeight, setConversationViewportHeight] = useState(0);
+  const [unreadConversationIsPositioned, setUnreadConversationIsPositioned] = useState(false);
   const topic = topicId ? getTopic(topicId) : undefined;
   const topicIsAvailable = Boolean(topic);
   const messages = topicId ? getMessages(topicId) : [];
@@ -49,6 +52,17 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const userId = user?.id;
   const userDisplayName = user?.displayName;
   const hasUnreadMessages = messages.some((message) => message.isUnread);
+  const shouldHideUnreadConversation = (
+    messagesHaveLoaded &&
+    hasUnreadMessages &&
+    !unreadConversationIsPositioned
+  );
+
+  useEffect(() => {
+    positionedTopicIdRef.current = null;
+    setUnreadMarkerY(null);
+    setUnreadConversationIsPositioned(false);
+  }, [topicId]);
 
   useEffect(() => {
     if (!topicId || !topicIsAvailable || readTopicIdRef.current === topicId) {
@@ -115,18 +129,34 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   }, []);
 
   const scrollToUnreadMarker = useCallback((event: LayoutChangeEvent) => {
-    if (!topicId || positionedTopicIdRef.current === topicId) {
+    setUnreadMarkerY(event.nativeEvent.layout.y);
+  }, []);
+
+  const handleConversationLayout = useCallback((event: LayoutChangeEvent) => {
+    setConversationViewportHeight(event.nativeEvent.layout.height);
+  }, []);
+
+  useEffect(() => {
+    if (
+      !topicId ||
+      !messagesHaveLoaded ||
+      !hasUnreadMessages ||
+      unreadMarkerY === null ||
+      conversationViewportHeight === 0 ||
+      positionedTopicIdRef.current === topicId
+    ) {
       return;
     }
 
     positionedTopicIdRef.current = topicId;
-    requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollTo({
-        y: Math.max(0, event.nativeEvent.layout.y - spacing.md),
-        animated: false
-      });
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(0, unreadMarkerY - conversationViewportHeight / 2),
+      animated: false
     });
-  }, [topicId]);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setUnreadConversationIsPositioned(true));
+    });
+  }, [conversationViewportHeight, hasUnreadMessages, messagesHaveLoaded, topicId, unreadMarkerY]);
 
   useEffect(() => {
     if (topicId && positionedTopicIdRef.current !== topicId && messagesHaveLoaded && !hasUnreadMessages && messages.length > 0) {
@@ -213,14 +243,16 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             contentContainerStyle={styles.conversationContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => scrollToLatestMessage(false)}
+            onLayout={handleConversationLayout}
           >
-            <MessageList
-              messages={messages}
-              hasLoaded={messagesHaveLoaded}
-              errorMessage={messageError}
-              onUnreadMarkerLayout={scrollToUnreadMarker}
-            />
+            <View style={shouldHideUnreadConversation ? styles.hiddenConversation : undefined}>
+              <MessageList
+                messages={messages}
+                hasLoaded={messagesHaveLoaded}
+                errorMessage={messageError}
+                onUnreadMarkerLayout={scrollToUnreadMarker}
+              />
+            </View>
           </ScrollView>
           {!hasDisplayName ? (
             <View
@@ -284,6 +316,9 @@ const styles = StyleSheet.create({
   conversationContent: {
     flexGrow: 1,
     paddingBottom: spacing.md
+  },
+  hiddenConversation: {
+    opacity: 0
   },
   keyboardArea: {
     flex: 1

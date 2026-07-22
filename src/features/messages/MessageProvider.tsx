@@ -59,7 +59,8 @@ export function MessageProvider({ children, service = messageService }: MessageP
         kind: "user",
         authorId: input.authorId,
         authorName: input.authorName,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        isUnread: false
       };
 
       setMessagesByTopicId((current) => ({
