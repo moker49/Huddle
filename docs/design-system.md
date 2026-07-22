@@ -50,6 +50,8 @@ Interactive elements need accessible labels when their purpose is not clear from
 
 Member search is a typing-first flow. When the user is typing members, focus should stay on the member text field as much as possible.
 
+Every new text field must have its web focus treatment reviewed. React Native Paper fields should retain their Material focus state. Native or custom fields must explicitly suppress the browser-default focus outline (normally with a web-only `outlineStyle: "none"`) and rely on their Material container or component focus treatment instead. Do not leave a browser outline visible inside a Material field.
+
 Interactions that are part of member search should not steal focus from the text field. This includes selecting a member from the network dropdown, removing a member chip, and using adjacent controls that directly support the member search flow. Preserving focus prevents keyboard flicker on mobile web and keeps repeated member entry fast.
 
 The current convention is to prevent press-start events from moving focus before the action runs. On web, controls related to the member text field use `onMouseDown`, `onPointerDown`, and `onTouchStart` with `event.preventDefault()`, plus `focusable={false}` where the component supports it. This is the same convention used by the chat composer send and attachment buttons.

@@ -49,6 +49,9 @@ const keepSearchInputFocusedProps =
       onTouchStart: (event: PreventableEvent) => event.preventDefault()
     }
     : undefined;
+const webInputFocusReset = Platform.OS === "web"
+  ? ({ outlineStyle: "none" } as object)
+  : undefined;
 const drawerWidth = 304;
 
 export function TopicListScreen() {
@@ -266,7 +269,7 @@ export function TopicListScreen() {
             placeholder="Search huddles and members"
             placeholderTextColor={theme.colors.onSurfaceVariant}
             accessibilityLabel="Search huddles and members"
-            style={[styles.searchInput, { color: theme.colors.onSurface }]}
+            style={[styles.searchInput, webInputFocusReset, { color: theme.colors.onSurface }]}
           />
           <IconButton
             {...keepSearchInputFocusedProps}
