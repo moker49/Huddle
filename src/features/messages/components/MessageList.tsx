@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { Divider, Text, useTheme } from "react-native-paper";
 
@@ -25,6 +26,37 @@ export function MessageList({
   errorMessage
 }: MessageListProps) {
   const theme = useTheme();
+  const listRef = useRef<FlatList<MessageRow>>(null);
+  const positionedUnreadMarkerIdRef = useRef<string | null>(null);
+  const [unreadMarkerIsPositioned, setUnreadMarkerIsPositioned] = useState(false);
+  const rows = getMessageRows(messages);
+  const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
+  const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
+
+  useEffect(() => {
+    if (
+      !hasLoaded ||
+      !unreadMarkerId ||
+      unreadMarkerIndex < 0 ||
+      positionedUnreadMarkerIdRef.current === unreadMarkerId
+    ) {
+      return;
+    }
+
+    positionedUnreadMarkerIdRef.current = unreadMarkerId;
+    setUnreadMarkerIsPositioned(false);
+
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToIndex({
+        index: unreadMarkerIndex,
+        viewPosition: 0.5,
+        animated: false
+      });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setUnreadMarkerIsPositioned(true));
+      });
+    });
+  }, [hasLoaded, unreadMarkerId, unreadMarkerIndex]);
 
   if (errorMessage) {
     return (
@@ -48,10 +80,9 @@ export function MessageList({
     );
   }
 
-  const rows = getMessageRows(messages);
-
   return (
     <FlatList
+      ref={listRef}
       data={rows}
       inverted
       keyExtractor={(item) => item.id}
@@ -71,7 +102,23 @@ export function MessageList({
       ItemSeparatorComponent={MessageRowSeparator}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
-      style={styles.list}
+      onScrollToIndexFailed={(info) => {
+        listRef.current?.scrollToOffset({
+          offset: info.averageItemLength * info.index,
+          animated: false
+        });
+        requestAnimationFrame(() => {
+          listRef.current?.scrollToIndex({
+            index: info.index,
+            viewPosition: 0.5,
+            animated: false
+          });
+        });
+      }}
+      style={[
+        styles.list,
+        unreadMarkerId && !unreadMarkerIsPositioned ? styles.hiddenList : undefined
+      ]}
       contentContainerStyle={styles.listContent}
     />
   );
@@ -113,6 +160,9 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1
+  },
+  hiddenList: {
+    opacity: 0
   },
   listContent: {
     paddingVertical: spacing.lg

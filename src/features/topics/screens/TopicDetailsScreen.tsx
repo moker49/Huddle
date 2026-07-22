@@ -169,6 +169,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
         >
           <View style={styles.messageArea}>
             <MessageList
+              key={topic.id}
               messages={messages}
               hasLoaded={messagesHaveLoaded}
               errorMessage={messageError}
