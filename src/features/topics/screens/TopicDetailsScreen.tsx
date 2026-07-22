@@ -45,6 +45,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const initialPositionTopicIdRef = useRef<string | null>(null);
   const unreadMarkerYRef = useRef<number | null>(null);
   const conversationViewportHeightRef = useRef(0);
+  const conversationContentHeightRef = useRef(0);
   const latestMessageIdRef = useRef<string | null>(null);
   const [conversationIsPositioned, setConversationIsPositioned] = useState(false);
   const topic = topicId ? getTopic(topicId) : undefined;
@@ -66,6 +67,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     initialPositionTopicIdRef.current = null;
     unreadMarkerYRef.current = null;
     conversationViewportHeightRef.current = 0;
+    conversationContentHeightRef.current = 0;
     latestMessageIdRef.current = null;
     setConversationIsPositioned(false);
   }, [topicId]);
@@ -153,6 +155,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       !hasUnreadMessages ||
       unreadMarkerYRef.current === null ||
       conversationViewportHeightRef.current === 0 ||
+      conversationContentHeightRef.current === 0 ||
       initialPositionTopicIdRef.current === topicId
     ) {
       return;
@@ -180,17 +183,13 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     positionUnreadConversation();
   }, [positionUnreadConversation]);
 
-  const handleConversationLayout = useCallback((event: LayoutChangeEvent) => {
-    conversationViewportHeightRef.current = event.nativeEvent.layout.height;
-    positionUnreadConversation();
-  }, [positionUnreadConversation]);
-
-  useEffect(() => {
+  const positionLatestConversation = useCallback(() => {
     if (
       !topicId ||
       !messagesHaveLoaded ||
       hasUnreadMessages ||
       messages.length === 0 ||
+      conversationContentHeightRef.current === 0 ||
       initialPositionTopicIdRef.current === topicId
     ) {
       return;
@@ -200,6 +199,22 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     scrollToLatestMessage(false);
     revealConversation(topicId);
   }, [hasUnreadMessages, messages.length, messagesHaveLoaded, revealConversation, scrollToLatestMessage, topicId]);
+
+  const handleConversationLayout = useCallback((event: LayoutChangeEvent) => {
+    conversationViewportHeightRef.current = event.nativeEvent.layout.height;
+    positionUnreadConversation();
+    positionLatestConversation();
+  }, [positionLatestConversation, positionUnreadConversation]);
+
+  const handleConversationContentSizeChange = useCallback((_width: number, height: number) => {
+    conversationContentHeightRef.current = height;
+    positionUnreadConversation();
+    positionLatestConversation();
+  }, [positionLatestConversation, positionUnreadConversation]);
+
+  useEffect(() => {
+    positionLatestConversation();
+  }, [positionLatestConversation]);
 
   useEffect(() => {
     if (!messagesHaveLoaded || !conversationIsPositioned) {
@@ -306,6 +321,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             onLayout={handleConversationLayout}
+            onContentSizeChange={handleConversationContentSizeChange}
           >
             <View style={shouldHideConversation ? styles.hiddenConversation : undefined}>
               <MessageList
