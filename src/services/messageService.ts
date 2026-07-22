@@ -224,7 +224,9 @@ export function mapSupabaseMessage(row: SupabaseMessageRow): Message {
     authorId: row.author_id ?? undefined,
     authorName: row.author_name,
     createdAt: row.created_at,
-    isUnread: row.is_unread
+    // Some mutation RPCs do not include the derived unread flag. Treat an
+    // omitted value as false so their optimistic replacement keeps its group.
+    isUnread: row.is_unread === true
   };
 }
 

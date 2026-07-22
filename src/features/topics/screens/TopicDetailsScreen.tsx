@@ -18,12 +18,15 @@ import { MessageList } from "@/features/messages/components/MessageList";
 import { useMessages } from "@/features/messages/MessageProvider";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
+import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
 interface TopicDetailsScreenProps {
   topicId?: string;
 }
+
+const emptyMessages: Message[] = [];
 
 export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
@@ -39,29 +42,32 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const { user } = useUser();
   const scrollViewRef = useRef<ScrollView>(null);
   const readTopicIdRef = useRef<string | null>(null);
-  const positionedTopicIdRef = useRef<string | null>(null);
-  const [unreadMarkerY, setUnreadMarkerY] = useState<number | null>(null);
-  const [conversationViewportHeight, setConversationViewportHeight] = useState(0);
-  const [unreadConversationIsPositioned, setUnreadConversationIsPositioned] = useState(false);
+  const initialPositionTopicIdRef = useRef<string | null>(null);
+  const unreadMarkerYRef = useRef<number | null>(null);
+  const conversationViewportHeightRef = useRef(0);
+  const latestMessageIdRef = useRef<string | null>(null);
+  const [conversationIsPositioned, setConversationIsPositioned] = useState(false);
   const topic = topicId ? getTopic(topicId) : undefined;
   const topicIsAvailable = Boolean(topic);
-  const messages = topicId ? getMessages(topicId) : [];
+  const messages = topicId ? getMessages(topicId) : emptyMessages;
   const messagesHaveLoaded = topicId ? hasLoadedMessages(topicId) : false;
   const messageError = topicId ? getError(topicId) : null;
   const hasDisplayName = Boolean(user?.displayName);
   const userId = user?.id;
   const userDisplayName = user?.displayName;
   const hasUnreadMessages = messages.some((message) => message.isUnread);
-  const shouldHideUnreadConversation = (
+  const shouldHideConversation = (
     messagesHaveLoaded &&
-    hasUnreadMessages &&
-    !unreadConversationIsPositioned
+    messages.length > 0 &&
+    (initialPositionTopicIdRef.current !== topicId || !conversationIsPositioned)
   );
 
   useEffect(() => {
-    positionedTopicIdRef.current = null;
-    setUnreadMarkerY(null);
-    setUnreadConversationIsPositioned(false);
+    initialPositionTopicIdRef.current = null;
+    unreadMarkerYRef.current = null;
+    conversationViewportHeightRef.current = 0;
+    latestMessageIdRef.current = null;
+    setConversationIsPositioned(false);
   }, [topicId]);
 
   useEffect(() => {
@@ -124,46 +130,102 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
 
   const scrollToLatestMessage = useCallback((animated = true) => {
     requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollToEnd({ animated });
+      requestAnimationFrame(() => {
+        scrollViewRef.current?.scrollToEnd({ animated });
+      });
     });
   }, []);
 
-  const scrollToUnreadMarker = useCallback((event: LayoutChangeEvent) => {
-    setUnreadMarkerY(event.nativeEvent.layout.y);
+  const revealConversation = useCallback((currentTopicId: string) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (initialPositionTopicIdRef.current === currentTopicId) {
+          setConversationIsPositioned(true);
+        }
+      });
+    });
   }, []);
 
+  const positionUnreadConversation = useCallback(() => {
+    if (
+      !topicId ||
+      !messagesHaveLoaded ||
+      !hasUnreadMessages ||
+      unreadMarkerYRef.current === null ||
+      conversationViewportHeightRef.current === 0 ||
+      initialPositionTopicIdRef.current === topicId
+    ) {
+      return;
+    }
+
+    initialPositionTopicIdRef.current = topicId;
+    const unreadMarkerY = unreadMarkerYRef.current;
+    const viewportHeight = conversationViewportHeightRef.current;
+
+    requestAnimationFrame(() => {
+      if (initialPositionTopicIdRef.current !== topicId) {
+        return;
+      }
+
+      scrollViewRef.current?.scrollTo({
+        y: Math.max(0, unreadMarkerY - viewportHeight / 2),
+        animated: false
+      });
+      revealConversation(topicId);
+    });
+  }, [hasUnreadMessages, messagesHaveLoaded, revealConversation, topicId]);
+
+  const scrollToUnreadMarker = useCallback((event: LayoutChangeEvent) => {
+    unreadMarkerYRef.current = event.nativeEvent.layout.y;
+    positionUnreadConversation();
+  }, [positionUnreadConversation]);
+
   const handleConversationLayout = useCallback((event: LayoutChangeEvent) => {
-    setConversationViewportHeight(event.nativeEvent.layout.height);
-  }, []);
+    conversationViewportHeightRef.current = event.nativeEvent.layout.height;
+    positionUnreadConversation();
+  }, [positionUnreadConversation]);
 
   useEffect(() => {
     if (
       !topicId ||
       !messagesHaveLoaded ||
-      !hasUnreadMessages ||
-      unreadMarkerY === null ||
-      conversationViewportHeight === 0 ||
-      positionedTopicIdRef.current === topicId
+      hasUnreadMessages ||
+      messages.length === 0 ||
+      initialPositionTopicIdRef.current === topicId
     ) {
       return;
     }
 
-    positionedTopicIdRef.current = topicId;
-    scrollViewRef.current?.scrollTo({
-      y: Math.max(0, unreadMarkerY - conversationViewportHeight / 2),
-      animated: false
-    });
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => setUnreadConversationIsPositioned(true));
-    });
-  }, [conversationViewportHeight, hasUnreadMessages, messagesHaveLoaded, topicId, unreadMarkerY]);
+    initialPositionTopicIdRef.current = topicId;
+    scrollToLatestMessage(false);
+    revealConversation(topicId);
+  }, [hasUnreadMessages, messages.length, messagesHaveLoaded, revealConversation, scrollToLatestMessage, topicId]);
 
   useEffect(() => {
-    if (topicId && positionedTopicIdRef.current !== topicId && messagesHaveLoaded && !hasUnreadMessages && messages.length > 0) {
-      positionedTopicIdRef.current = topicId;
-      scrollToLatestMessage(false);
+    if (!messagesHaveLoaded || !conversationIsPositioned) {
+      return;
     }
-  }, [hasUnreadMessages, messages.length, messagesHaveLoaded, scrollToLatestMessage, topicId]);
+
+    const latestMessage = messages.at(-1);
+
+    if (!latestMessage) {
+      latestMessageIdRef.current = null;
+      return;
+    }
+
+    if (latestMessageIdRef.current === null) {
+      latestMessageIdRef.current = latestMessage.id;
+      return;
+    }
+
+    if (latestMessageIdRef.current !== latestMessage.id) {
+      latestMessageIdRef.current = latestMessage.id;
+
+      if (latestMessage.kind === "user" && latestMessage.authorId === userId) {
+        scrollToLatestMessage();
+      }
+    }
+  }, [conversationIsPositioned, messages, messagesHaveLoaded, scrollToLatestMessage, userId]);
 
   if (topicsAreLoading) {
     return (
@@ -245,7 +307,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             showsVerticalScrollIndicator={false}
             onLayout={handleConversationLayout}
           >
-            <View style={shouldHideUnreadConversation ? styles.hiddenConversation : undefined}>
+            <View style={shouldHideConversation ? styles.hiddenConversation : undefined}>
               <MessageList
                 messages={messages}
                 hasLoaded={messagesHaveLoaded}
