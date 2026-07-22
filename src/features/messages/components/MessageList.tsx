@@ -1,5 +1,4 @@
-import { Fragment } from "react";
-import { LayoutChangeEvent, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { Divider, Text, useTheme } from "react-native-paper";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
@@ -12,14 +11,18 @@ interface MessageListProps {
   messages: Message[];
   hasLoaded: boolean;
   errorMessage: string | null;
-  onUnreadMarkerLayout?: (event: LayoutChangeEvent) => void;
+}
+
+interface MessageRow {
+  id: string;
+  type: "message" | "unread-marker";
+  messages?: Message[];
 }
 
 export function MessageList({
   messages,
   hasLoaded,
-  errorMessage,
-  onUnreadMarkerLayout
+  errorMessage
 }: MessageListProps) {
   const theme = useTheme();
 
@@ -38,39 +41,63 @@ export function MessageList({
   }
 
   if (messages.length === 0) {
-    return <EmptyMessageState />;
+    return (
+      <View style={styles.emptyContent}>
+        <EmptyMessageState />
+      </View>
+    );
   }
 
-  const messageGroups = groupMessages(messages);
+  const rows = getMessageRows(messages);
 
   return (
-    <View style={styles.list}>
-      {messageGroups.map((messageGroup, index) => {
-        const firstMessage = messageGroup.messages[0];
-        const previousGroup = messageGroups[index - 1];
-        const isFirstUnread = firstMessage.isUnread && !previousGroup?.messages[0].isUnread;
-
-        return (
-          <Fragment key={firstMessage.id}>
-            {isFirstUnread ? (
-              <View
-                onLayout={onUnreadMarkerLayout}
-                accessibilityLabel="Unread messages begin here"
-                style={styles.unreadMarker}
-              >
-                <Divider style={styles.unreadDivider} />
-                <Text variant="labelMedium" style={{ color: theme.colors.primary }}>
-                  Unread
-                </Text>
-                <Divider style={styles.unreadDivider} />
-              </View>
-            ) : null}
-            <MessageBubble messages={messageGroup.messages} />
-          </Fragment>
-        );
-      })}
-    </View>
+    <FlatList
+      data={rows}
+      inverted
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => (
+        item.type === "unread-marker" ? (
+          <View accessibilityLabel="Unread messages begin here" style={styles.unreadMarker}>
+            <Divider style={styles.unreadDivider} />
+            <Text variant="labelMedium" style={{ color: theme.colors.primary }}>
+              Unread
+            </Text>
+            <Divider style={styles.unreadDivider} />
+          </View>
+        ) : (
+          <MessageBubble messages={item.messages ?? []} />
+        )
+      )}
+      ItemSeparatorComponent={MessageRowSeparator}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      style={styles.list}
+      contentContainerStyle={styles.listContent}
+    />
   );
+}
+
+function getMessageRows(messages: Message[]) {
+  const messageGroups = groupMessages(messages);
+  const rows: MessageRow[] = [];
+
+  messageGroups.forEach((messageGroup, index) => {
+    const firstMessage = messageGroup.messages[0];
+    const previousGroup = messageGroups[index - 1];
+    const isFirstUnread = firstMessage.isUnread && !previousGroup?.messages[0].isUnread;
+
+    if (isFirstUnread) {
+      rows.push({ id: `unread-${firstMessage.id}`, type: "unread-marker" });
+    }
+
+    rows.push({ id: firstMessage.id, type: "message", messages: messageGroup.messages });
+  });
+
+  return rows.reverse();
+}
+
+function MessageRowSeparator() {
+  return <View style={styles.separator} />;
 }
 
 const styles = StyleSheet.create({
@@ -80,9 +107,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: spacing.xl
   },
+  emptyContent: {
+    flex: 1,
+    justifyContent: "flex-end"
+  },
   list: {
-    gap: spacing.md,
+    flex: 1
+  },
+  listContent: {
     paddingVertical: spacing.lg
+  },
+  separator: {
+    height: spacing.md
   },
   unreadMarker: {
     flexDirection: "row",

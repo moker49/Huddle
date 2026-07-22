@@ -1,11 +1,9 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect } from "react";
 import {
   KeyboardAvoidingView,
-  LayoutChangeEvent,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View
 } from "react-native";
@@ -18,15 +16,12 @@ import { MessageList } from "@/features/messages/components/MessageList";
 import { useMessages } from "@/features/messages/MessageProvider";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
-import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
 interface TopicDetailsScreenProps {
   topicId?: string;
 }
-
-const emptyMessages: Message[] = [];
 
 export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
@@ -40,57 +35,24 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     subscribeToMessages
   } = useMessages();
   const { user } = useUser();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const readTopicIdRef = useRef<string | null>(null);
-  const initialPositionTopicIdRef = useRef<string | null>(null);
-  const unreadMarkerYRef = useRef<number | null>(null);
-  const conversationViewportHeightRef = useRef(0);
-  const conversationContentHeightRef = useRef(0);
-  const pendingLatestScrollAnimationRef = useRef<boolean | null>(null);
-  const latestMessageIdRef = useRef<string | null>(null);
-  const [conversationIsPositioned, setConversationIsPositioned] = useState(false);
   const topic = topicId ? getTopic(topicId) : undefined;
   const topicIsAvailable = Boolean(topic);
-  const messages = topicId ? getMessages(topicId) : emptyMessages;
+  const messages = topicId ? getMessages(topicId) : [];
   const messagesHaveLoaded = topicId ? hasLoadedMessages(topicId) : false;
   const messageError = topicId ? getError(topicId) : null;
   const hasDisplayName = Boolean(user?.displayName);
   const userId = user?.id;
   const userDisplayName = user?.displayName;
-  const hasUnreadMessages = messages.some((message) => message.isUnread);
-  const shouldHideConversation = (
-    messagesHaveLoaded &&
-    messages.length > 0 &&
-    (initialPositionTopicIdRef.current !== topicId || !conversationIsPositioned)
-  );
 
   useEffect(() => {
-    initialPositionTopicIdRef.current = null;
-    unreadMarkerYRef.current = null;
-    conversationViewportHeightRef.current = 0;
-    conversationContentHeightRef.current = 0;
-    pendingLatestScrollAnimationRef.current = null;
-    latestMessageIdRef.current = null;
-    setConversationIsPositioned(false);
-  }, [topicId]);
-
-  useEffect(() => {
-    if (!topicId || !topicIsAvailable || readTopicIdRef.current === topicId) {
+    if (!topicId || !topicIsAvailable) {
       return;
     }
 
-    readTopicIdRef.current = topicId;
     void loadMessages(topicId).then((didLoadMessages) => {
-      if (!didLoadMessages) {
-        readTopicIdRef.current = null;
-        return;
+      if (didLoadMessages) {
+        void markTopicRead(topicId);
       }
-
-      void markTopicRead(topicId).catch(() => {
-        if (readTopicIdRef.current === topicId) {
-          readTopicIdRef.current = null;
-        }
-      });
     });
   }, [loadMessages, markTopicRead, topicId, topicIsAvailable]);
 
@@ -131,138 +93,6 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     },
     [sendMessage, topicId, userDisplayName, userId]
   );
-
-  const scrollToLatestMessage = useCallback((animated = true) => {
-    pendingLatestScrollAnimationRef.current = animated;
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const pendingAnimation = pendingLatestScrollAnimationRef.current;
-
-        if (pendingAnimation === null || conversationContentHeightRef.current === 0) {
-          return;
-        }
-
-        pendingLatestScrollAnimationRef.current = null;
-        scrollViewRef.current?.scrollTo({
-          y: conversationContentHeightRef.current,
-          animated: pendingAnimation
-        });
-      });
-    });
-  }, []);
-
-  const revealConversation = useCallback((currentTopicId: string) => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (initialPositionTopicIdRef.current === currentTopicId) {
-          setConversationIsPositioned(true);
-        }
-      });
-    });
-  }, []);
-
-  const positionUnreadConversation = useCallback(() => {
-    if (
-      !topicId ||
-      !messagesHaveLoaded ||
-      !hasUnreadMessages ||
-      unreadMarkerYRef.current === null ||
-      conversationViewportHeightRef.current === 0 ||
-      conversationContentHeightRef.current === 0 ||
-      initialPositionTopicIdRef.current === topicId
-    ) {
-      return;
-    }
-
-    initialPositionTopicIdRef.current = topicId;
-    const unreadMarkerY = unreadMarkerYRef.current;
-    const viewportHeight = conversationViewportHeightRef.current;
-
-    requestAnimationFrame(() => {
-      if (initialPositionTopicIdRef.current !== topicId) {
-        return;
-      }
-
-      scrollViewRef.current?.scrollTo({
-        y: Math.max(0, unreadMarkerY - viewportHeight / 2),
-        animated: false
-      });
-      revealConversation(topicId);
-    });
-  }, [hasUnreadMessages, messagesHaveLoaded, revealConversation, topicId]);
-
-  const scrollToUnreadMarker = useCallback((event: LayoutChangeEvent) => {
-    unreadMarkerYRef.current = event.nativeEvent.layout.y;
-    positionUnreadConversation();
-  }, [positionUnreadConversation]);
-
-  const positionLatestConversation = useCallback(() => {
-    if (
-      !topicId ||
-      !messagesHaveLoaded ||
-      hasUnreadMessages ||
-      messages.length === 0 ||
-      conversationContentHeightRef.current === 0 ||
-      initialPositionTopicIdRef.current === topicId
-    ) {
-      return;
-    }
-
-    initialPositionTopicIdRef.current = topicId;
-    scrollToLatestMessage(false);
-    revealConversation(topicId);
-  }, [hasUnreadMessages, messages.length, messagesHaveLoaded, revealConversation, scrollToLatestMessage, topicId]);
-
-  const handleConversationLayout = useCallback((event: LayoutChangeEvent) => {
-    conversationViewportHeightRef.current = event.nativeEvent.layout.height;
-    positionUnreadConversation();
-    positionLatestConversation();
-  }, [positionLatestConversation, positionUnreadConversation]);
-
-  const handleConversationContentSizeChange = useCallback((_width: number, height: number) => {
-    conversationContentHeightRef.current = height;
-
-    const pendingAnimation = pendingLatestScrollAnimationRef.current;
-
-    if (pendingAnimation !== null) {
-      pendingLatestScrollAnimationRef.current = null;
-      scrollViewRef.current?.scrollTo({ y: height, animated: pendingAnimation });
-    }
-
-    positionUnreadConversation();
-    positionLatestConversation();
-  }, [positionLatestConversation, positionUnreadConversation]);
-
-  useEffect(() => {
-    positionLatestConversation();
-  }, [positionLatestConversation]);
-
-  useEffect(() => {
-    if (!messagesHaveLoaded || !conversationIsPositioned) {
-      return;
-    }
-
-    const latestMessage = messages.at(-1);
-
-    if (!latestMessage) {
-      latestMessageIdRef.current = null;
-      return;
-    }
-
-    if (latestMessageIdRef.current === null) {
-      latestMessageIdRef.current = latestMessage.id;
-      return;
-    }
-
-    if (latestMessageIdRef.current !== latestMessage.id) {
-      latestMessageIdRef.current = latestMessage.id;
-
-      if (latestMessage.kind === "user" && latestMessage.authorId === userId) {
-        scrollToLatestMessage();
-      }
-    }
-  }, [conversationIsPositioned, messages, messagesHaveLoaded, scrollToLatestMessage, userId]);
 
   if (topicsAreLoading) {
     return (
@@ -337,23 +167,13 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           behavior={Platform.select({ ios: "padding", default: undefined })}
           style={styles.keyboardArea}
         >
-          <ScrollView
-            ref={scrollViewRef}
-            contentContainerStyle={styles.conversationContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            onLayout={handleConversationLayout}
-            onContentSizeChange={handleConversationContentSizeChange}
-          >
-            <View style={shouldHideConversation ? styles.hiddenConversation : undefined}>
-              <MessageList
-                messages={messages}
-                hasLoaded={messagesHaveLoaded}
-                errorMessage={messageError}
-                onUnreadMarkerLayout={scrollToUnreadMarker}
-              />
-            </View>
-          </ScrollView>
+          <View style={styles.messageArea}>
+            <MessageList
+              messages={messages}
+              hasLoaded={messagesHaveLoaded}
+              errorMessage={messageError}
+            />
+          </View>
           {!hasDisplayName ? (
             <View
               style={[
@@ -413,12 +233,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     textAlign: "left"
   },
-  conversationContent: {
-    flexGrow: 1,
-    paddingBottom: spacing.md
-  },
-  hiddenConversation: {
-    opacity: 0
+  messageArea: {
+    flex: 1,
+    minHeight: 0
   },
   keyboardArea: {
     flex: 1
