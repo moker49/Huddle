@@ -29,6 +29,7 @@ import { getNextTopicArchiveTime, isTopicArchived } from "@/features/topics/topi
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
+import { getConnectionMemberAliases } from "@/models/connectionAliases";
 import { connectionMatchesText, getConnectionDisplayName } from "@/models/connectionDisplay";
 import { layout, shape, spacing } from "@/theme/tokens";
 
@@ -565,15 +566,6 @@ function connectionMatchesQuery(connection: Connection, normalizedQuery: string)
   }
 
   return connectionMatchesText(connection, normalizedQuery);
-}
-
-function getConnectionMemberAliases(connection: Connection) {
-  return [
-    connection.id,
-    connection.tag,
-    connection.phoneNumber,
-    connection.phoneNumber ? `phone:${connection.phoneNumber}` : ""
-  ].filter(Boolean);
 }
 
 function getUserMemberAliases(user: {

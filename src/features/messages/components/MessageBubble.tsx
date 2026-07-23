@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -8,9 +8,10 @@ import { layout, spacing } from "@/theme/tokens";
 
 interface MessageBubbleProps {
   messages: Message[];
+  onPressAuthor?: (message: Message) => void;
 }
 
-export function MessageBubble({ messages }: MessageBubbleProps) {
+export function MessageBubble({ messages, onPressAuthor }: MessageBubbleProps) {
   const theme = useTheme();
   const message = messages[0];
 
@@ -37,7 +38,13 @@ export function MessageBubble({ messages }: MessageBubbleProps) {
 
   return (
     <View style={styles.row}>
-      <View style={styles.avatar}>
+      <Pressable
+        onPress={() => onPressAuthor?.(message)}
+        disabled={!onPressAuthor}
+        accessibilityLabel={`Open ${message.authorName}'s profile`}
+        accessibilityRole="button"
+        style={styles.avatar}
+      >
         <MemberAvatar avatarUrl={message.authorAvatarUrl} label={message.authorName} size={layout.minTouchTarget} />
         <View
           style={[
@@ -48,10 +55,17 @@ export function MessageBubble({ messages }: MessageBubbleProps) {
             }
           ]}
         />
-      </View>
+      </Pressable>
       <View style={styles.message}>
         <View style={styles.metaRow}>
-          <Text variant="titleSmall">{message.authorName}</Text>
+          <Pressable
+            onPress={() => onPressAuthor?.(message)}
+            disabled={!onPressAuthor}
+            accessibilityLabel={`Open ${message.authorName}'s profile`}
+            accessibilityRole="button"
+          >
+            <Text variant="titleSmall">{message.authorName}</Text>
+          </Pressable>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
             {formatMessageTimestamp(message.createdAt)}
           </Text>

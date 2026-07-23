@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,11 +10,16 @@ import { ActivityIndicator, Appbar, Button, Text, useTheme } from "react-native-
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppTopBar } from "@/components/AppTopBar";
+import { MemberProfileCard } from "@/features/connections/components/MemberProfileCard";
+import { useConnections } from "@/features/connections/ConnectionProvider";
 import { MessageComposer } from "@/features/messages/components/MessageComposer";
 import { MessageList } from "@/features/messages/components/MessageList";
 import { useMessages } from "@/features/messages/MessageProvider";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
+import { Connection } from "@/models/connection";
+import { getConnectionMemberAliases } from "@/models/connectionAliases";
+import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 import { goBackOrReplace } from "@/utils/navigation";
 
@@ -24,7 +29,8 @@ interface TopicDetailsScreenProps {
 
 export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
-  const { getTopic, isLoading: topicsAreLoading, markTopicRead } = useTopics();
+  const { getTopic, isLoading: topicsAreLoading, markTopicRead, topics } = useTopics();
+  const { connections } = useConnections();
   const {
     getError,
     getDraft,
@@ -49,6 +55,18 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const userId = user?.id;
   const userDisplayName = user?.displayName;
   const userAvatarUrl = user?.avatarUrl;
+  const [profileConnection, setProfileConnection] = useState<Connection | null>(null);
+  const sharedTopics = useMemo(() => {
+    if (!profileConnection) {
+      return [];
+    }
+
+    const aliases = new Set(getConnectionMemberAliases(profileConnection));
+
+    return topics.filter((candidateTopic) => (
+      candidateTopic.memberIds.some((memberId) => aliases.has(memberId))
+    ));
+  }, [profileConnection, topics]);
 
   useEffect(() => {
     if (!topicId || !topicIsAvailable) {
@@ -108,6 +126,20 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     },
     [sendMessage, topicId, userAvatarUrl, userDisplayName, userId]
   );
+
+  const handlePressAuthor = useCallback((message: Message) => {
+    if (!message.authorId) {
+      return;
+    }
+
+    const connection = connections.find((candidateConnection) => (
+      getConnectionMemberAliases(candidateConnection).includes(message.authorId as string)
+    ));
+
+    if (connection) {
+      setProfileConnection(connection);
+    }
+  }, [connections]);
 
   if (topicsAreLoading) {
     return (
@@ -190,6 +222,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               messages={messages}
               hasLoaded={messagesHaveLoaded}
               errorMessage={messageError}
+              onPressAuthor={handlePressAuthor}
             />
           </View>
           {!hasDisplayName ? (
@@ -224,6 +257,16 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           />
         </KeyboardAvoidingView>
       </View>
+      <MemberProfileCard
+        connection={profileConnection}
+        onDismiss={() => setProfileConnection(null)}
+        onOpenTopic={(nextTopicId) => {
+          setProfileConnection(null);
+          router.push(`/topics/${nextTopicId}`);
+        }}
+        sharedTopics={sharedTopics}
+        visible={Boolean(profileConnection)}
+      />
     </SafeAreaView>
   );
 }

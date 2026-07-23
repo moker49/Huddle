@@ -13,6 +13,7 @@ interface MessageListProps {
   messages: Message[];
   hasLoaded: boolean;
   errorMessage: string | null;
+  onPressAuthor?: (message: Message) => void;
 }
 
 interface MessageRow {
@@ -25,7 +26,8 @@ interface MessageRow {
 export function MessageList({
   messages,
   hasLoaded,
-  errorMessage
+  errorMessage,
+  onPressAuthor
 }: MessageListProps) {
   const theme = useTheme();
   const listRef = useRef<FlatList<MessageRow>>(null);
@@ -106,7 +108,7 @@ export function MessageList({
             <Divider style={styles.unreadDivider} />
           </View>
         ) : (
-          <MessageBubble messages={item.messages ?? []} />
+          <MessageBubble messages={item.messages ?? []} onPressAuthor={onPressAuthor} />
         )
       )}
       ItemSeparatorComponent={MessageRowSeparator}

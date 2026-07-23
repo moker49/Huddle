@@ -1,4 +1,5 @@
 import { Connection } from "@/models/connection";
+import { getConnectionMemberAliases } from "@/models/connectionAliases";
 import { connectionMatchesText } from "@/models/connectionDisplay";
 
 export const maxTopicTitleLength = 80;
@@ -125,16 +126,6 @@ export function arraysMatch(firstArray: string[], secondArray: string[]) {
     firstArray.length === secondArray.length &&
     firstArray.every((value, index) => value === secondArray[index])
   );
-}
-
-function getConnectionMemberAliases(connection: Connection) {
-  return [
-    connection.id,
-    connection.tag,
-    connection.phoneNumber,
-    connection.tag ? `tag:${connection.tag}` : "",
-    connection.phoneNumber ? `phone:${connection.phoneNumber}` : ""
-  ].filter(Boolean);
 }
 
 function normalizeMemberAlias(value: string) {

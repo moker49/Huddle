@@ -34,6 +34,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Derived auto-archive classification with active and archived huddle lists.
 - Private Supabase-backed huddle unread counts.
 - Private in-feed unread boundary and initial unread-message positioning.
+- Member profile card from message authors, with shared-huddle navigation.
 - Leaving a huddle revokes access while retaining the membership lifecycle record.
 
 ## Current
