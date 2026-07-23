@@ -103,7 +103,7 @@ export class SupabaseDirectoryUserService implements DirectoryUserService {
     const { supabase } = await import("@/services/supabaseClient");
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, display_name, tag, phone_number, created_at")
+      .select("id, display_name, tag, phone_number, avatar_url, created_at")
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -119,7 +119,8 @@ export class SupabaseDirectoryUserService implements DirectoryUserService {
       id: user.id,
       display_name: user.displayName,
       tag: user.tag,
-      phone_number: user.phoneNumber
+      phone_number: user.phoneNumber,
+      avatar_url: user.avatarUrl ?? ""
     });
 
     if (error) {
@@ -193,7 +194,8 @@ export function userToConnection(user: DirectoryUser): Connection {
     displayName: user.displayName,
     tag: user.tag,
     phoneNumber: user.phoneNumber,
-    createdAt: user.createdAt
+    createdAt: user.createdAt,
+    avatarUrl: user.avatarUrl
   };
 }
 
@@ -202,6 +204,7 @@ function mapProfileToDirectoryUser(value: {
   display_name: string | null;
   tag: string | null;
   phone_number: string | null;
+  avatar_url: string | null;
   created_at: string;
 }): DirectoryUser {
   return {
@@ -209,7 +212,8 @@ function mapProfileToDirectoryUser(value: {
     displayName: value.display_name ?? "",
     tag: value.tag ?? "",
     phoneNumber: value.phone_number ?? "",
-    createdAt: value.created_at
+    createdAt: value.created_at,
+    avatarUrl: value.avatar_url ?? undefined
   };
 }
 
@@ -219,7 +223,8 @@ function localUserToDirectoryUser(user: LocalUser, id: string = user.id): Direct
     displayName: user.displayName,
     tag: user.tag,
     phoneNumber: user.phoneNumber,
-    createdAt: new Date("2026-07-15T12:00:00.000Z").toISOString()
+    createdAt: new Date("2026-07-15T12:00:00.000Z").toISOString(),
+    avatarUrl: user.avatarUrl
   };
 }
 

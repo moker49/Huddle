@@ -70,3 +70,14 @@ test("cloud message lists expose the private unread boundary before marking a hu
   assert.match(messageList, /message\.author_id is distinct from auth\.uid\(\)/i);
   assert.match(schema, /grant execute on function public\.list_huddle_messages\(uuid\) to authenticated/i);
 });
+
+test("cloud profiles and message rows expose Google avatar URLs", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+  const messageList = schema.match(/create or replace function public\.list_huddle_messages\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+
+  assert.match(schema, /avatar_url text not null default ''/i);
+  assert.match(schema, /add column if not exists avatar_url text not null default ''/i);
+  assert.match(schema, /drop function if exists public\.list_huddle_messages\(uuid\);/i);
+  assert.match(messageList, /author_avatar_url text/i);
+  assert.match(messageList, /author_profile\.avatar_url/i);
+});

@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Platform, Pressable, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 
-import { getMemberAvatarColor, getMemberInitial } from "@/features/connections/memberAvatar";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { Connection } from "@/models/connection";
 import { getConnectionDisplayName } from "@/models/connectionDisplay";
 import { shape, spacing } from "@/theme/tokens";
@@ -90,16 +90,7 @@ export function MemberAvatarTileContent({
 
   return (
     <>
-      <View
-        style={[
-          styles.avatar,
-          { backgroundColor: getMemberAvatarColor(displayName) }
-        ]}
-      >
-        <Text variant="titleSmall" style={styles.avatarText}>
-          {getMemberInitial(displayName)}
-        </Text>
-      </View>
+      <MemberAvatar avatarUrl={connection.avatarUrl} label={displayName} size={memberAvatarTile.avatarSize} />
       <Text
         variant="labelMedium"
         numberOfLines={1}
@@ -143,16 +134,6 @@ const styles = StyleSheet.create({
     minHeight: 104,
     justifyContent: "center",
     paddingHorizontal: spacing.md
-  },
-  avatar: {
-    width: memberAvatarTile.avatarSize,
-    height: memberAvatarTile.avatarSize,
-    borderRadius: memberAvatarTile.avatarSize / 2,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  avatarText: {
-    color: "#FFFFFF"
   },
   label: {
     maxWidth: 64,

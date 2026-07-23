@@ -27,6 +27,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Member-based huddle filtering.
 - Focused service tests for identity, directory, huddle visibility, and network resolution.
 - Google authentication and authenticated local account scoping.
+- Google profile photo synchronization for member and message avatars.
 - Supabase-backed profile identity and direct-network persistence.
 - Supabase-backed huddle persistence and identity-scoped visibility.
 - Realtime synchronization for huddle lists and open message feeds.

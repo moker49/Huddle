@@ -43,6 +43,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const hasDisplayName = Boolean(user?.displayName);
   const userId = user?.id;
   const userDisplayName = user?.displayName;
+  const userAvatarUrl = user?.avatarUrl;
 
   useEffect(() => {
     if (!topicId || !topicIsAvailable) {
@@ -88,10 +89,11 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
         topicId,
         body,
         authorId: userId,
-        authorName: userDisplayName
+        authorName: userDisplayName,
+        authorAvatarUrl: userAvatarUrl
       });
     },
-    [sendMessage, topicId, userDisplayName, userId]
+    [sendMessage, topicId, userAvatarUrl, userDisplayName, userId]
   );
 
   if (topicsAreLoading) {

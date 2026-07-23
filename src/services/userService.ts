@@ -12,6 +12,7 @@ export interface UserService {
   updateIdentifiers(identifiers: Pick<LocalUserProfileInput, "tag" | "phoneNumber">): Promise<LocalUser>;
   updateProfile(profile: LocalUserProfileInput): Promise<LocalUser>;
   updateDisplayName(displayName: string): Promise<LocalUser>;
+  updateAvatarUrl(avatarUrl: string): Promise<LocalUser>;
   resetLocalData(): Promise<void>;
 }
 
@@ -33,7 +34,8 @@ function normalizeLocalUser(value: LocalUser): LocalUser {
     id: value.id,
     displayName: normalizeDisplayName(value.displayName),
     tag: typeof value.tag === "string" ? normalizeTag(value.tag) : "",
-    phoneNumber: typeof value.phoneNumber === "string" ? normalizePhoneNumber(value.phoneNumber) : ""
+    phoneNumber: typeof value.phoneNumber === "string" ? normalizePhoneNumber(value.phoneNumber) : "",
+    avatarUrl: normalizeAvatarUrl(value.avatarUrl)
   };
 }
 
@@ -125,6 +127,17 @@ export class LocalUserService implements UserService {
     });
   }
 
+  async updateAvatarUrl(avatarUrl: string): Promise<LocalUser> {
+    const currentUser = await this.getUser();
+    const nextUser = { ...currentUser, avatarUrl: normalizeAvatarUrl(avatarUrl) };
+
+    this.userPromise = Promise.resolve(nextUser);
+    await this.storage.write(this.getStorageKey(), nextUser);
+    await this.directoryUsers.upsertLocalUser(nextUser);
+
+    return nextUser;
+  }
+
   async resetLocalData(): Promise<void> {
     this.userPromise = null;
     await this.storage.remove(this.getStorageKey());
@@ -139,7 +152,8 @@ export class LocalUserService implements UserService {
       if (
         normalizedUser.displayName !== storedUser.displayName ||
         normalizedUser.tag !== storedUser.tag ||
-        normalizedUser.phoneNumber !== storedUser.phoneNumber
+        normalizedUser.phoneNumber !== storedUser.phoneNumber ||
+        normalizedUser.avatarUrl !== storedUser.avatarUrl
       ) {
         await this.storage.write(this.getStorageKey(), normalizedUser);
       }
@@ -183,6 +197,10 @@ function normalizePhoneNumber(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 10);
 
   return digits ? `#${digits}` : "";
+}
+
+function normalizeAvatarUrl(value: string | undefined) {
+  return typeof value === "string" && /^https:\/\//i.test(value) ? value : "";
 }
 
 export class SupabaseUserService implements UserService {
@@ -258,6 +276,13 @@ export class SupabaseUserService implements UserService {
     });
   }
 
+  async updateAvatarUrl(avatarUrl: string): Promise<LocalUser> {
+    return this.saveUser({
+      ...(await this.getUser()),
+      avatarUrl: normalizeAvatarUrl(avatarUrl)
+    });
+  }
+
   async resetLocalData(): Promise<void> {
     this.userPromise = null;
   }
@@ -266,7 +291,7 @@ export class SupabaseUserService implements UserService {
     const { supabase } = await import("@/services/supabaseClient");
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, display_name, tag, phone_number, created_at")
+      .select("id, display_name, tag, phone_number, avatar_url, created_at")
       .eq("id", this.accountScope)
       .maybeSingle();
 
@@ -294,7 +319,8 @@ export class SupabaseUserService implements UserService {
       id: user.id,
       display_name: user.displayName,
       tag: user.tag,
-      phone_number: user.phoneNumber
+      phone_number: user.phoneNumber,
+      avatar_url: user.avatarUrl ?? ""
     });
 
     if (error) {
@@ -311,12 +337,14 @@ function mapProfile(value: {
   display_name: string | null;
   tag: string | null;
   phone_number: string | null;
+  avatar_url: string | null;
 }): LocalUser {
   return {
     id: value.id,
     displayName: normalizeDisplayName(value.display_name ?? ""),
     tag: normalizeTag(value.tag ?? ""),
-    phoneNumber: normalizePhoneNumber(value.phone_number ?? "")
+    phoneNumber: normalizePhoneNumber(value.phone_number ?? ""),
+    avatarUrl: normalizeAvatarUrl(value.avatar_url ?? "")
   };
 }
 

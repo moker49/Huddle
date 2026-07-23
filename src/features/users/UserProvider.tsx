@@ -7,6 +7,7 @@ import {
   useMemo,
   useState
 } from "react";
+import type { Session } from "@supabase/supabase-js";
 
 import { LocalUser, LocalUserProfileInput } from "@/models/user";
 import { isProfileLoadingForAccount } from "@/features/users/profileLoadState";
@@ -48,7 +49,7 @@ export function UserProvider({ children, service = userService }: UserProviderPr
     setIsLoading(true);
 
     try {
-      setUser(await service.getUser());
+      setUser(await syncGoogleAvatar(service, session, await service.getUser()));
       setErrorMessage(null);
     } catch {
       setErrorMessage("Profile could not be loaded.");
@@ -73,25 +74,31 @@ export function UserProvider({ children, service = userService }: UserProviderPr
 
     let isActive = true;
 
-    service
-      .getUser()
-      .then((nextUser) => {
+    void (async () => {
+      try {
+        const nextUser = await service.getUser();
+
         if (isActive) {
-          setUser(nextUser);
+          const synchronizedUser = await syncGoogleAvatar(service, session, nextUser);
+
+          if (!isActive) {
+            return;
+          }
+
+          setUser(synchronizedUser);
           setErrorMessage(null);
         }
-      })
-      .catch(() => {
+      } catch {
         if (isActive) {
           setErrorMessage("Profile could not be loaded.");
         }
-      })
-      .finally(() => {
+      } finally {
         if (isActive) {
           setLoadedAccountId(session.user.id);
           setIsLoading(false);
         }
-      });
+      }
+    })();
 
     return () => {
       isActive = false;
@@ -143,4 +150,19 @@ export function useUser() {
   }
 
   return context;
+}
+
+async function syncGoogleAvatar(service: UserService, session: Session, user: LocalUser) {
+  const avatarUrl = getGoogleAvatarUrl(session);
+
+  return avatarUrl && avatarUrl !== user.avatarUrl
+    ? service.updateAvatarUrl(avatarUrl)
+    : user;
+}
+
+function getGoogleAvatarUrl(session: Session | null) {
+  const metadata = session?.user.user_metadata;
+  const avatarUrl = metadata?.avatar_url ?? metadata?.picture;
+
+  return typeof avatarUrl === "string" ? avatarUrl : "";
 }

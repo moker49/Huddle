@@ -3,6 +3,7 @@ export interface LocalUser {
   displayName: string;
   tag: string;
   phoneNumber: string;
+  avatarUrl?: string;
 }
 
 export interface LocalUserProfileInput {

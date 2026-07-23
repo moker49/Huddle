@@ -1,7 +1,7 @@
 import { Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { ActivityIndicator, Text, useTheme } from "react-native-paper";
 
-import { getMemberAvatarColor, getMemberInitial } from "@/features/connections/memberAvatar";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { Connection } from "@/models/connection";
 import { getConnectionDisplayName } from "@/models/connectionDisplay";
 import { shape, spacing } from "@/theme/tokens";
@@ -92,18 +92,7 @@ export function MemberRail({
                   : undefined
               ]}
             >
-              <View
-                style={[
-                  styles.avatar,
-                  {
-                    backgroundColor: getMemberAvatarColor(displayName)
-                  }
-                ]}
-              >
-                <Text variant="titleSmall" style={styles.avatarText}>
-                  {getMemberInitial(displayName)}
-                </Text>
-              </View>
+              <MemberAvatar avatarUrl={connection.avatarUrl} label={displayName} size={48} />
               <Text
                 variant="labelMedium"
                 numberOfLines={1}
@@ -145,16 +134,6 @@ const styles = StyleSheet.create({
     height: 100,
     justifyContent: "center",
     paddingHorizontal: spacing.md
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  avatarText: {
-    color: "#FFFFFF"
   },
   label: {
     maxWidth: 64,

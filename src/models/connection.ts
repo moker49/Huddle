@@ -4,4 +4,5 @@ export interface Connection {
   tag: string;
   phoneNumber: string;
   createdAt: string;
+  avatarUrl?: string;
 }

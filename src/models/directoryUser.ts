@@ -4,4 +4,5 @@ export interface DirectoryUser {
   tag: string;
   phoneNumber: string;
   createdAt: string;
+  avatarUrl?: string;
 }

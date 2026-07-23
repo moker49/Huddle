@@ -104,7 +104,8 @@ test("cloud messages retain backend ordering and system activity data", async ()
       kind: "user",
       activity_type: null,
       author_id: "author-1",
-      author_name: "Andre"
+      author_name: "Andre",
+      author_avatar_url: "https://example.com/andre.jpg"
     })
   ]);
   const messages = new SupabaseMessageService(repository);
@@ -116,6 +117,7 @@ test("cloud messages retain backend ordering and system activity data", async ()
   assert.equal(result[0].authorId, undefined);
   assert.equal(result[1].authorName, "Andre");
   assert.equal(result[1].authorId, "author-1");
+  assert.equal(result[1].authorAvatarUrl, "https://example.com/andre.jpg");
   assert.equal(result[1].isUnread, false);
 });
 

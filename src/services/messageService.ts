@@ -24,6 +24,7 @@ export interface SupabaseMessageRow {
   activity_type: Message["activityType"] | null;
   author_id: string | null;
   author_name: string;
+  author_avatar_url?: string | null;
   created_at: string;
   is_unread: boolean;
 }
@@ -83,6 +84,7 @@ export class LocalMessageService implements MessageService {
       kind: "user",
       authorId: input.authorId,
       authorName: input.authorName,
+      authorAvatarUrl: input.authorAvatarUrl,
       createdAt: new Date().toISOString()
     };
 
@@ -223,6 +225,7 @@ export function mapSupabaseMessage(row: SupabaseMessageRow): Message {
     activityType: row.activity_type ?? undefined,
     authorId: row.author_id ?? undefined,
     authorName: row.author_name,
+    authorAvatarUrl: row.author_avatar_url ?? undefined,
     createdAt: row.created_at,
     // Some mutation RPCs do not include the derived unread flag. Treat an
     // omitted value as false so their optimistic replacement keeps its group.

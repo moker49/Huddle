@@ -1,7 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 
-import { getMemberAvatarColor, getMemberInitial } from "@/features/connections/memberAvatar";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 
@@ -36,18 +36,8 @@ export function MessageBubble({ messages }: MessageBubbleProps) {
 
   return (
     <View style={styles.row}>
-      <View
-        style={[
-          styles.avatar,
-          { backgroundColor: getMemberAvatarColor(message.authorName) }
-        ]}
-      >
-        <Text
-          variant="titleMedium"
-          style={styles.avatarText}
-        >
-          {getMemberInitial(message.authorName)}
-        </Text>
+      <View style={styles.avatar}>
+        <MemberAvatar avatarUrl={message.authorAvatarUrl} label={message.authorName} size={layout.minTouchTarget} />
         <View
           style={[
             styles.presenceDot,
@@ -90,12 +80,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: layout.minTouchTarget,
     height: layout.minTouchTarget,
-    borderRadius: layout.minTouchTarget / 2,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  avatarText: {
-    color: "#FFFFFF"
+    borderRadius: layout.minTouchTarget / 2
   },
   presenceDot: {
     position: "absolute",

@@ -21,6 +21,7 @@ import {
 } from "react-native-paper";
 
 import { Screen } from "@/components/Screen";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { MemberRail } from "@/features/connections/components/MemberRail";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
@@ -271,16 +272,33 @@ export function TopicListScreen() {
             accessibilityLabel="Search huddles and members"
             style={[styles.searchInput, webInputFocusReset, { color: theme.colors.onSurface }]}
           />
-          <IconButton
-            {...keepSearchInputFocusedProps}
-            icon={query ? "close" : "account-circle-outline"}
-            size={24}
-            onPress={query ? handleClearQuery : () => router.push("/profile")}
-            accessibilityLabel={query ? "Clear search" : "Profile"}
-            focusable={false}
-            iconColor={theme.colors.onSurfaceVariant}
-            style={styles.searchAdornment}
-          />
+          {query ? (
+            <IconButton
+              {...keepSearchInputFocusedProps}
+              icon="close"
+              size={24}
+              onPress={handleClearQuery}
+              accessibilityLabel="Clear search"
+              focusable={false}
+              iconColor={theme.colors.onSurfaceVariant}
+              style={styles.searchAdornment}
+            />
+          ) : (
+            <Pressable
+              {...keepSearchInputFocusedProps}
+              onPress={() => router.push("/profile")}
+              accessibilityLabel="Profile"
+              accessibilityRole="button"
+              focusable={false}
+              style={styles.profileAdornment}
+            >
+              <MemberAvatar
+                avatarUrl={user?.avatarUrl}
+                label={user?.displayName || user?.tag || "Profile"}
+                size={32}
+              />
+            </Pressable>
+          )}
         </View>
       }
       scroll={false}
@@ -601,6 +619,12 @@ const styles = StyleSheet.create({
     marginRight: spacing.none,
     marginBottom: spacing.none,
     marginLeft: spacing.none
+  },
+  profileAdornment: {
+    width: layout.minTouchTarget,
+    height: layout.minTouchTarget,
+    alignItems: "center",
+    justifyContent: "center"
   },
   trailingSearchInset: {
     width: spacing.xs
