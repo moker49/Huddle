@@ -141,6 +141,20 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     }
   }, [connections]);
 
+  const handleDismissMemberProfile = useCallback(() => {
+    setProfileConnection(null);
+  }, []);
+
+  const handleOpenSharedTopic = useCallback((nextTopicId: string) => {
+    setProfileConnection(null);
+
+    if (nextTopicId === topicId) {
+      return;
+    }
+
+    router.push(`/topics/${nextTopicId}`);
+  }, [topicId]);
+
   if (topicsAreLoading) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
@@ -259,16 +273,8 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       </View>
       <MemberProfileCard
         connection={profileConnection}
-        onDismiss={() => setProfileConnection(null)}
-        onOpenTopic={(nextTopicId) => {
-          setProfileConnection(null);
-
-          if (nextTopicId === topic.id) {
-            return;
-          }
-
-          router.push(`/topics/${nextTopicId}`);
-        }}
+        onDismiss={handleDismissMemberProfile}
+        onOpenTopic={handleOpenSharedTopic}
         sharedTopics={sharedTopics}
         visible={Boolean(profileConnection)}
       />

@@ -262,13 +262,22 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
       onBack={handleBack}
       scroll={false}
       action={
-        <Appbar.Action
-          icon="delete-outline"
-          onPress={() => setDeleteDialogIsVisible(true)}
-          disabled={isSaving || isDeleting}
-          accessibilityLabel="Delete huddle"
-          iconColor={theme.colors.error}
-        />
+        <View style={styles.appBarActions}>
+          <Appbar.Action
+            icon="exit-to-app"
+            onPress={() => setLeaveDialogIsVisible(true)}
+            disabled={isSaving || isDeleting || isLeaving}
+            accessibilityLabel="Leave huddle"
+            iconColor={theme.colors.error}
+          />
+          <Appbar.Action
+            icon="delete-outline"
+            onPress={() => setDeleteDialogIsVisible(true)}
+            disabled={isSaving || isDeleting || isLeaving}
+            accessibilityLabel="Delete huddle"
+            iconColor={theme.colors.error}
+          />
+        </View>
       }
     >
       <KeyboardAvoidingView
@@ -312,14 +321,6 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
               accessibilityLabel="Save huddle settings"
             />
           </View>
-          <Button
-            mode="text"
-            textColor={theme.colors.error}
-            onPress={() => setLeaveDialogIsVisible(true)}
-            disabled={isSaving || isDeleting || isLeaving}
-          >
-            Leave huddle
-          </Button>
         </View>
       </KeyboardAvoidingView>
       <Snackbar visible={Boolean(errorMessage)} onDismiss={() => setErrorMessage("")}>
@@ -410,6 +411,10 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: spacing.none,
     bottom: spacing.none
+  },
+  appBarActions: {
+    flexDirection: "row",
+    alignItems: "center"
   },
   centerState: {
     flex: 1,

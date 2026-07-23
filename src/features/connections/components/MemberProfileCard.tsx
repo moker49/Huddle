@@ -1,5 +1,5 @@
-import { BackHandler, StyleSheet, View } from "react-native";
-import { useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { BackHandler, Platform, StyleSheet, View } from "react-native";
 import { Button, Dialog, Divider, List, Portal, Text, useTheme } from "react-native-paper";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -25,19 +25,42 @@ export function MemberProfileCard({
   visible
 }: MemberProfileCardProps) {
   const theme = useTheme();
+  const browserHistoryEntryIsActiveRef = useRef(false);
+
+  const closeCard = useCallback(() => {
+    if (Platform.OS === "web" && browserHistoryEntryIsActiveRef.current) {
+      browserHistoryEntryIsActiveRef.current = false;
+      window.history.back();
+    }
+
+    onDismiss();
+  }, [onDismiss]);
 
   useEffect(() => {
     if (!visible) {
       return;
     }
 
+    if (Platform.OS === "web") {
+      const handlePopState = () => {
+        browserHistoryEntryIsActiveRef.current = false;
+        onDismiss();
+      };
+
+      window.history.pushState({ memberProfileCard: true }, "");
+      browserHistoryEntryIsActiveRef.current = true;
+      window.addEventListener("popstate", handlePopState);
+
+      return () => window.removeEventListener("popstate", handlePopState);
+    }
+
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      onDismiss();
+      closeCard();
       return true;
     });
 
     return () => subscription.remove();
-  }, [onDismiss, visible]);
+  }, [closeCard, onDismiss, visible]);
 
   if (!connection) {
     return null;
@@ -50,7 +73,7 @@ export function MemberProfileCard({
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={onDismiss}>
+      <Dialog visible={visible} onDismiss={closeCard}>
         <Dialog.Content style={styles.content}>
           <View style={styles.identity}>
             <MemberAvatar avatarUrl={connection.avatarUrl} label={displayName} size={72} />
@@ -75,7 +98,10 @@ export function MemberProfileCard({
                     key={topic.id}
                     title={topic.title}
                     titleNumberOfLines={1}
-                    onPress={() => onOpenTopic(topic.id)}
+                    onPress={() => {
+                      closeCard();
+                      onOpenTopic(topic.id);
+                    }}
                     accessibilityLabel={`Open shared huddle ${topic.title}`}
                     left={() => (
                       <View
@@ -105,7 +131,7 @@ export function MemberProfileCard({
           </View>
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={onDismiss}>Close</Button>
+          <Button onPress={closeCard}>Close</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
