@@ -262,6 +262,11 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
         onDismiss={() => setProfileConnection(null)}
         onOpenTopic={(nextTopicId) => {
           setProfileConnection(null);
+
+          if (nextTopicId === topic.id) {
+            return;
+          }
+
           router.push(`/topics/${nextTopicId}`);
         }}
         sharedTopics={sharedTopics}

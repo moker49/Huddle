@@ -1,4 +1,5 @@
-import { StyleSheet, View } from "react-native";
+import { BackHandler, StyleSheet, View } from "react-native";
+import { useEffect } from "react";
 import { Button, Dialog, Divider, List, Portal, Text, useTheme } from "react-native-paper";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -24,6 +25,19 @@ export function MemberProfileCard({
   visible
 }: MemberProfileCardProps) {
   const theme = useTheme();
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      onDismiss();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [onDismiss, visible]);
 
   if (!connection) {
     return null;
