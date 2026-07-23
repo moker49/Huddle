@@ -4,6 +4,7 @@ import { Divider, Text, useTheme } from "react-native-paper";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
 import { MessageBubble } from "@/features/messages/components/MessageBubble";
+import { formatMessageDay, getMessageDayKey } from "@/features/messages/messageDates";
 import { groupMessages } from "@/features/messages/messageGrouping";
 import { Message } from "@/models/message";
 import { spacing } from "@/theme/tokens";
@@ -16,7 +17,8 @@ interface MessageListProps {
 
 interface MessageRow {
   id: string;
-  type: "message" | "unread-marker";
+  type: "date-divider" | "message" | "unread-marker";
+  label?: string;
   messages?: Message[];
 }
 
@@ -87,7 +89,15 @@ export function MessageList({
       inverted
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
-        item.type === "unread-marker" ? (
+        item.type === "date-divider" ? (
+          <View accessibilityRole="header" style={styles.dateDivider}>
+            <Divider style={styles.dateDividerLine} />
+            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              {item.label}
+            </Text>
+            <Divider style={styles.dateDividerLine} />
+          </View>
+        ) : item.type === "unread-marker" ? (
           <View accessibilityLabel="Unread messages begin here" style={styles.unreadMarker}>
             <Divider style={styles.unreadDivider} />
             <Text variant="labelMedium" style={{ color: theme.colors.primary }}>
@@ -127,11 +137,22 @@ export function MessageList({
 function getMessageRows(messages: Message[]) {
   const messageGroups = groupMessages(messages);
   const rows: MessageRow[] = [];
+  let previousDayKey: string | null = null;
 
   messageGroups.forEach((messageGroup, index) => {
     const firstMessage = messageGroup.messages[0];
     const previousGroup = messageGroups[index - 1];
+    const dayKey = getMessageDayKey(firstMessage.createdAt);
     const isFirstUnread = firstMessage.isUnread && !previousGroup?.messages[0].isUnread;
+
+    if (dayKey !== previousDayKey) {
+      rows.push({
+        id: `date-${dayKey}`,
+        type: "date-divider",
+        label: formatMessageDay(firstMessage.createdAt)
+      });
+      previousDayKey = dayKey;
+    }
 
     if (isFirstUnread) {
       rows.push({ id: `unread-${firstMessage.id}`, type: "unread-marker" });
@@ -177,6 +198,15 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs
   },
   unreadDivider: {
+    flex: 1
+  },
+  dateDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.xs
+  },
+  dateDividerLine: {
     flex: 1
   }
 });

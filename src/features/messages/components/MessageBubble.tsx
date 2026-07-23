@@ -2,6 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { Text, useTheme } from "react-native-paper";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { formatMessageTimestamp } from "@/features/messages/messageDates";
 import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 
@@ -28,7 +29,7 @@ export function MessageBubble({ messages }: MessageBubbleProps) {
           numberOfLines={1}
           style={[styles.systemTime, { color: theme.colors.outline }]}
         >
-          {formatMessageTime(message.createdAt)}
+          {formatMessageTimestamp(message.createdAt)}
         </Text>
       </View>
     );
@@ -52,23 +53,13 @@ export function MessageBubble({ messages }: MessageBubbleProps) {
         <View style={styles.metaRow}>
           <Text variant="titleSmall">{message.authorName}</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-            {formatMessageTime(message.createdAt)}
+            {formatMessageTimestamp(message.createdAt)}
           </Text>
         </View>
         <Text variant="bodyLarge">{messages.map((currentMessage) => currentMessage.body).join("\n")}</Text>
       </View>
     </View>
   );
-}
-
-function formatMessageTime(value: string): string {
-  const date = new Date(value);
-  const hours = date.getHours();
-  const minutes = date.getMinutes().toString().padStart(2, "0");
-  const period = hours >= 12 ? "PM" : "AM";
-  const displayHours = hours % 12 || 12;
-
-  return `${displayHours}:${minutes} ${period}`;
 }
 
 const styles = StyleSheet.create({
