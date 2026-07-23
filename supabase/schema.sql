@@ -121,7 +121,7 @@ create table if not exists public.huddle_messages (
   kind text not null check (kind in ('user', 'system')),
   activity_type text check (
     activity_type is null
-    or activity_type in ('huddle_created', 'member_added', 'member_removed', 'title_updated')
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'member_added', 'member_removed', 'title_updated')
   ),
   author_id uuid references public.profiles(id) on delete set null,
   author_name text not null,
@@ -131,6 +131,15 @@ create table if not exists public.huddle_messages (
     or (kind = 'system' and activity_type is not null)
   )
 );
+
+alter table public.huddle_messages
+  drop constraint if exists huddle_messages_activity_type_check;
+
+alter table public.huddle_messages
+  add constraint huddle_messages_activity_type_check check (
+    activity_type is null
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'member_added', 'member_removed', 'title_updated')
+  );
 
 create index if not exists huddle_messages_huddle_created_key
   on public.huddle_messages(huddle_id, created_at, id);
@@ -532,6 +541,36 @@ begin
       format('Title updated from "%s" to "%s"', existing_huddle.title, trim(p_title)),
       'system',
       'title_updated',
+      auth.uid(),
+      'System'
+    );
+  end if;
+
+  if existing_huddle.auto_archive_at is distinct from p_auto_archive_at then
+    insert into public.huddle_messages (
+      huddle_id,
+      body,
+      kind,
+      activity_type,
+      author_id,
+      author_name
+    )
+    values (
+      p_huddle_id,
+      case
+        when p_auto_archive_at is null then 'Auto-archive removed'
+        when existing_huddle.auto_archive_at is null then format(
+          'Auto-archive set for %s',
+          to_char(p_auto_archive_at at time zone 'UTC', 'Mon FMDD, YYYY')
+        )
+        else format(
+          'Auto-archive updated from %s to %s',
+          to_char(existing_huddle.auto_archive_at at time zone 'UTC', 'Mon FMDD, YYYY'),
+          to_char(p_auto_archive_at at time zone 'UTC', 'Mon FMDD, YYYY')
+        )
+      end,
+      'system',
+      'auto_archive_updated',
       auth.uid(),
       'System'
     );

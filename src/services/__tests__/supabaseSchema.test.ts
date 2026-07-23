@@ -36,6 +36,7 @@ test("cloud messages are member-scoped and activities are created with huddle ch
   assert.match(schema, /'member_added'/i);
   assert.match(schema, /'member_removed'/i);
   assert.match(schema, /'title_updated'/i);
+  assert.match(schema, /'auto_archive_updated'/i);
 });
 
 test("cloud huddle tables are published for realtime updates", () => {

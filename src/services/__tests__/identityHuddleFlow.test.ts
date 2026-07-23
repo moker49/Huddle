@@ -510,6 +510,30 @@ test("updating a huddle title records a title-updated activity", async () => {
   assert.equal(typeof titleActivity?.createdAt, "string");
 });
 
+test("updating a huddle auto-archive date records an activity", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Archive activity",
+    memberIds: ["phone:#27"]
+  });
+
+  await efrenSession.topics.updateTopic(topic.id, {
+    title: "Archive activity",
+    memberIds: ["phone:#27"],
+    autoArchiveAt: "2026-07-30T23:59:59.999Z"
+  });
+  const messages = await efrenSession.messages.listMessages(topic.id);
+  const archiveActivity = messages.find((message) => message.activityType === "auto_archive_updated");
+
+  assert.equal(archiveActivity?.kind, "system");
+  assert.equal(archiveActivity?.body, "Auto-archive set for Jul 30, 2026");
+});
+
 test("updating huddle members records member-added and member-removed activities", async () => {
   const storage = new MemoryJsonStorage();
   const efrenSession = createServices(storage);

@@ -215,6 +215,14 @@ export class LocalTopicService implements TopicService {
       });
     }
 
+    if (previousTopic.autoArchiveAt !== nextTopic.autoArchiveAt) {
+      await this.messages.createActivity({
+        topicId: nextTopic.id,
+        body: getAutoArchiveActivityBody(previousTopic.autoArchiveAt, nextTopic.autoArchiveAt),
+        activityType: "auto_archive_updated"
+      });
+    }
+
     const previousMemberIds = new Set(previousTopic.memberIds);
     const nextMemberIds = new Set(nextTopic.memberIds);
     const addedMemberIds = nextTopic.memberIds.filter((memberId) => !previousMemberIds.has(memberId));
@@ -236,6 +244,34 @@ export class LocalTopicService implements TopicService {
       });
     }
   }
+}
+
+function getAutoArchiveActivityBody(previousValue: string | undefined, nextValue: string | undefined) {
+  if (!nextValue) {
+    return "Auto-archive removed";
+  }
+
+  const nextDate = formatAutoArchiveActivityDate(nextValue);
+
+  if (!previousValue) {
+    return `Auto-archive set for ${nextDate}`;
+  }
+
+  return `Auto-archive updated from ${formatAutoArchiveActivityDate(previousValue)} to ${nextDate}`;
+}
+
+function formatAutoArchiveActivityDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(date);
 }
 
 interface SupabaseHuddleRow {
