@@ -79,6 +79,8 @@ Read state is private per profile and huddle. It may power an unread count and a
 
 Huddle membership is a lifecycle state. Leaving a huddle must revoke active-list, network-sync, and message access without deleting the membership record. Retained left memberships are the foundation for a future personal past-huddles and rejoin flow; they are not readable access.
 
+Message drafts are private local state, scoped to an authenticated account and huddle. They must be restored when the member returns, retained when sending fails, and removed only after a successful send. Do not synchronize drafts to other members or treat them as huddle content.
+
 ## Platform Strategy
 
 The app targets Expo on Android, iOS, and mobile web. It should retain one coherent Material Design identity across platforms while respecting platform essentials such as safe areas, keyboard behavior, browser focus behavior, system navigation areas, and accessibility.

@@ -27,9 +27,13 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const { getTopic, isLoading: topicsAreLoading, markTopicRead } = useTopics();
   const {
     getError,
+    getDraft,
     getMessages,
+    hasLoadedDraft,
     hasLoadedMessages,
+    loadDraft,
     loadMessages,
+    saveDraft,
     sendMessage,
     subscribeToMessages
   } = useMessages();
@@ -37,6 +41,8 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const topic = topicId ? getTopic(topicId) : undefined;
   const topicIsAvailable = Boolean(topic);
   const messages = topicId ? getMessages(topicId) : [];
+  const draft = topicId ? getDraft(topicId) : "";
+  const draftHasLoaded = topicId ? hasLoadedDraft(topicId) : false;
   const messagesHaveLoaded = topicId ? hasLoadedMessages(topicId) : false;
   const messageError = topicId ? getError(topicId) : null;
   const hasDisplayName = Boolean(user?.displayName);
@@ -55,6 +61,14 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       }
     });
   }, [loadMessages, markTopicRead, topicId, topicIsAvailable]);
+
+  useEffect(() => {
+    if (!topicId || !topicIsAvailable) {
+      return;
+    }
+
+    void loadDraft(topicId);
+  }, [loadDraft, topicId, topicIsAvailable]);
 
   useEffect(() => {
     if (!topicId || !topicIsAvailable) {
@@ -199,8 +213,14 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             </View>
           ) : null}
           <MessageComposer
-            disabled={!hasDisplayName}
+            disabled={!hasDisplayName || !draftHasLoaded}
+            onChangeText={(body) => {
+              if (topicId) {
+                void saveDraft(topicId, body);
+              }
+            }}
             onSend={handleSendMessage}
+            value={draft}
           />
         </KeyboardAvoidingView>
       </View>

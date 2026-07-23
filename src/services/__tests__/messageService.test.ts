@@ -75,6 +75,25 @@ test("messages from one huddle do not appear in another huddle", async () => {
   assert.deepEqual(topicTwoMessages.map((message) => message.body), ["topic two"]);
 });
 
+test("message drafts are isolated by huddle and authenticated account", async () => {
+  const messages = new LocalMessageService(new MemoryJsonStorage());
+
+  messages.setAccountScope("account-a");
+  await messages.saveDraft("topic-1", "A private draft");
+  await messages.saveDraft("topic-2", "Another huddle draft");
+
+  assert.equal(await messages.getDraft("topic-1"), "A private draft");
+  assert.equal(await messages.getDraft("topic-2"), "Another huddle draft");
+
+  messages.setAccountScope("account-b");
+  assert.equal(await messages.getDraft("topic-1"), "");
+
+  messages.setAccountScope("account-a");
+  await messages.clearDraft("topic-1");
+  assert.equal(await messages.getDraft("topic-1"), "");
+  assert.equal(await messages.getDraft("topic-2"), "Another huddle draft");
+});
+
 test("resetting local message data clears messages", async () => {
   const messages = new LocalMessageService(new MemoryJsonStorage());
 
@@ -84,10 +103,12 @@ test("resetting local message data clears messages", async () => {
     authorId: "user-1",
     authorName: "Efren"
   });
+  await messages.saveDraft("topic-1", "Temporary draft");
 
   await messages.resetLocalData();
 
   assert.deepEqual(await messages.listMessages("topic-1"), []);
+  assert.equal(await messages.getDraft("topic-1"), "");
 });
 
 test("cloud messages retain backend ordering and system activity data", async () => {

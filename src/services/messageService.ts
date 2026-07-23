@@ -3,9 +3,13 @@ import { JsonStorage, localJsonStorage } from "@/services/localJsonStorage";
 import { createId } from "@/utils/createId";
 
 export interface MessageService {
+  setAccountScope(accountId: string | null): void;
   listMessages(topicId: string): Promise<Message[]>;
   createMessage(input: CreateMessageInput): Promise<Message>;
   createActivity(input: CreateActivityInput): Promise<Message>;
+  getDraft(topicId: string): Promise<string>;
+  saveDraft(topicId: string, body: string): Promise<void>;
+  clearDraft(topicId: string): Promise<void>;
   subscribeToMessages(topicId: string, onChange: () => void): Promise<() => void>;
   resetLocalData(): Promise<void>;
 }
@@ -37,6 +41,86 @@ export interface SupabaseMessageRepository {
 const initialMessages: Message[] = [];
 
 const messageStorageKey = "huddle:messages:v2";
+const draftStorageKeyPrefix = "huddle:message-drafts:v1";
+
+class MessageDraftStore {
+  private accountScope: string | null = null;
+  private draftsByScope = new Map<string, Promise<Record<string, string>>>();
+  private writeChain = Promise.resolve();
+
+  constructor(private readonly storage: JsonStorage) {}
+
+  setAccountScope(accountId: string | null) {
+    this.accountScope = accountId;
+  }
+
+  async getDraft(topicId: string): Promise<string> {
+    return (await this.loadDrafts())[topicId] ?? "";
+  }
+
+  async saveDraft(topicId: string, body: string): Promise<void> {
+    const scope = this.getScope();
+
+    const write = this.writeChain.then(async () => {
+      const drafts = await this.loadDrafts(scope);
+
+      if (body) {
+        drafts[topicId] = body;
+      } else {
+        delete drafts[topicId];
+      }
+
+      await this.storage.write(this.getStorageKey(scope), drafts);
+    });
+
+    this.writeChain = write.catch(() => undefined);
+    await write;
+  }
+
+  async clearDraft(topicId: string): Promise<void> {
+    await this.saveDraft(topicId, "");
+  }
+
+  async reset() {
+    await this.writeChain;
+    await this.storage.remove(this.getStorageKey(this.getScope()));
+    this.draftsByScope.clear();
+    this.writeChain = Promise.resolve();
+  }
+
+  private getScope() {
+    return this.accountScope ?? "local";
+  }
+
+  private async loadDrafts(scope = this.getScope()) {
+    let drafts = this.draftsByScope.get(scope);
+
+    if (!drafts) {
+      drafts = this.storage.read<unknown>(this.getStorageKey(scope)).then((storedDrafts) => {
+        if (!isDraftMap(storedDrafts)) {
+          return {};
+        }
+
+        return storedDrafts;
+      });
+      this.draftsByScope.set(scope, drafts);
+    }
+
+    return drafts;
+  }
+
+  private getStorageKey(scope: string) {
+    return `${draftStorageKeyPrefix}:${scope}`;
+  }
+}
+
+function isDraftMap(value: unknown): value is Record<string, string> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.values(value).every((draft) => typeof draft === "string")
+  );
+}
 
 function isMessage(value: unknown): value is Message {
   return (
@@ -60,8 +144,15 @@ function isMessage(value: unknown): value is Message {
 export class LocalMessageService implements MessageService {
   private messages = [...initialMessages];
   private messagesPromise: Promise<Message[]> | null = null;
+  private readonly drafts: MessageDraftStore;
 
-  constructor(private readonly storage: JsonStorage = localJsonStorage) {}
+  constructor(private readonly storage: JsonStorage = localJsonStorage) {
+    this.drafts = new MessageDraftStore(storage);
+  }
+
+  setAccountScope(accountId: string | null): void {
+    this.drafts.setAccountScope(accountId);
+  }
 
   async listMessages(topicId: string): Promise<Message[]> {
     const messages = await this.loadMessages();
@@ -115,6 +206,18 @@ export class LocalMessageService implements MessageService {
     return message;
   }
 
+  async getDraft(topicId: string): Promise<string> {
+    return this.drafts.getDraft(topicId);
+  }
+
+  async saveDraft(topicId: string, body: string): Promise<void> {
+    await this.drafts.saveDraft(topicId, body);
+  }
+
+  async clearDraft(topicId: string): Promise<void> {
+    await this.drafts.clearDraft(topicId);
+  }
+
   async subscribeToMessages(_topicId: string, _onChange: () => void): Promise<() => void> {
     return () => undefined;
   }
@@ -123,6 +226,7 @@ export class LocalMessageService implements MessageService {
     this.messages = [...initialMessages];
     this.messagesPromise = Promise.resolve(this.messages);
     await this.storage.remove(messageStorageKey);
+    await this.drafts.reset();
   }
 
   private async loadMessages(): Promise<Message[]> {
@@ -175,9 +279,18 @@ class SupabaseMessageRepositoryClient implements SupabaseMessageRepository {
 }
 
 export class SupabaseMessageService implements MessageService {
+  private readonly drafts: MessageDraftStore;
+
   constructor(
-    private readonly repository: SupabaseMessageRepository = new SupabaseMessageRepositoryClient()
-  ) {}
+    private readonly repository: SupabaseMessageRepository = new SupabaseMessageRepositoryClient(),
+    storage: JsonStorage = localJsonStorage
+  ) {
+    this.drafts = new MessageDraftStore(storage);
+  }
+
+  setAccountScope(accountId: string | null): void {
+    this.drafts.setAccountScope(accountId);
+  }
 
   async listMessages(topicId: string): Promise<Message[]> {
     return (await this.repository.listMessages(topicId)).map(mapSupabaseMessage);
@@ -197,6 +310,18 @@ export class SupabaseMessageService implements MessageService {
     throw new Error("Huddle activities are created with huddle changes.");
   }
 
+  async getDraft(topicId: string): Promise<string> {
+    return this.drafts.getDraft(topicId);
+  }
+
+  async saveDraft(topicId: string, body: string): Promise<void> {
+    await this.drafts.saveDraft(topicId, body);
+  }
+
+  async clearDraft(topicId: string): Promise<void> {
+    await this.drafts.clearDraft(topicId);
+  }
+
   async subscribeToMessages(topicId: string, onChange: () => void): Promise<() => void> {
     const { supabase } = await import("@/services/supabaseClient");
     const channel = supabase
@@ -213,7 +338,9 @@ export class SupabaseMessageService implements MessageService {
     };
   }
 
-  async resetLocalData(): Promise<void> {}
+  async resetLocalData(): Promise<void> {
+    await this.drafts.reset();
+  }
 }
 
 export function mapSupabaseMessage(row: SupabaseMessageRow): Message {

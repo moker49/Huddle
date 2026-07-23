@@ -6,6 +6,8 @@ import { layout, spacing } from "@/theme/tokens";
 
 interface MessageComposerProps {
   onSend: (body: string) => Promise<void>;
+  onChangeText: (body: string) => void;
+  value: string;
   disabled?: boolean;
 }
 
@@ -28,27 +30,30 @@ const keepTextInputFocusedProps =
       }
     : undefined;
 
-export const MessageComposer = memo(function MessageComposer({ onSend, disabled = false }: MessageComposerProps) {
+export const MessageComposer = memo(function MessageComposer({
+  onSend,
+  onChangeText,
+  value,
+  disabled = false
+}: MessageComposerProps) {
   const theme = useTheme();
   const inputRef = useRef<FocusHandle | null>(null);
-  const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const lineCount = Math.max(1, body.split(/\r\n|\r|\n/).length);
+  const lineCount = Math.max(1, value.split(/\r\n|\r|\n/).length);
   const inputHeight =
     layout.composerControlSize + (lineCount - 1) * composerLineHeight;
-  const canSend = body.trim().length > 0 && !disabled;
+  const canSend = value.trim().length > 0 && !disabled;
 
   async function handleSend() {
     if (!canSend || isSending) {
       return;
     }
 
-    const nextBody = body;
+    const nextBody = value;
     setIsSending(true);
 
     try {
       await onSend(nextBody);
-      setBody("");
     } finally {
       setIsSending(false);
     }
@@ -88,8 +93,8 @@ export const MessageComposer = memo(function MessageComposer({ onSend, disabled 
           mode="flat"
           dense
           placeholder="Message..."
-          value={body}
-          onChangeText={setBody}
+          value={value}
+          onChangeText={onChangeText}
           disabled={disabled}
           multiline
           blurOnSubmit={false}
@@ -99,10 +104,10 @@ export const MessageComposer = memo(function MessageComposer({ onSend, disabled 
           style={[styles.input, { height: inputHeight }]}
           contentStyle={styles.inputContent}
           right={
-            body ? (
+            value ? (
               <TextInput.Icon
                 icon="close"
-                onPress={() => setBody("")}
+                onPress={() => onChangeText("")}
                 accessibilityLabel="Clear message"
                 forceTextInputFocus={false}
               />

@@ -3,11 +3,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState
 } from "react";
 
 import { CreateMessageInput, Message } from "@/models/message";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { MessageService, messageService } from "@/services/messageService";
 
 interface MessageContextValue {
@@ -15,7 +17,12 @@ interface MessageContextValue {
   loadMessages(topicId: string): Promise<boolean>;
   subscribeToMessages(topicId: string): Promise<() => void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
+  getDraft(topicId: string): string;
+  loadDraft(topicId: string): Promise<void>;
+  saveDraft(topicId: string, body: string): Promise<void>;
+  clearDraft(topicId: string): Promise<void>;
   clearLoadedMessages(): void;
+  hasLoadedDraft(topicId: string): boolean;
   hasLoadedMessages(topicId: string): boolean;
   getError(topicId: string): string | null;
 }
@@ -27,9 +34,45 @@ interface MessageProviderProps extends PropsWithChildren {
 }
 
 export function MessageProvider({ children, service = messageService }: MessageProviderProps) {
+  const { session } = useAuth();
   const [messagesByTopicId, setMessagesByTopicId] = useState<Record<string, Message[]>>({});
   const [loadedTopicIds, setLoadedTopicIds] = useState<Record<string, boolean>>({});
   const [errorsByTopicId, setErrorsByTopicId] = useState<Record<string, string | null>>({});
+  const [draftsByTopicId, setDraftsByTopicId] = useState<Record<string, string>>({});
+  const [loadedDraftTopicIds, setLoadedDraftTopicIds] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    service.setAccountScope(session?.user.id ?? null);
+    setDraftsByTopicId({});
+    setLoadedDraftTopicIds({});
+  }, [service, session]);
+
+  const loadDraft = useCallback(
+    async (topicId: string) => {
+      const draft = await service.getDraft(topicId);
+      setDraftsByTopicId((current) => ({ ...current, [topicId]: draft }));
+      setLoadedDraftTopicIds((current) => ({ ...current, [topicId]: true }));
+    },
+    [service]
+  );
+
+  const saveDraft = useCallback(
+    async (topicId: string, body: string) => {
+      setDraftsByTopicId((current) => ({ ...current, [topicId]: body }));
+      setLoadedDraftTopicIds((current) => ({ ...current, [topicId]: true }));
+      await service.saveDraft(topicId, body);
+    },
+    [service]
+  );
+
+  const clearDraft = useCallback(
+    async (topicId: string) => {
+      setDraftsByTopicId((current) => ({ ...current, [topicId]: "" }));
+      setLoadedDraftTopicIds((current) => ({ ...current, [topicId]: true }));
+      await service.clearDraft(topicId);
+    },
+    [service]
+  );
 
   const loadMessages = useCallback(
     async (topicId: string) => {
@@ -71,6 +114,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
 
       try {
         const message = await service.createMessage(input);
+        await clearDraft(input.topicId);
         setMessagesByTopicId((current) => ({
           ...current,
           [input.topicId]: (current[input.topicId] ?? []).map((currentMessage) =>
@@ -92,7 +136,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
         throw error;
       }
     },
-    [service]
+    [clearDraft, service]
   );
 
   const subscribeToMessages = useCallback(
@@ -110,6 +154,12 @@ export function MessageProvider({ children, service = messageService }: MessageP
       loadMessages,
       subscribeToMessages,
       sendMessage,
+      getDraft(topicId) {
+        return draftsByTopicId[topicId] ?? "";
+      },
+      loadDraft,
+      saveDraft,
+      clearDraft,
       clearLoadedMessages() {
         setMessagesByTopicId({});
         setLoadedTopicIds({});
@@ -118,15 +168,23 @@ export function MessageProvider({ children, service = messageService }: MessageP
       hasLoadedMessages(topicId) {
         return loadedTopicIds[topicId] ?? false;
       },
+      hasLoadedDraft(topicId) {
+        return loadedDraftTopicIds[topicId] ?? false;
+      },
       getError(topicId) {
         return errorsByTopicId[topicId] ?? null;
       }
     }),
     [
       errorsByTopicId,
+      draftsByTopicId,
+      clearDraft,
+      loadDraft,
       loadMessages,
+      loadedDraftTopicIds,
       loadedTopicIds,
       messagesByTopicId,
+      saveDraft,
       sendMessage,
       subscribeToMessages
     ]
