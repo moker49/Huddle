@@ -21,6 +21,7 @@ interface TopicContextValue {
   reloadTopics(): Promise<void>;
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
+  leaveTopic(id: string): Promise<void>;
   deleteTopic(id: string): Promise<void>;
   markTopicRead(id: string): Promise<void>;
   getTopic(id: string): Topic | undefined;
@@ -166,6 +167,10 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
       },
       async deleteTopic(id) {
         await service.deleteTopic(id);
+        setTopics(await service.listTopics());
+      },
+      async leaveTopic(id) {
+        await service.leaveTopic(id);
         setTopics(await service.listTopics());
       },
       markTopicRead,

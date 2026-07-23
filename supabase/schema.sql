@@ -20,6 +20,8 @@ create table if not exists public.network_members (
   member_id uuid references public.profiles(id) on delete set null,
   member_tag text,
   member_phone_number text,
+  status text not null default 'active',
+  left_at timestamptz,
   created_at timestamptz not null default now(),
   constraint network_members_has_reference check (
     member_id is not null or member_tag is not null or member_phone_number is not null
@@ -99,8 +101,21 @@ create table if not exists public.huddle_members (
   created_at timestamptz not null default now(),
   constraint huddle_members_has_reference check (
     member_id is not null or member_tag is not null or member_phone_number is not null
-  )
+  ),
+  constraint huddle_members_status_check check (status in ('active', 'left'))
 );
+
+alter table public.huddle_members
+  add column if not exists status text not null default 'active';
+
+alter table public.huddle_members
+  add column if not exists left_at timestamptz;
+
+alter table public.huddle_members
+  drop constraint if exists huddle_members_status_check;
+
+alter table public.huddle_members
+  add constraint huddle_members_status_check check (status in ('active', 'left'));
 
 create unique index if not exists huddle_members_huddle_member_key
   on public.huddle_members(huddle_id, member_id)
@@ -121,7 +136,7 @@ create table if not exists public.huddle_messages (
   kind text not null check (kind in ('user', 'system')),
   activity_type text check (
     activity_type is null
-    or activity_type in ('auto_archive_updated', 'huddle_created', 'member_added', 'member_removed', 'title_updated')
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'member_added', 'member_left', 'member_removed', 'title_updated')
   ),
   author_id uuid references public.profiles(id) on delete set null,
   author_name text not null,
@@ -138,7 +153,7 @@ alter table public.huddle_messages
 alter table public.huddle_messages
   add constraint huddle_messages_activity_type_check check (
     activity_type is null
-    or activity_type in ('auto_archive_updated', 'huddle_created', 'member_added', 'member_removed', 'title_updated')
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'member_added', 'member_left', 'member_removed', 'title_updated')
   );
 
 create index if not exists huddle_messages_huddle_created_key
@@ -205,6 +220,7 @@ as $$
         from public.huddle_members hm
         left join public.profiles current_user_profile on current_user_profile.id = auth.uid()
         where hm.huddle_id = h.id
+          and hm.status = 'active'
           and (
             hm.member_id = auth.uid()
             or hm.member_tag = current_user_profile.tag
@@ -295,7 +311,7 @@ as $$
     )
   from public.huddles h
   join public.profiles owner_profile on owner_profile.id = h.owner_id
-  left join public.huddle_members hm on hm.huddle_id = h.id
+  left join public.huddle_members hm on hm.huddle_id = h.id and hm.status = 'active'
   where public.can_access_huddle(h.id)
   group by h.id, owner_profile.tag, owner_profile.phone_number;
 $$;
@@ -329,6 +345,7 @@ begin
         select 1
         from public.huddle_members hm
         where hm.huddle_id = h.id
+          and hm.status = 'active'
           and (
             hm.member_id = current_profile.id
             or (
@@ -354,7 +371,7 @@ begin
         else null
       end as member_phone_number
     from shared_huddles h
-    join public.huddle_members hm on hm.huddle_id = h.id
+    join public.huddle_members hm on hm.huddle_id = h.id and hm.status = 'active'
     left join public.profiles resolved_member on (
       resolved_member.id = hm.member_id
       or (
@@ -603,6 +620,7 @@ begin
     select 1
     from public.huddle_members existing_member
     where existing_member.huddle_id = p_huddle_id
+      and existing_member.status = 'active'
       and coalesce(
         existing_member.member_id::text,
         existing_member.member_tag,
@@ -638,6 +656,7 @@ begin
     'System'
   from public.huddle_members existing_member
   where existing_member.huddle_id = p_huddle_id
+    and existing_member.status = 'active'
     and not exists (
       select 1
       from jsonb_array_elements(p_members) as member(value)
@@ -656,8 +675,41 @@ begin
   set title = trim(p_title), auto_archive_at = p_auto_archive_at
   where huddle.id = p_huddle_id;
 
-  delete from public.huddle_members
-  where huddle_id = p_huddle_id;
+  update public.huddle_members existing_member
+  set status = 'left', left_at = now()
+  where existing_member.huddle_id = p_huddle_id
+    and existing_member.status = 'active'
+    and not exists (
+      select 1
+      from jsonb_array_elements(p_members) as member(value)
+      where coalesce(
+        nullif(member.value ->> 'member_id', ''),
+        nullif(member.value ->> 'member_tag', ''),
+        nullif(member.value ->> 'member_phone_number', '')
+      ) = coalesce(
+        existing_member.member_id::text,
+        existing_member.member_tag,
+        existing_member.member_phone_number
+      )
+    );
+
+  update public.huddle_members existing_member
+  set status = 'active', left_at = null
+  where existing_member.huddle_id = p_huddle_id
+    and existing_member.status = 'left'
+    and exists (
+      select 1
+      from jsonb_array_elements(p_members) as member(value)
+      where coalesce(
+        nullif(member.value ->> 'member_id', ''),
+        nullif(member.value ->> 'member_tag', ''),
+        nullif(member.value ->> 'member_phone_number', '')
+      ) = coalesce(
+        existing_member.member_id::text,
+        existing_member.member_tag,
+        existing_member.member_phone_number
+      )
+    );
 
   insert into public.huddle_members (
     huddle_id,
@@ -671,6 +723,20 @@ begin
     nullif(member.value ->> 'member_tag', ''),
     nullif(member.value ->> 'member_phone_number', '')
   from jsonb_array_elements(p_members) as member(value)
+  where not exists (
+    select 1
+    from public.huddle_members existing_member
+    where existing_member.huddle_id = p_huddle_id
+      and coalesce(
+        existing_member.member_id::text,
+        existing_member.member_tag,
+        existing_member.member_phone_number
+      ) = coalesce(
+        nullif(member.value ->> 'member_id', ''),
+        nullif(member.value ->> 'member_tag', ''),
+        nullif(member.value ->> 'member_phone_number', '')
+      )
+  )
   on conflict do nothing;
 
   return query
@@ -686,6 +752,76 @@ end;
 $$;
 
 grant execute on function public.update_huddle(uuid, text, timestamptz, jsonb) to authenticated;
+
+create or replace function public.leave_huddle(p_huddle_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_profile public.profiles;
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  if not public.can_access_huddle(p_huddle_id) then
+    raise exception 'You are not allowed to leave this huddle.';
+  end if;
+
+  select *
+  into current_profile
+  from public.profiles
+  where id = auth.uid();
+
+  update public.huddle_members membership
+  set status = 'left', left_at = now()
+  where membership.huddle_id = p_huddle_id
+    and membership.status = 'active'
+    and (
+      membership.member_id = auth.uid()
+      or (
+        current_profile.tag <> ''
+        and membership.member_tag = current_profile.tag
+      )
+      or (
+        current_profile.phone_number <> ''
+        and membership.member_phone_number = current_profile.phone_number
+      )
+    );
+
+  if not found then
+    raise exception 'Your huddle membership could not be found.';
+  end if;
+
+  insert into public.huddle_messages (
+    huddle_id,
+    body,
+    kind,
+    activity_type,
+    author_id,
+    author_name
+  )
+  values (
+    p_huddle_id,
+    format(
+      'Member left: %s',
+      public.get_huddle_member_display_name(
+        auth.uid(),
+        current_profile.tag,
+        current_profile.phone_number
+      )
+    ),
+    'system',
+    'member_left',
+    auth.uid(),
+    'System'
+  );
+end;
+$$;
+
+grant execute on function public.leave_huddle(uuid) to authenticated;
 
 -- Adding return columns changes the function's PostgreSQL row type.
 drop function if exists public.create_huddle_message(uuid, text);

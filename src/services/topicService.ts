@@ -22,6 +22,7 @@ export interface TopicService {
   getTopic(id: string): Promise<Topic | null>;
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
+  leaveTopic(id: string): Promise<void>;
   deleteTopic(id: string): Promise<void>;
   markTopicRead(id: string): Promise<void>;
   subscribeToTopicChanges(onChange: () => void): Promise<() => void>;
@@ -168,6 +169,22 @@ export class LocalTopicService implements TopicService {
 
   async deleteTopic(id: string): Promise<void> {
     this.topics = (await this.loadTopics()).filter((topic) => topic.id !== id);
+    await this.saveTopics();
+  }
+
+  async leaveTopic(id: string): Promise<void> {
+    const topic = (await this.loadTopics()).find((currentTopic) => currentTopic.id === id);
+
+    if (!topic) {
+      throw new Error("Huddle could not be found.");
+    }
+
+    await this.messages.createActivity({
+      topicId: id,
+      body: "Member left",
+      activityType: "member_left"
+    });
+    this.topics = (await this.loadTopics()).filter((currentTopic) => currentTopic.id !== id);
     await this.saveTopics();
   }
 
@@ -407,6 +424,16 @@ export class SupabaseTopicService implements TopicService {
     this.requireAccountScope();
     const { supabase } = await import("@/services/supabaseClient");
     const { error } = await supabase.from("huddles").delete().eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async leaveTopic(id: string): Promise<void> {
+    this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const { error } = await supabase.rpc("leave_huddle", { p_huddle_id: id });
 
     if (error) {
       throw error;

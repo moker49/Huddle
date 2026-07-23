@@ -3,7 +3,7 @@ export interface Message {
   topicId: string;
   body: string;
   kind: "user" | "system";
-  activityType?: "auto_archive_updated" | "huddle_created" | "member_added" | "member_removed" | "title_updated";
+  activityType?: "auto_archive_updated" | "huddle_created" | "member_added" | "member_left" | "member_removed" | "title_updated";
   authorId?: string;
   authorName: string;
   authorAvatarUrl?: string;

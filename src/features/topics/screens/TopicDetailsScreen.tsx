@@ -3,7 +3,6 @@ import { useCallback, useEffect } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   View
 } from "react-native";
@@ -142,12 +141,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           />
         }
         title={
-          <Pressable
-            onPress={() => router.push(`/topics/${topic.id}/settings`)}
-            accessibilityRole="button"
-            accessibilityLabel="Open huddle settings"
-            style={styles.appBarTitle}
-          >
+          <View style={styles.appBarTitle}>
             <View
               style={[
                 styles.topicAvatar,
@@ -161,7 +155,14 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             <Text variant="titleLarge" numberOfLines={1} style={styles.topicName}>
               {topic.title}
             </Text>
-          </Pressable>
+          </View>
+        }
+        action={
+          <Appbar.Action
+            icon="cog-outline"
+            onPress={() => router.push(`/topics/${topic.id}/settings`)}
+            accessibilityLabel="Open huddle settings"
+          />
         }
       />
       <View style={styles.shell}>

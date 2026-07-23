@@ -34,9 +34,26 @@ test("cloud messages are member-scoped and activities are created with huddle ch
     /values \(new_huddle\.id, 'Huddle created', 'system', 'huddle_created', auth\.uid\(\), 'System'\)/i
   );
   assert.match(schema, /'member_added'/i);
+  assert.match(schema, /'member_left'/i);
   assert.match(schema, /'member_removed'/i);
   assert.match(schema, /'title_updated'/i);
   assert.match(schema, /'auto_archive_updated'/i);
+});
+
+test("cloud huddle membership retains leaves without retaining access", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+  const accessCheck = schema.match(/create or replace function public\.can_access_huddle\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const leaveHuddle = schema.match(/create or replace function public\.leave_huddle\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const updateHuddle = schema.match(/create or replace function public\.update_huddle\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+
+  assert.match(schema, /status text not null default 'active'/i);
+  assert.match(schema, /left_at timestamptz/i);
+  assert.match(accessCheck, /hm\.status = 'active'/i);
+  assert.match(updateHuddle, /set status = 'left', left_at = now\(\)/i);
+  assert.match(updateHuddle, /set status = 'active', left_at = null/i);
+  assert.match(leaveHuddle, /set status = 'left', left_at = now\(\)/i);
+  assert.match(leaveHuddle, /'member_left'/i);
+  assert.match(schema, /grant execute on function public\.leave_huddle\(uuid\) to authenticated/i);
 });
 
 test("cloud huddle tables are published for realtime updates", () => {

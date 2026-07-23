@@ -77,6 +77,8 @@ Auto-archive is a derived list classification, not a permission state. Once the 
 
 Read state is private per profile and huddle. It may power an unread count and an in-feed unread boundary, but it must not become a shared read receipt or expose one member's viewing behavior to another. Load the feed before marking it read so the first unread item can be positioned for the member.
 
+Huddle membership is a lifecycle state. Leaving a huddle must revoke active-list, network-sync, and message access without deleting the membership record. Retained left memberships are the foundation for a future personal past-huddles and rejoin flow; they are not readable access.
+
 ## Platform Strategy
 
 The app targets Expo on Android, iOS, and mobile web. It should retain one coherent Material Design identity across platforms while respecting platform essentials such as safe areas, keyboard behavior, browser focus behavior, system navigation areas, and accessibility.

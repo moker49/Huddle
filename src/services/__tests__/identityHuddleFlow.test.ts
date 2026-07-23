@@ -486,6 +486,28 @@ test("creating a huddle records a huddle-created activity", async () => {
   assert.equal(typeof messages[0].createdAt, "string");
 });
 
+test("leaving a huddle removes it from active visibility and records the activity", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Leaving huddle",
+    memberIds: ["phone:#27"]
+  });
+
+  await efrenSession.topics.leaveTopic(topic.id);
+
+  assert.deepEqual(await efrenSession.topics.listTopics(), []);
+  const messages = await efrenSession.messages.listMessages(topic.id);
+  const leaveActivity = messages.find((message) => message.activityType === "member_left");
+
+  assert.equal(leaveActivity?.kind, "system");
+  assert.equal(leaveActivity?.body, "Member left");
+});
+
 test("updating a huddle title records a title-updated activity", async () => {
   const storage = new MemoryJsonStorage();
   const efrenSession = createServices(storage);
