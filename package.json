@@ -13,7 +13,8 @@
     "ios": "expo start --ios",
     "lint": "expo lint",
     "test": "node tools/run-service-tests.cjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate:mdi-search-index": "node tools/generate-material-community-icon-search-index.cjs"
   },
   "dependencies": {
     "@expo/log-box": "57.0.0",

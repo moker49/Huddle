@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Button, Dialog, Icon, IconButton, Portal, Text, useTheme } from "react-native-paper";
 
+import { materialCommunityIconSearchTerms } from "@/features/topics/data/materialCommunityIconSearchTerms";
 import { shape, spacing } from "@/theme/tokens";
 import { preserveFocusOnPressStart } from "@/utils/preserveFocusOnPressStart";
 
@@ -39,11 +40,7 @@ export function HuddleIconPickerDialog({
   const [query, setQuery] = useState("");
   const [gridWidth, setGridWidth] = useState(0);
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const matchingIcons = useMemo(() => (
-    normalizedQuery
-      ? availableIcons.filter((name) => name.includes(normalizedQuery))
-      : availableIcons
-  ), [normalizedQuery]);
+  const matchingIcons = useMemo(() => getMatchingIcons(normalizedQuery), [normalizedQuery]);
 
   function dismiss() {
     setQuery("");
@@ -146,6 +143,40 @@ export function HuddleIconPickerDialog({
       </Dialog>
     </Portal>
   );
+}
+
+function getMatchingIcons(query: string) {
+  if (!query) {
+    return availableIcons;
+  }
+
+  return availableIcons
+    .map((name) => ({ name, rank: getSearchRank(name, query) }))
+    .filter((entry): entry is { name: string; rank: number } => entry.rank !== undefined)
+    .sort((left, right) => left.rank - right.rank || left.name.localeCompare(right.name))
+    .map((entry) => entry.name);
+}
+
+function getSearchRank(name: string, query: string) {
+  if (name === query) {
+    return 0;
+  }
+
+  if (name.startsWith(query)) {
+    return 1;
+  }
+
+  const terms = materialCommunityIconSearchTerms[name] ?? [];
+
+  if (terms.some((term) => term === query || term.startsWith(query))) {
+    return 2;
+  }
+
+  if (name.includes(query) || terms.some((term) => term.includes(query))) {
+    return 3;
+  }
+
+  return undefined;
 }
 
 function getColumnCount(gridWidth: number) {

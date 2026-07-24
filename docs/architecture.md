@@ -53,6 +53,8 @@ Prefer built-in React, React Native, Expo, Expo Router, and React Native Paper c
 
 Every new dependency must solve a concrete problem that the existing stack does not solve well. Avoid adding dependency-heavy solutions for simple local problems.
 
+Generated static metadata is preferred over a runtime dependency when it improves an existing local capability. For example, the Material Community icon search index is generated from upstream metadata and checked in so icon aliases and tags work offline without adding an app dependency.
+
 Do not add a second UI library, styling framework, generic repository framework, or global state library without a clear architectural decision.
 
 ## State Management
