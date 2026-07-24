@@ -8,7 +8,7 @@ export function getMessageDayKey(value: string) {
   return [date.getFullYear(), date.getMonth(), date.getDate()].join("-");
 }
 
-export function formatMessageDay(value: string) {
+export function formatMessageDay(value: string, now: Date = new Date()) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -18,7 +18,7 @@ export function formatMessageDay(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "long",
     day: "numeric",
-    year: "numeric"
+    year: date.getFullYear() === now.getFullYear() ? undefined : "numeric"
   }).format(date);
 }
 
@@ -41,7 +41,7 @@ export function formatMessageTimestamp(value: string, now: Date = new Date()) {
   const shortDate = new Intl.DateTimeFormat("en-US", {
     month: "2-digit",
     day: "2-digit",
-    year: "numeric"
+    year: date.getFullYear() === now.getFullYear() ? undefined : "numeric"
   }).format(date);
 
   return `${shortDate} ${time}`;

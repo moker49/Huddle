@@ -290,7 +290,7 @@ function formatAutoArchiveActivityDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
-    year: "numeric"
+    year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric"
   }).format(date);
 }
 

@@ -553,7 +553,7 @@ test("updating a huddle auto-archive date records an activity", async () => {
   const archiveActivity = messages.find((message) => message.activityType === "auto_archive_updated");
 
   assert.equal(archiveActivity?.kind, "system");
-  assert.equal(archiveActivity?.body, "Auto-archive set for Jul 30, 2026");
+  assert.match(archiveActivity?.body ?? "", /^Auto-archive set for Jul 30(?:, 2026)?$/);
 });
 
 test("updating huddle members records member-added and member-removed activities", async () => {

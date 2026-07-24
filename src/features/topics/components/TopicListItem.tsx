@@ -108,7 +108,8 @@ function formatAutoArchiveDate(autoArchiveAt: string | undefined) {
 
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
-    day: "numeric"
+    day: "numeric",
+    year: date.getFullYear() === new Date().getFullYear() ? undefined : "numeric"
   }).format(date);
 }
 

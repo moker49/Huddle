@@ -578,12 +578,24 @@ begin
         when p_auto_archive_at is null then 'Auto-archive removed'
         when existing_huddle.auto_archive_at is null then format(
           'Auto-archive set for %s',
-          to_char(p_auto_archive_at at time zone 'UTC', 'Mon FMDD, YYYY')
+          case
+            when extract(year from p_auto_archive_at at time zone 'UTC') = extract(year from now() at time zone 'UTC')
+              then to_char(p_auto_archive_at at time zone 'UTC', 'Mon FMDD')
+            else to_char(p_auto_archive_at at time zone 'UTC', 'Mon FMDD, YYYY')
+          end
         )
         else format(
           'Auto-archive updated from %s to %s',
-          to_char(existing_huddle.auto_archive_at at time zone 'UTC', 'Mon FMDD, YYYY'),
-          to_char(p_auto_archive_at at time zone 'UTC', 'Mon FMDD, YYYY')
+          case
+            when extract(year from existing_huddle.auto_archive_at at time zone 'UTC') = extract(year from now() at time zone 'UTC')
+              then to_char(existing_huddle.auto_archive_at at time zone 'UTC', 'Mon FMDD')
+            else to_char(existing_huddle.auto_archive_at at time zone 'UTC', 'Mon FMDD, YYYY')
+          end,
+          case
+            when extract(year from p_auto_archive_at at time zone 'UTC') = extract(year from now() at time zone 'UTC')
+              then to_char(p_auto_archive_at at time zone 'UTC', 'Mon FMDD')
+            else to_char(p_auto_archive_at at time zone 'UTC', 'Mon FMDD, YYYY')
+          end
         )
       end,
       'system',
