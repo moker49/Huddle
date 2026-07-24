@@ -78,7 +78,7 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
         </View>
         <Pressable
           onLongPress={() => onLongPress?.(message)}
-          delayLongPress={350}
+          delayLongPress={180}
           accessibilityHint="Hold for message options"
           style={({ hovered, pressed }) => [
             styles.messageBody,

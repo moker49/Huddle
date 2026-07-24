@@ -1,8 +1,9 @@
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
 import { List, Surface, useTheme } from "react-native-paper";
 
 import { Message } from "@/models/message";
-import { spacing } from "@/theme/tokens";
+import { shape, spacing } from "@/theme/tokens";
 
 interface MessageActionSheetProps {
   message: Message | null;
@@ -17,40 +18,122 @@ const actions: readonly { icon: string; title: string; destructive?: boolean }[]
 
 export function MessageActionSheet({ message, onDismiss }: MessageActionSheetProps) {
   const theme = useTheme();
+  const [isMounted, setIsMounted] = useState(Boolean(message));
+  const scrimOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(320)).current;
+
+  useEffect(() => {
+    if (message) {
+      setIsMounted(true);
+      scrimOpacity.setValue(0);
+      sheetTranslateY.setValue(320);
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.timing(scrimOpacity, {
+            toValue: 1,
+            duration: 120,
+            useNativeDriver: true
+          }),
+          Animated.timing(sheetTranslateY, {
+            toValue: 0,
+            duration: 220,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true
+          })
+        ]).start();
+      });
+      return;
+    }
+
+    if (!isMounted) {
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(scrimOpacity, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true
+      }),
+      Animated.timing(sheetTranslateY, {
+        toValue: 320,
+        duration: 180,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true
+      })
+    ]).start(() => setIsMounted(false));
+  }, [isMounted, message, scrimOpacity, sheetTranslateY]);
+
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <Modal
       transparent
-      visible={Boolean(message)}
-      animationType="slide"
+      visible
+      animationType="none"
       onRequestClose={onDismiss}
       statusBarTranslucent
     >
       <View style={styles.layer}>
-        <Pressable
-          onPress={onDismiss}
-          accessibilityLabel="Close message options"
-          accessibilityRole="button"
-          style={styles.scrim}
-        />
-        <Surface
-          elevation={3}
-          style={[styles.sheet, { backgroundColor: theme.colors.elevation.level3 }]}
-        >
-          <View style={[styles.handle, { backgroundColor: theme.colors.onSurfaceVariant }]} />
-          {actions.map((action) => (
-            <List.Item
-              key={action.title}
-              title={action.title}
-              left={(props) => <List.Icon {...props} icon={action.icon} />}
-              titleStyle={action.destructive ? { color: theme.colors.error } : undefined}
-              onPress={onDismiss}
-            />
-          ))}
-        </Surface>
+        <Animated.View style={[styles.scrim, { opacity: scrimOpacity }]}>
+          <Pressable
+            onPress={onDismiss}
+            accessibilityLabel="Close message options"
+            accessibilityRole="button"
+            style={styles.scrimPressable}
+          />
+        </Animated.View>
+        <Animated.View style={{ transform: [{ translateY: sheetTranslateY }] }}>
+          <Surface
+            elevation={3}
+            style={[styles.sheet, { backgroundColor: theme.colors.elevation.level3 }]}
+          >
+            <View style={[styles.handle, { backgroundColor: theme.colors.onSurfaceVariant }]} />
+            <View style={styles.actionGroup}>
+              {actions.map((action, index) => (
+                <List.Item
+                  key={action.title}
+                  title={action.title}
+                  left={(props) => (
+                    <List.Icon
+                      {...props}
+                      icon={action.icon}
+                      color={action.destructive ? theme.colors.error : props.color}
+                    />
+                  )}
+                  titleStyle={action.destructive ? { color: theme.colors.error } : undefined}
+                  onPress={onDismiss}
+                  style={[
+                    styles.actionItem,
+                    getActionItemCornerStyle(index, actions.length),
+                    { backgroundColor: theme.colors.elevation.level2 }
+                  ]}
+                />
+              ))}
+            </View>
+          </Surface>
+        </Animated.View>
       </View>
     </Modal>
   );
+}
+
+function getActionItemCornerStyle(index: number, itemCount: number) {
+  if (itemCount === 1) {
+    return styles.singleAction;
+  }
+
+  if (index === 0) {
+    return styles.firstAction;
+  }
+
+  if (index === itemCount - 1) {
+    return styles.lastAction;
+  }
+
+  return styles.middleAction;
 }
 
 const styles = StyleSheet.create({
@@ -59,8 +142,11 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end"
   },
   scrim: {
-  ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0, 0, 0, 0.32)"
+  },
+  scrimPressable: {
+    flex: 1
   },
   sheet: {
     borderTopLeftRadius: 28,
@@ -76,5 +162,30 @@ const styles = StyleSheet.create({
     borderRadius: spacing.xxs,
     marginBottom: spacing.xs,
     opacity: 0.45
+  },
+  actionGroup: {
+    gap: spacing.xxs,
+    paddingHorizontal: spacing.md
+  },
+  actionItem: {
+    minHeight: 56
+  },
+  singleAction: {
+    borderRadius: shape.large
+  },
+  firstAction: {
+    borderTopLeftRadius: shape.large,
+    borderTopRightRadius: shape.large,
+    borderBottomLeftRadius: spacing.xxs,
+    borderBottomRightRadius: spacing.xxs
+  },
+  middleAction: {
+    borderRadius: spacing.xxs
+  },
+  lastAction: {
+    borderTopLeftRadius: spacing.xxs,
+    borderTopRightRadius: spacing.xxs,
+    borderBottomLeftRadius: shape.large,
+    borderBottomRightRadius: shape.large
   }
 });
