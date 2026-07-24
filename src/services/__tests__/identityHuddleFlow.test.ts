@@ -505,7 +505,7 @@ test("leaving a huddle removes it from active visibility and records the activit
   const leaveActivity = messages.find((message) => message.activityType === "member_left");
 
   assert.equal(leaveActivity?.kind, "system");
-  assert.equal(leaveActivity?.body, "Member left");
+  assert.equal(leaveActivity?.body, "Member left: Efren");
 });
 
 test("updating a huddle title records a title-updated activity", async () => {

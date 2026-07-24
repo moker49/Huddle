@@ -179,9 +179,12 @@ export class LocalTopicService implements TopicService {
       throw new Error("Huddle could not be found.");
     }
 
+    const localUser = await this.users.getUser();
+    const memberName = localUser.displayName || localUser.tag || localUser.phoneNumber || "Member";
+
     await this.messages.createActivity({
       topicId: id,
-      body: "Member left",
+      body: `Member left: ${formatPublicIdentifier(memberName)}`,
       activityType: "member_left"
     });
     this.topics = (await this.loadTopics()).filter((currentTopic) => currentTopic.id !== id);

@@ -52,6 +52,7 @@ test("cloud huddle membership retains leaves without retaining access", () => {
   assert.match(updateHuddle, /set status = 'left', left_at = now\(\)/i);
   assert.match(updateHuddle, /set status = 'active', left_at = null/i);
   assert.match(leaveHuddle, /set status = 'left', left_at = now\(\)/i);
+  assert.match(leaveHuddle, /format\(\s*'Member left: %s'/i);
   assert.match(leaveHuddle, /'member_left'/i);
   assert.match(schema, /grant execute on function public\.leave_huddle\(uuid\) to authenticated/i);
 });
