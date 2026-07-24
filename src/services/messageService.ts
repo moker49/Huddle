@@ -325,7 +325,7 @@ export class SupabaseMessageService implements MessageService {
   async subscribeToMessages(topicId: string, onChange: () => void): Promise<() => void> {
     const { supabase } = await import("@/services/supabaseClient");
     const channel = supabase
-      .channel(`huddle-messages:${topicId}`)
+      .channel(`huddle-messages:${topicId}:${createId()}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "huddle_messages", filter: `huddle_id=eq.${topicId}` },
