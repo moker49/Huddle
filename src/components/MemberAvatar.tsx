@@ -29,7 +29,7 @@ export function MemberAvatar({ avatarUrl, label, size, style }: MemberAvatarProp
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: getMemberAvatarColor(label)
+          backgroundColor: showImage ? "transparent" : getMemberAvatarColor(label)
         },
         style
       ]}
@@ -38,6 +38,7 @@ export function MemberAvatar({ avatarUrl, label, size, style }: MemberAvatarProp
         <Image
           source={{ uri: avatarUrl }}
           onError={() => setImageFailed(true)}
+          fadeDuration={0}
           style={[styles.image, { borderRadius: size / 2 }]}
         />
       ) : (

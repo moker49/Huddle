@@ -8,10 +8,11 @@ import { layout, spacing } from "@/theme/tokens";
 
 interface MessageBubbleProps {
   messages: Message[];
+  avatarUrl?: string;
   onPressAuthor?: (message: Message) => void;
 }
 
-export function MessageBubble({ messages, onPressAuthor }: MessageBubbleProps) {
+export function MessageBubble({ messages, avatarUrl, onPressAuthor }: MessageBubbleProps) {
   const theme = useTheme();
   const message = messages[0];
 
@@ -45,7 +46,11 @@ export function MessageBubble({ messages, onPressAuthor }: MessageBubbleProps) {
         accessibilityRole="button"
         style={styles.avatar}
       >
-        <MemberAvatar avatarUrl={message.authorAvatarUrl} label={message.authorName} size={layout.minTouchTarget} />
+        <MemberAvatar
+          avatarUrl={avatarUrl ?? message.authorAvatarUrl}
+          label={message.authorName}
+          size={layout.minTouchTarget}
+        />
         <View
           style={[
             styles.presenceDot,

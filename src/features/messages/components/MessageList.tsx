@@ -13,6 +13,7 @@ interface MessageListProps {
   messages: Message[];
   hasLoaded: boolean;
   errorMessage: string | null;
+  getAuthorAvatarUrl?: (message: Message) => string | undefined;
   onPressAuthor?: (message: Message) => void;
 }
 
@@ -27,6 +28,7 @@ export function MessageList({
   messages,
   hasLoaded,
   errorMessage,
+  getAuthorAvatarUrl,
   onPressAuthor
 }: MessageListProps) {
   const theme = useTheme();
@@ -108,7 +110,11 @@ export function MessageList({
             <Divider style={styles.unreadDivider} />
           </View>
         ) : (
-          <MessageBubble messages={item.messages ?? []} onPressAuthor={onPressAuthor} />
+          <MessageBubble
+            messages={item.messages ?? []}
+            avatarUrl={item.messages?.[0] ? getAuthorAvatarUrl?.(item.messages[0]) : undefined}
+            onPressAuthor={onPressAuthor}
+          />
         )
       )}
       ItemSeparatorComponent={MessageRowSeparator}

@@ -60,6 +60,18 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const userDisplayName = user?.displayName;
   const userAvatarUrl = getGoogleAvatarUrl(session) || user?.avatarUrl;
   const [profileConnection, setProfileConnection] = useState<Connection | null>(null);
+  const connectionAvatarUrlByAlias = useMemo(() => {
+    return connections.reduce<Record<string, string>>((avatarUrlByAlias, connection) => {
+      if (!connection.avatarUrl) {
+        return avatarUrlByAlias;
+      }
+
+      getConnectionMemberAliases(connection).forEach((alias) => {
+        avatarUrlByAlias[alias] = connection.avatarUrl as string;
+      });
+      return avatarUrlByAlias;
+    }, {});
+  }, [connections]);
   const sharedTopics = useMemo(() => {
     if (!profileConnection) {
       return [];
@@ -144,6 +156,16 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       setProfileConnection(connection);
     }
   }, [connections]);
+
+  const getAuthorAvatarUrl = useCallback((message: Message) => {
+    if (message.authorId === userId && userAvatarUrl) {
+      return userAvatarUrl;
+    }
+
+    return message.authorId
+      ? connectionAvatarUrlByAlias[message.authorId] ?? message.authorAvatarUrl
+      : message.authorAvatarUrl;
+  }, [connectionAvatarUrlByAlias, userAvatarUrl, userId]);
 
   const handleDismissMemberProfile = useCallback(() => {
     setProfileConnection(null);
@@ -238,6 +260,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               messages={messages}
               hasLoaded={messagesHaveLoaded}
               errorMessage={messageError}
+              getAuthorAvatarUrl={getAuthorAvatarUrl}
               onPressAuthor={handlePressAuthor}
             />
           </View>
