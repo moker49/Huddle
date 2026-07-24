@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Platform,
@@ -11,12 +11,14 @@ import {
 } from "react-native";
 import { Button, Dialog, Icon, IconButton, Portal, Text, useTheme } from "react-native-paper";
 
+import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
 import { materialCommunityIconSearchTerms } from "@/features/topics/data/materialCommunityIconSearchTerms";
 import { shape, spacing } from "@/theme/tokens";
 import { preserveFocusOnPressStart } from "@/utils/preserveFocusOnPressStart";
 
 interface HuddleIconPickerDialogProps {
   icon?: string;
+  label: string;
   onDismiss: () => void;
   onSelect: (icon: string | undefined) => void;
   visible: boolean;
@@ -31,6 +33,7 @@ const webInputFocusReset = Platform.OS === "web"
 
 export function HuddleIconPickerDialog({
   icon,
+  label,
   onDismiss,
   onSelect,
   visible
@@ -38,9 +41,17 @@ export function HuddleIconPickerDialog({
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
   const [query, setQuery] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState(icon);
   const [gridWidth, setGridWidth] = useState(0);
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const matchingIcons = useMemo(() => getMatchingIcons(normalizedQuery), [normalizedQuery]);
+
+  useEffect(() => {
+    if (visible) {
+      setSelectedIcon(icon);
+      setQuery("");
+    }
+  }, [icon, visible]);
 
   function dismiss() {
     setQuery("");
@@ -49,7 +60,7 @@ export function HuddleIconPickerDialog({
 
   const columnCount = getColumnCount(gridWidth);
   const iconOptionWidth = getIconOptionWidth(gridWidth, columnCount);
-  const iconListMaxHeight = Math.max(48, Math.min(312, windowHeight - 280));
+  const iconListMaxHeight = Math.max(48, Math.min(312, windowHeight - 352));
 
   return (
     <Portal>
@@ -60,28 +71,37 @@ export function HuddleIconPickerDialog({
       >
         <Dialog.Title>Choose huddle icon</Dialog.Title>
         <Dialog.Content style={styles.content}>
-          <View style={[styles.searchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Icon source="magnify" size={24} color={theme.colors.onSurfaceVariant} />
-            <NativeTextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search icons"
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              accessibilityLabel="Search huddle icons"
-              style={[styles.searchInput, webInputFocusReset, { color: theme.colors.onSurface }]}
+          <View style={styles.searchRow}>
+            <HuddleIcon
+              icon={selectedIcon}
+              label={label}
+              size={56}
+              backgroundColor={theme.colors.primaryContainer}
+              color={theme.colors.onPrimaryContainer}
             />
-            {query ? (
-              <IconButton
-                {...preserveFocusOnPressStart}
-                icon="close"
-                size={24}
-                onPress={() => setQuery("")}
-                accessibilityLabel="Clear icon search"
-                focusable={false}
-                iconColor={theme.colors.onSurfaceVariant}
-                style={styles.clearSearchButton}
+            <View style={[styles.searchShell, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <Icon source="magnify" size={24} color={theme.colors.onSurfaceVariant} />
+              <NativeTextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search icons"
+                placeholderTextColor={theme.colors.onSurfaceVariant}
+                accessibilityLabel="Search huddle icons"
+                style={[styles.searchInput, webInputFocusReset, { color: theme.colors.onSurface }]}
               />
-            ) : null}
+              {query ? (
+                <IconButton
+                  {...preserveFocusOnPressStart}
+                  icon="close"
+                  size={24}
+                  onPress={() => setQuery("")}
+                  accessibilityLabel="Clear icon search"
+                  focusable={false}
+                  iconColor={theme.colors.onSurfaceVariant}
+                  style={styles.clearSearchButton}
+                />
+              ) : null}
+            </View>
           </View>
           <View
             style={styles.gridContainer}
@@ -94,6 +114,7 @@ export function HuddleIconPickerDialog({
             <FlatList
               key={columnCount}
               data={matchingIcons}
+              extraData={selectedIcon}
               keyExtractor={(item) => item}
               numColumns={columnCount}
               keyboardShouldPersistTaps="handled"
@@ -101,12 +122,12 @@ export function HuddleIconPickerDialog({
               columnWrapperStyle={columnCount > 1 ? styles.iconRow : undefined}
               style={[styles.iconList, { maxHeight: iconListMaxHeight }]}
               renderItem={({ item }) => {
-                const isSelected = item === icon;
+                const isSelected = item === selectedIcon;
 
                 return (
                   <Pressable
-                    onPress={() => onSelect(item)}
-                    accessibilityLabel={`Use ${item} icon`}
+                    onPress={() => setSelectedIcon(item)}
+                    accessibilityLabel={`Select ${item} icon`}
                     accessibilityRole="button"
                     style={({ pressed }) => [
                       styles.iconOption,
@@ -137,8 +158,22 @@ export function HuddleIconPickerDialog({
           </View>
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={() => onSelect(undefined)}>Reset</Button>
-          <Button onPress={dismiss}>Done</Button>
+          <Button
+            onPress={() => {
+              onSelect(undefined);
+              dismiss();
+            }}
+          >
+            Reset
+          </Button>
+          <Button
+            onPress={() => {
+              onSelect(selectedIcon);
+              dismiss();
+            }}
+          >
+            OK
+          </Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
@@ -202,7 +237,12 @@ const styles = StyleSheet.create({
   content: {
     gap: spacing.md
   },
+  searchRow: {
+    flexDirection: "row",
+    gap: spacing.sm
+  },
   searchShell: {
+    flex: 1,
     height: 56,
     borderRadius: 28,
     flexDirection: "row",
