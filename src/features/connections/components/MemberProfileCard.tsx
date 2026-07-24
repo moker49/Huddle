@@ -3,6 +3,7 @@ import { BackHandler, Platform, StyleSheet, View } from "react-native";
 import { Button, Dialog, Divider, List, Portal, Text, useTheme } from "react-native-paper";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
 import { Connection } from "@/models/connection";
 import { getConnectionDisplayName } from "@/models/connectionDisplay";
 import { formatPublicIdentifier } from "@/models/identifierDisplay";
@@ -104,19 +105,14 @@ export function MemberProfileCard({
                     }}
                     accessibilityLabel={`Open shared huddle ${topic.title}`}
                     left={() => (
-                      <View
-                        style={[
-                          styles.huddleIcon,
-                          { backgroundColor: theme.colors.primaryContainer }
-                        ]}
-                      >
-                        <Text
-                          variant="labelLarge"
-                          style={{ color: theme.colors.onPrimaryContainer }}
-                        >
-                          {topic.title.slice(0, 1).toLocaleUpperCase()}
-                        </Text>
-                      </View>
+                      <HuddleIcon
+                        icon={topic.icon}
+                        label={topic.title}
+                        size={40}
+                        backgroundColor={theme.colors.primaryContainer}
+                        color={theme.colors.onPrimaryContainer}
+                        style={styles.huddleIcon}
+                      />
                     )}
                     right={() => <List.Icon icon="chevron-right" />}
                     style={styles.huddleRow}

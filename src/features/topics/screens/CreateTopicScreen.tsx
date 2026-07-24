@@ -39,6 +39,7 @@ export function CreateTopicScreen() {
       : [];
   }, [params.memberIds]);
   const [title, setTitle] = useState(params.title ?? "");
+  const [icon, setIcon] = useState<string | undefined>();
   const [autoArchiveDate, setAutoArchiveDate] = useState(() => {
     const defaultAutoArchiveDate = new Date();
 
@@ -113,6 +114,7 @@ export function CreateTopicScreen() {
     try {
       const topic = await createTopic({
         title,
+        icon,
         memberIds: selectedConnectionIds,
         autoArchiveAt: parsedAutoArchiveAt ?? undefined
       });
@@ -151,10 +153,12 @@ export function CreateTopicScreen() {
           <TopicFormLayout
             autoArchiveError={autoArchiveError}
             autoArchiveValue={autoArchiveDate}
+            icon={icon}
             memberError={memberError}
             memberSearchValue={networkQuery}
             memberSearchVisible={memberSearchIsVisible}
             onChangeAutoArchive={setAutoArchiveDate}
+            onChangeIcon={setIcon}
             onChangeMemberSearch={setNetworkQuery}
             onChangeTitle={setTitle}
             onClearMemberSearch={() => setNetworkQuery("")}

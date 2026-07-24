@@ -1,5 +1,5 @@
-import { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { ReactNode, useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import { TextInput, useTheme } from "react-native-paper";
 
 import {
@@ -7,17 +7,21 @@ import {
   networkMemberSectionStyles
 } from "@/features/connections/components/NetworkMemberSection";
 import { AutoArchiveDateField } from "@/features/topics/components/AutoArchiveDateField";
+import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
+import { HuddleIconPickerDialog } from "@/features/topics/components/HuddleIconPickerDialog";
 import { spacing, shape } from "@/theme/tokens";
 
 interface TopicFormLayoutProps {
   autoArchiveError: boolean;
   autoArchiveValue: string;
   children: ReactNode;
+  icon?: string;
   titleAutoFocus?: boolean;
   memberError: boolean;
   memberSearchValue: string;
   memberSearchVisible?: boolean;
   onChangeMemberSearch: (value: string) => void;
+  onChangeIcon: (icon: string | undefined) => void;
   onChangeAutoArchive: (value: string) => void;
   onClearMemberSearch: () => void;
   onChangeTitle: (value: string) => void;
@@ -30,11 +34,13 @@ export function TopicFormLayout({
   autoArchiveError,
   autoArchiveValue,
   children,
+  icon,
   titleAutoFocus = true,
   memberError,
   memberSearchValue,
   memberSearchVisible = true,
   onChangeMemberSearch,
+  onChangeIcon,
   onChangeAutoArchive,
   onClearMemberSearch,
   onChangeTitle,
@@ -43,6 +49,7 @@ export function TopicFormLayout({
   titleValue
 }: TopicFormLayoutProps) {
   const theme = useTheme();
+  const [iconPickerIsVisible, setIconPickerIsVisible] = useState(false);
   const propertyCardColor = theme.colors.elevation.level2;
   const propertyFieldTheme = {
     colors: {
@@ -61,6 +68,20 @@ export function TopicFormLayout({
             { backgroundColor: propertyCardColor }
           ]}
         >
+          <Pressable
+            onPress={() => setIconPickerIsVisible(true)}
+            accessibilityLabel="Choose huddle icon"
+            accessibilityRole="button"
+            style={styles.iconButton}
+          >
+            <HuddleIcon
+              icon={icon}
+              label={titleValue || "H"}
+              size={48}
+              backgroundColor={theme.colors.primaryContainer}
+              color={theme.colors.onPrimaryContainer}
+            />
+          </Pressable>
           <TextInput
             mode="outlined"
             label="Title"
@@ -103,6 +124,16 @@ export function TopicFormLayout({
           {children}
         </NetworkMemberSection>
       </View>
+      <HuddleIconPickerDialog
+        icon={icon}
+        title={titleValue}
+        visible={iconPickerIsVisible}
+        onDismiss={() => setIconPickerIsVisible(false)}
+        onSelect={(nextIcon) => {
+          onChangeIcon(nextIcon);
+          setIconPickerIsVisible(false);
+        }}
+      />
     </>
   );
 }
@@ -125,5 +156,12 @@ const styles = StyleSheet.create({
   },
   titleField: {
     flex: 1
+  },
+  iconButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.xxs
   }
 });

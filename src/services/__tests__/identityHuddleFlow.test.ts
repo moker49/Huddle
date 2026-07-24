@@ -343,6 +343,7 @@ test("a huddle member can update the title, archive date, and membership", async
   await accountASession.connections.addConnection("#27");
   const topic = await accountASession.topics.createTopic({
     title: "Original huddle",
+    icon: "account-group-outline",
     memberIds: ["phone:#27"]
   });
 
@@ -354,11 +355,13 @@ test("a huddle member can update the title, archive date, and membership", async
 
   const updatedTopic = await accountBSession.topics.updateTopic(topic.id, {
     title: "Updated huddle",
+    icon: "rocket-launch-outline",
     autoArchiveAt: "2026-08-01T23:59:59.999Z",
     memberIds: [accountB.id, "phone:#99"]
   });
 
   assert.equal(updatedTopic.title, "Updated huddle");
+  assert.equal(updatedTopic.icon, "rocket-launch-outline");
   assert.equal(updatedTopic.autoArchiveAt, "2026-08-01T23:59:59.999Z");
   assert.equal(updatedTopic.memberIds.includes(accountA.id), false);
   assert.equal(updatedTopic.memberIds.includes(accountB.id), true);

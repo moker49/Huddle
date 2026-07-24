@@ -35,6 +35,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Private Supabase-backed huddle unread counts.
 - Private in-feed unread boundary and initial unread-message positioning.
 - Member profile card from message authors, with shared-huddle navigation.
+- Optional Material icon selection for huddles, with title-initial fallback.
 - Leaving a huddle revokes access while retaining the membership lifecycle record.
 
 ## Current

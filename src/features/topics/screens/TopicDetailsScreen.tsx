@@ -14,6 +14,7 @@ import { MemberProfileCard } from "@/features/connections/components/MemberProfi
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { MessageComposer } from "@/features/messages/components/MessageComposer";
 import { MessageList } from "@/features/messages/components/MessageList";
+import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
 import { useMessages } from "@/features/messages/MessageProvider";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
@@ -202,16 +203,14 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
         }
         title={
           <View style={styles.appBarTitle}>
-            <View
-              style={[
-                styles.topicAvatar,
-                { backgroundColor: theme.colors.primaryContainer }
-              ]}
-            >
-              <Text variant="titleSmall" style={{ color: theme.colors.onPrimaryContainer }}>
-                {topic.title.slice(0, 1).toUpperCase()}
-              </Text>
-            </View>
+            <HuddleIcon
+              icon={topic.icon}
+              label={topic.title}
+              size={layout.appBarAvatarSize}
+              backgroundColor={theme.colors.primaryContainer}
+              color={theme.colors.onPrimaryContainer}
+              style={styles.topicAvatar}
+            />
             <Text variant="titleLarge" numberOfLines={1} style={styles.topicName}>
               {topic.title}
             </Text>

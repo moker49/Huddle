@@ -47,6 +47,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const { deleteTopic, getTopic, isLoading, leaveTopic, updateTopic } = useTopics();
   const topic = topicId ? getTopic(topicId) : undefined;
   const [title, setTitle] = useState("");
+  const [icon, setIcon] = useState<string | undefined>();
   const [autoArchiveDate, setAutoArchiveDate] = useState("");
   const [networkQuery, setNetworkQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
@@ -84,6 +85,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
 
     initializedTopicIdRef.current = topic.id;
     setTitle(topic.title);
+    setIcon(topic.icon);
     setAutoArchiveDate(formatTopicAutoArchiveInputValue(topic.autoArchiveAt));
     setSelectedConnectionIds(initialSelectedConnectionIds);
   }, [connectionsAreLoading, initialSelectedConnectionIds, topic]);
@@ -100,6 +102,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const autoArchiveError = hasSubmitted && autoArchiveIsInvalid;
   const hasChanges = topic ? (
     title !== topic.title ||
+    icon !== topic.icon ||
     autoArchiveDate !== formatTopicAutoArchiveInputValue(topic.autoArchiveAt) ||
     !arraysMatch(selectedConnectionIds, initialSelectedConnectionIds)
   ) : false;
@@ -172,6 +175,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
     try {
       await updateTopic(topic.id, {
         title,
+        icon,
         memberIds: Array.from(new Set([...selectedConnectionIds, ...fixedMemberIds])),
         autoArchiveAt: parsedAutoArchiveAt ?? undefined
       });
@@ -288,10 +292,12 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
           <TopicFormLayout
             autoArchiveError={autoArchiveError}
             autoArchiveValue={autoArchiveDate}
+            icon={icon}
             memberError={memberError}
             memberSearchValue={networkQuery}
             memberSearchVisible={memberSearchIsVisible}
             onChangeAutoArchive={setAutoArchiveDate}
+            onChangeIcon={setIcon}
             onChangeMemberSearch={setNetworkQuery}
             onChangeTitle={setTitle}
             onClearMemberSearch={() => setNetworkQuery("")}

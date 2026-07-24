@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { Badge, Text, useTheme } from "react-native-paper";
 
 import { Topic } from "@/models/topic";
+import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
 import { layout, shape, spacing } from "@/theme/tokens";
 
 type TopicListItemPosition = "single" | "first" | "middle" | "last";
@@ -39,11 +40,14 @@ export function TopicListItem({
         }
       ]}
     >
-      <View style={[styles.thumbnail, { backgroundColor: theme.colors.primaryContainer }]}>
-        <Text variant="titleSmall" style={{ color: theme.colors.onPrimaryContainer }}>
-          {topic.title.slice(0, 1).toLocaleUpperCase()}
-        </Text>
-      </View>
+      <HuddleIcon
+        icon={topic.icon}
+        label={topic.title}
+        size={48}
+        backgroundColor={theme.colors.primaryContainer}
+        color={theme.colors.onPrimaryContainer}
+        style={styles.thumbnail}
+      />
       <View style={styles.copy}>
         <Text variant="titleSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
           {topic.title}

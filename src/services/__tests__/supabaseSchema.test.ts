@@ -22,6 +22,22 @@ test("cloud huddle updates qualify id columns against return-field names", () =>
   assert.doesNotMatch(updateHuddle, /\bwhere id = p_huddle_id;/i);
 });
 
+test("cloud huddles persist an optional Material icon", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+  const createHuddle = schema.match(/create or replace function public\.create_huddle\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const updateHuddle = schema.match(/create or replace function public\.update_huddle\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const visibleHuddles = schema.match(/create function public\.list_visible_huddles\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+
+  assert.match(schema, /add column if not exists icon text/i);
+  assert.match(schema, /drop function if exists public\.create_huddle\(text, timestamptz, jsonb\);/i);
+  assert.match(schema, /drop function if exists public\.update_huddle\(uuid, text, timestamptz, jsonb\);/i);
+  assert.match(createHuddle, /p_icon text/i);
+  assert.match(createHuddle, /owner_id, title, icon, auto_archive_at/i);
+  assert.match(updateHuddle, /p_icon text/i);
+  assert.match(updateHuddle, /set title = trim\(p_title\), icon = nullif\(trim\(p_icon\), ''\)/i);
+  assert.match(visibleHuddles, /h\.icon/i);
+});
+
 test("cloud messages are member-scoped and activities are created with huddle changes", () => {
   const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
 

@@ -49,6 +49,7 @@ function isTopic(value: unknown): value is Topic {
     (!("ownerTag" in value) || typeof value.ownerTag === "string") &&
     (!("ownerPhoneNumber" in value) || typeof value.ownerPhoneNumber === "string") &&
     typeof value.createdAt === "string" &&
+    (!("icon" in value) || typeof value.icon === "string") &&
     (!("autoArchiveAt" in value) || typeof value.autoArchiveAt === "string")
   );
 }
@@ -106,6 +107,7 @@ export class LocalTopicService implements TopicService {
     const topic: Topic = {
       id: createId(),
       title,
+      icon: normalizeTopicIcon(input.icon),
       memberIds: Array.from(new Set([
         getDirectoryUserIdForIdentifier(directoryUsers, localUser.tag) ??
           getDirectoryUserIdForIdentifier(directoryUsers, localUser.phoneNumber) ??
@@ -154,6 +156,7 @@ export class LocalTopicService implements TopicService {
     const topic: Topic = {
       ...currentTopic,
       title,
+      icon: normalizeTopicIcon(input.icon),
       memberIds: nextMemberIds,
       autoArchiveAt: input.autoArchiveAt
     };
@@ -297,6 +300,7 @@ function formatAutoArchiveActivityDate(value: string) {
 interface SupabaseHuddleRow {
   id: string;
   title: string;
+  icon: string | null;
   owner_id: string;
   owner_tag: string | null;
   owner_phone_number: string | null;
@@ -362,6 +366,7 @@ export class SupabaseTopicService implements TopicService {
     const { supabase } = await import("@/services/supabaseClient");
     const { data, error: huddleError } = await supabase.rpc("create_huddle", {
       p_title: title,
+      p_icon: normalizeTopicIcon(input.icon) ?? null,
       p_auto_archive_at: input.autoArchiveAt ?? null,
       p_members: memberInputs
     });
@@ -374,6 +379,7 @@ export class SupabaseTopicService implements TopicService {
     return {
       id: huddle.id,
       title: huddle.title,
+      icon: huddle.icon ?? undefined,
       memberIds: Array.from(new Set([ownerId, ...memberInputs.map(getCloudMemberReference)])),
       ownerId: huddle.owner_id,
       ownerTag: localUser.tag,
@@ -406,6 +412,7 @@ export class SupabaseTopicService implements TopicService {
     const { data, error: huddleError } = await supabase.rpc("update_huddle", {
       p_huddle_id: id,
       p_title: title,
+      p_icon: normalizeTopicIcon(input.icon) ?? null,
       p_auto_archive_at: input.autoArchiveAt ?? null,
       p_members: memberInputs
     });
@@ -418,6 +425,7 @@ export class SupabaseTopicService implements TopicService {
     return {
       ...currentTopic,
       title: huddle.title,
+      icon: huddle.icon ?? undefined,
       memberIds: memberInputs.map(getCloudMemberReference),
       autoArchiveAt: huddle.auto_archive_at ?? undefined
     };
@@ -496,6 +504,7 @@ function mapSupabaseHuddle(row: SupabaseHuddleRow): Topic {
   return {
     id: row.id,
     title: row.title,
+    icon: row.icon ?? undefined,
     memberIds: row.member_ids ?? [],
     ownerId: row.owner_id,
     ownerTag: row.owner_tag ?? undefined,
@@ -504,6 +513,12 @@ function mapSupabaseHuddle(row: SupabaseHuddleRow): Topic {
     autoArchiveAt: row.auto_archive_at ?? undefined,
     unreadCount: row.unread_count ?? 0
   };
+}
+
+function normalizeTopicIcon(icon: string | undefined) {
+  const normalizedIcon = icon?.trim();
+
+  return normalizedIcon || undefined;
 }
 
 function getCloudMemberInputs(
