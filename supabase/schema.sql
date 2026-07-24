@@ -142,7 +142,7 @@ create table if not exists public.huddle_messages (
   kind text not null check (kind in ('user', 'system')),
   activity_type text check (
     activity_type is null
-    or activity_type in ('auto_archive_updated', 'huddle_created', 'member_added', 'member_left', 'member_removed', 'title_updated')
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_removed', 'title_updated')
   ),
   author_id uuid references public.profiles(id) on delete set null,
   author_name text not null,
@@ -159,7 +159,7 @@ alter table public.huddle_messages
 alter table public.huddle_messages
   add constraint huddle_messages_activity_type_check check (
     activity_type is null
-    or activity_type in ('auto_archive_updated', 'huddle_created', 'member_added', 'member_left', 'member_removed', 'title_updated')
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_removed', 'title_updated')
   );
 
 create index if not exists huddle_messages_huddle_created_key
@@ -575,6 +575,25 @@ begin
       format('Title updated from "%s" to "%s"', existing_huddle.title, trim(p_title)),
       'system',
       'title_updated',
+      auth.uid(),
+      'System'
+    );
+  end if;
+
+  if existing_huddle.icon is distinct from nullif(trim(p_icon), '') then
+    insert into public.huddle_messages (
+      huddle_id,
+      body,
+      kind,
+      activity_type,
+      author_id,
+      author_name
+    )
+    values (
+      p_huddle_id,
+      'Huddle icon updated',
+      'system',
+      'icon_updated',
       auth.uid(),
       'System'
     );

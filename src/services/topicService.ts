@@ -238,6 +238,14 @@ export class LocalTopicService implements TopicService {
       });
     }
 
+    if (previousTopic.icon !== nextTopic.icon) {
+      await this.messages.createActivity({
+        topicId: nextTopic.id,
+        body: "Huddle icon updated",
+        activityType: "icon_updated"
+      });
+    }
+
     if (previousTopic.autoArchiveAt !== nextTopic.autoArchiveAt) {
       await this.messages.createActivity({
         topicId: nextTopic.id,

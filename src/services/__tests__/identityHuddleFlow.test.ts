@@ -535,6 +535,32 @@ test("updating a huddle title records a title-updated activity", async () => {
   assert.equal(typeof titleActivity?.createdAt, "string");
 });
 
+test("updating a huddle icon records an icon-updated activity", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Icon activity",
+    icon: "account-group-outline",
+    memberIds: ["phone:#27"]
+  });
+
+  await efrenSession.topics.updateTopic(topic.id, {
+    title: "Icon activity",
+    icon: "rocket-launch-outline",
+    memberIds: ["phone:#27"]
+  });
+  const messages = await efrenSession.messages.listMessages(topic.id);
+  const iconActivity = messages.find((message) => message.activityType === "icon_updated");
+
+  assert.equal(iconActivity?.kind, "system");
+  assert.equal(iconActivity?.body, "Huddle icon updated");
+  assert.equal(typeof iconActivity?.createdAt, "string");
+});
+
 test("updating a huddle auto-archive date records an activity", async () => {
   const storage = new MemoryJsonStorage();
   const efrenSession = createServices(storage);

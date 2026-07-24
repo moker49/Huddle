@@ -53,7 +53,9 @@ test("cloud messages are member-scoped and activities are created with huddle ch
   assert.match(schema, /'member_left'/i);
   assert.match(schema, /'member_removed'/i);
   assert.match(schema, /'title_updated'/i);
+  assert.match(schema, /'icon_updated'/i);
   assert.match(schema, /'auto_archive_updated'/i);
+  assert.match(schema, /existing_huddle\.icon is distinct from nullif\(trim\(p_icon\), ''\)/i);
 });
 
 test("cloud huddle membership retains leaves without retaining access", () => {
