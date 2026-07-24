@@ -10,6 +10,7 @@ type TopicListItemPosition = "single" | "first" | "middle" | "last";
 interface TopicListItemProps {
   topic: Topic;
   memberSummary?: string;
+  mutedIcon?: boolean;
   position: TopicListItemPosition;
   onPress: () => void;
 }
@@ -20,6 +21,7 @@ const innerCardRadius = spacing.xxs;
 export function TopicListItem({
   topic,
   memberSummary,
+  mutedIcon = false,
   position,
   onPress
 }: TopicListItemProps) {
@@ -44,8 +46,8 @@ export function TopicListItem({
         icon={topic.icon}
         label={topic.title}
         size={48}
-        backgroundColor={theme.colors.primaryContainer}
-        color={theme.colors.onPrimaryContainer}
+        backgroundColor={mutedIcon ? theme.colors.surfaceVariant : theme.colors.primaryContainer}
+        color={mutedIcon ? theme.colors.onSurfaceVariant : theme.colors.onPrimaryContainer}
         style={styles.thumbnail}
       />
       <View style={styles.copy}>

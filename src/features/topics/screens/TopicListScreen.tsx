@@ -421,6 +421,7 @@ export function TopicListScreen() {
                       <TopicListItem
                         topic={topic}
                         memberSummary={getMemberSummary(topic.memberIds)}
+                        mutedIcon
                         position={getTopicListItemPosition(index, archivedTopics.length)}
                         onPress={() => router.push(`/topics/${topic.id}`)}
                       />
