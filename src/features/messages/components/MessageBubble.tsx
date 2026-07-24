@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { Text, useTheme } from "react-native-paper";
+import { Text, TouchableRipple, useTheme } from "react-native-paper";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { formatMessageTimestamp } from "@/features/messages/messageDates";
@@ -76,19 +76,14 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
             {formatMessageTimestamp(message.createdAt)}
           </Text>
         </View>
-        <Pressable
+        <TouchableRipple
           onLongPress={() => onLongPress?.(message)}
           delayLongPress={180}
           accessibilityHint="Hold for message options"
-          style={({ hovered, pressed }) => [
-            styles.messageBody,
-            {
-              backgroundColor: hovered || pressed ? theme.colors.surfaceVariant : "transparent"
-            }
-          ]}
+          style={styles.messageBody}
         >
           <Text variant="bodyLarge">{messages.map((currentMessage) => currentMessage.body).join("\n")}</Text>
-        </Pressable>
+        </TouchableRipple>
       </View>
     </View>
   );
