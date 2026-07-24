@@ -134,7 +134,6 @@ export function TopicListScreen() {
     );
   }, [connectionAliasesById, filteredTopics, selectedConnectionIds]);
   const impliedTopicTitle = trimmedQuery;
-  const createHasTitle = impliedTopicTitle.length > 0;
   const createHasMembers = selectedConnectionIds.length > 0;
   const activeTopics = useMemo(
     () => visibleTopics.filter((topic) => !isTopicArchived(topic.autoArchiveAt, currentTime)),
@@ -148,9 +147,7 @@ export function TopicListScreen() {
     () => getNextTopicArchiveTime(visibleTopics, currentTime),
     [currentTime, visibleTopics]
   );
-  const canShowCreateOption = hasNetworkMembers && (
-    createHasTitle || createHasMembers || activeTopics.length === 0
-  );
+  const canShowCreateOption = hasNetworkMembers;
   const activeListItemCount = activeTopics.length + (canShowCreateOption ? 1 : 0);
 
   useEffect(() => {
