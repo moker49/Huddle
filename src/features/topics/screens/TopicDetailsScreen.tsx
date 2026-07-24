@@ -12,12 +12,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppTopBar } from "@/components/AppTopBar";
 import { MemberProfileCard } from "@/features/connections/components/MemberProfileCard";
 import { useConnections } from "@/features/connections/ConnectionProvider";
+import { useAuth } from "@/features/auth/AuthProvider";
 import { MessageComposer } from "@/features/messages/components/MessageComposer";
 import { MessageList } from "@/features/messages/components/MessageList";
 import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
 import { useMessages } from "@/features/messages/MessageProvider";
 import { useTopics } from "@/features/topics/TopicProvider";
 import { useUser } from "@/features/users/UserProvider";
+import { getGoogleAvatarUrl } from "@/features/users/googleAvatar";
 import { Connection } from "@/models/connection";
 import { getConnectionMemberAliases } from "@/models/connectionAliases";
 import { Message } from "@/models/message";
@@ -45,6 +47,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     subscribeToMessages
   } = useMessages();
   const { user } = useUser();
+  const { session } = useAuth();
   const topic = topicId ? getTopic(topicId) : undefined;
   const topicIsAvailable = Boolean(topic);
   const messages = topicId ? getMessages(topicId) : [];
@@ -55,7 +58,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const hasDisplayName = Boolean(user?.displayName);
   const userId = user?.id;
   const userDisplayName = user?.displayName;
-  const userAvatarUrl = user?.avatarUrl;
+  const userAvatarUrl = getGoogleAvatarUrl(session) || user?.avatarUrl;
   const [profileConnection, setProfileConnection] = useState<Connection | null>(null);
   const sharedTopics = useMemo(() => {
     if (!profileConnection) {

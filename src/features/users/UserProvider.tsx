@@ -7,10 +7,12 @@ import {
   useMemo,
   useState
 } from "react";
+import { Image } from "react-native";
 import type { Session } from "@supabase/supabase-js";
 
 import { LocalUser, LocalUserProfileInput } from "@/models/user";
 import { isProfileLoadingForAccount } from "@/features/users/profileLoadState";
+import { getGoogleAvatarUrl } from "@/features/users/googleAvatar";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { UserService, userService } from "@/services/userService";
 
@@ -111,6 +113,12 @@ export function UserProvider({ children, service = userService }: UserProviderPr
     loadedAccountId
   });
 
+  useEffect(() => {
+    if (user?.avatarUrl) {
+      void Image.prefetch(user.avatarUrl);
+    }
+  }, [user?.avatarUrl]);
+
   const value = useMemo<UserContextValue>(
     () => ({
       user,
@@ -158,11 +166,4 @@ async function syncGoogleAvatar(service: UserService, session: Session, user: Lo
   return avatarUrl && avatarUrl !== user.avatarUrl
     ? service.updateAvatarUrl(avatarUrl)
     : user;
-}
-
-function getGoogleAvatarUrl(session: Session | null) {
-  const metadata = session?.user.user_metadata;
-  const avatarUrl = metadata?.avatar_url ?? metadata?.picture;
-
-  return typeof avatarUrl === "string" ? avatarUrl : "";
 }
