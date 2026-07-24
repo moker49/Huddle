@@ -126,13 +126,9 @@ export function TopicFormLayout({
       </View>
       <HuddleIconPickerDialog
         icon={icon}
-        title={titleValue}
         visible={iconPickerIsVisible}
         onDismiss={() => setIconPickerIsVisible(false)}
-        onSelect={(nextIcon) => {
-          onChangeIcon(nextIcon);
-          setIconPickerIsVisible(false);
-        }}
+        onSelect={onChangeIcon}
       />
     </>
   );
