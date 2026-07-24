@@ -4,15 +4,16 @@ import { Text, useTheme } from "react-native-paper";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { formatMessageTimestamp } from "@/features/messages/messageDates";
 import { Message } from "@/models/message";
-import { layout, spacing } from "@/theme/tokens";
+import { layout, shape, spacing } from "@/theme/tokens";
 
 interface MessageBubbleProps {
   messages: Message[];
   avatarUrl?: string;
+  onLongPress?: (message: Message) => void;
   onPressAuthor?: (message: Message) => void;
 }
 
-export function MessageBubble({ messages, avatarUrl, onPressAuthor }: MessageBubbleProps) {
+export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor }: MessageBubbleProps) {
   const theme = useTheme();
   const message = messages[0];
 
@@ -75,7 +76,19 @@ export function MessageBubble({ messages, avatarUrl, onPressAuthor }: MessageBub
             {formatMessageTimestamp(message.createdAt)}
           </Text>
         </View>
-        <Text variant="bodyLarge">{messages.map((currentMessage) => currentMessage.body).join("\n")}</Text>
+        <Pressable
+          onLongPress={() => onLongPress?.(message)}
+          delayLongPress={350}
+          accessibilityHint="Hold for message options"
+          style={({ hovered, pressed }) => [
+            styles.messageBody,
+            {
+              backgroundColor: hovered || pressed ? theme.colors.surfaceVariant : "transparent"
+            }
+          ]}
+        >
+          <Text variant="bodyLarge">{messages.map((currentMessage) => currentMessage.body).join("\n")}</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -104,6 +117,12 @@ const styles = StyleSheet.create({
   message: {
     flex: 1,
     gap: spacing.xxs,
+  },
+  messageBody: {
+    borderRadius: shape.compact,
+    marginHorizontal: -spacing.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs
   },
   metaRow: {
     flexDirection: "row",

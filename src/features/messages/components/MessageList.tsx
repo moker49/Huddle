@@ -3,6 +3,7 @@ import { FlatList, StyleSheet, View } from "react-native";
 import { Divider, Text, useTheme } from "react-native-paper";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
+import { MessageActionSheet } from "@/features/messages/components/MessageActionSheet";
 import { MessageBubble } from "@/features/messages/components/MessageBubble";
 import { formatMessageDay, getMessageDayKey } from "@/features/messages/messageDates";
 import { groupMessages } from "@/features/messages/messageGrouping";
@@ -35,6 +36,7 @@ export function MessageList({
   const listRef = useRef<FlatList<MessageRow>>(null);
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
   const [unreadMarkerIsPositioned, setUnreadMarkerIsPositioned] = useState(false);
+  const [contextMessage, setContextMessage] = useState<Message | null>(null);
   const rows = getMessageRows(messages);
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
@@ -87,7 +89,8 @@ export function MessageList({
   }
 
   return (
-    <FlatList
+    <>
+      <FlatList
       ref={listRef}
       data={rows}
       inverted
@@ -113,6 +116,7 @@ export function MessageList({
           <MessageBubble
             messages={item.messages ?? []}
             avatarUrl={item.messages?.[0] ? getAuthorAvatarUrl?.(item.messages[0]) : undefined}
+            onLongPress={setContextMessage}
             onPressAuthor={onPressAuthor}
           />
         )
@@ -137,8 +141,10 @@ export function MessageList({
         styles.list,
         unreadMarkerId && !unreadMarkerIsPositioned ? styles.hiddenList : undefined
       ]}
-      contentContainerStyle={styles.listContent}
-    />
+        contentContainerStyle={styles.listContent}
+      />
+      <MessageActionSheet message={contextMessage} onDismiss={() => setContextMessage(null)} />
+    </>
   );
 }
 
