@@ -511,6 +511,39 @@ test("leaving a huddle removes it from active visibility and records the activit
   assert.equal(leaveActivity?.body, "Member left: Efren");
 });
 
+test("an abandoned huddle can be rejoined and restores active visibility", async () => {
+  const storage = new MemoryJsonStorage();
+  const efrenSession = createServices(storage);
+
+  await efrenSession.users.updateIdentifiers({ tag: "efren", phoneNumber: "" });
+  await efrenSession.users.updateDisplayName("Efren");
+  await efrenSession.connections.addConnection("#27");
+  const topic = await efrenSession.topics.createTopic({
+    title: "Rejoin huddle",
+    memberIds: ["phone:#27"]
+  });
+
+  await efrenSession.topics.leaveTopic(topic.id);
+
+  assert.deepEqual(
+    (await efrenSession.topics.listAbandonedTopics()).map((abandonedTopic) => abandonedTopic.id),
+    [topic.id]
+  );
+
+  await efrenSession.topics.rejoinTopic(topic.id);
+
+  assert.deepEqual(
+    (await efrenSession.topics.listTopics()).map((activeTopic) => activeTopic.id),
+    [topic.id]
+  );
+  assert.deepEqual(await efrenSession.topics.listAbandonedTopics(), []);
+  const messages = await efrenSession.messages.listMessages(topic.id);
+  const rejoinActivity = messages.find((message) => message.activityType === "member_rejoined");
+
+  assert.equal(rejoinActivity?.kind, "system");
+  assert.equal(rejoinActivity?.body, "Member rejoined: Efren");
+});
+
 test("updating a huddle title records a title-updated activity", async () => {
   const storage = new MemoryJsonStorage();
   const efrenSession = createServices(storage);

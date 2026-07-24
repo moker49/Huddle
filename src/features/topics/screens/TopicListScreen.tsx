@@ -220,7 +220,7 @@ export function TopicListScreen() {
     });
   }
 
-  function closeSideMenu() {
+  function closeSideMenu(onClosed?: () => void) {
     Animated.timing(drawerAnimation, {
       toValue: 0,
       duration: 180,
@@ -229,6 +229,7 @@ export function TopicListScreen() {
     }).start(({ finished }) => {
       if (finished) {
         setDrawerIsMounted(false);
+        onClosed?.();
       }
     });
   }
@@ -495,7 +496,7 @@ export function TopicListScreen() {
               <Pressable
                 accessibilityLabel="Close menu"
                 accessibilityRole="button"
-                onPress={closeSideMenu}
+                onPress={() => closeSideMenu()}
                 style={styles.drawerScrimPressable}
               />
             </Animated.View>
@@ -521,6 +522,22 @@ export function TopicListScreen() {
               >
                 Huddle
               </Text>
+              <Pressable
+                onPress={() => closeSideMenu(() => router.push("/abandoned-huddles" as never))}
+                accessibilityLabel="View abandoned huddles"
+                accessibilityRole="button"
+                style={({ pressed }) => [
+                  styles.drawerItem,
+                  {
+                    backgroundColor: pressed ? theme.colors.surfaceVariant : "transparent"
+                  }
+                ]}
+              >
+                <Icon source="history" size={24} color={theme.colors.onSurfaceVariant} />
+                <Text variant="labelLarge" style={{ color: theme.colors.onSurface }}>
+                  Abandoned huddles
+                </Text>
+              </Pressable>
             </Animated.View>
           </View>
         ) : null}
@@ -758,5 +775,13 @@ const styles = StyleSheet.create({
   drawerTitle: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xs
+  },
+  drawerItem: {
+    minHeight: 56,
+    borderRadius: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md
   }
 });

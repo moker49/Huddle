@@ -142,7 +142,7 @@ create table if not exists public.huddle_messages (
   kind text not null check (kind in ('user', 'system')),
   activity_type text check (
     activity_type is null
-    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_removed', 'title_updated')
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_rejoined', 'member_removed', 'title_updated')
   ),
   author_id uuid references public.profiles(id) on delete set null,
   author_name text not null,
@@ -159,7 +159,7 @@ alter table public.huddle_messages
 alter table public.huddle_messages
   add constraint huddle_messages_activity_type_check check (
     activity_type is null
-    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_removed', 'title_updated')
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_rejoined', 'member_removed', 'title_updated')
   );
 
 create index if not exists huddle_messages_huddle_created_key
@@ -323,6 +323,65 @@ as $$
   where public.can_access_huddle(h.id)
   group by h.id, owner_profile.tag, owner_profile.phone_number;
 $$;
+
+drop function if exists public.list_abandoned_huddles();
+
+create function public.list_abandoned_huddles()
+returns table (
+  id uuid,
+  title text,
+  icon text,
+  owner_id uuid,
+  owner_tag text,
+  owner_phone_number text,
+  created_at timestamptz,
+  auto_archive_at timestamptz,
+  member_ids text[],
+  unread_count integer
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    h.id,
+    h.title,
+    h.icon,
+    h.owner_id,
+    owner_profile.tag,
+    owner_profile.phone_number,
+    h.created_at,
+    h.auto_archive_at,
+    coalesce(
+      array_agg(
+        coalesce(active_member.member_id::text, active_member.member_tag, active_member.member_phone_number)
+        order by active_member.created_at
+      ) filter (where active_member.id is not null),
+      '{}'::text[]
+    ),
+    0::integer
+  from public.huddles h
+  join public.profiles owner_profile on owner_profile.id = h.owner_id
+  join public.profiles current_profile on current_profile.id = auth.uid()
+  join public.huddle_members left_members on (
+    left_members.huddle_id = h.id
+    and left_members.status = 'left'
+    and (
+      left_members.member_id = current_profile.id
+      or (current_profile.tag <> '' and left_members.member_tag = current_profile.tag)
+      or (current_profile.phone_number <> '' and left_members.member_phone_number = current_profile.phone_number)
+    )
+  )
+  left join public.huddle_members active_member on (
+    active_member.huddle_id = h.id
+    and active_member.status = 'active'
+  )
+  where not public.can_access_huddle(h.id)
+  group by h.id, owner_profile.tag, owner_profile.phone_number;
+$$;
+
+grant execute on function public.list_abandoned_huddles() to authenticated;
 
 create or replace function public.sync_current_user_huddle_network()
 returns void
@@ -871,6 +930,72 @@ end;
 $$;
 
 grant execute on function public.leave_huddle(uuid) to authenticated;
+
+create or replace function public.rejoin_huddle(p_huddle_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_profile public.profiles;
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  select *
+  into current_profile
+  from public.profiles
+  where id = auth.uid();
+
+  if not found then
+    raise exception 'Your profile could not be found.';
+  end if;
+
+  update public.huddle_members membership
+  set status = 'active', left_at = null
+  where membership.huddle_id = p_huddle_id
+    and membership.status = 'left'
+    and (
+      membership.member_id = current_profile.id
+      or (current_profile.tag <> '' and membership.member_tag = current_profile.tag)
+      or (current_profile.phone_number <> '' and membership.member_phone_number = current_profile.phone_number)
+    );
+
+  if not found then
+    raise exception 'Your abandoned huddle membership could not be found.';
+  end if;
+
+  perform public.sync_current_user_huddle_network();
+
+  insert into public.huddle_messages (
+    huddle_id,
+    body,
+    kind,
+    activity_type,
+    author_id,
+    author_name
+  )
+  values (
+    p_huddle_id,
+    format(
+      'Member rejoined: %s',
+      public.get_huddle_member_display_name(
+        auth.uid(),
+        current_profile.tag,
+        current_profile.phone_number
+      )
+    ),
+    'system',
+    'member_rejoined',
+    auth.uid(),
+    'System'
+  );
+end;
+$$;
+
+grant execute on function public.rejoin_huddle(uuid) to authenticated;
 
 -- Adding return columns changes the function's PostgreSQL row type.
 drop function if exists public.create_huddle_message(uuid, text);

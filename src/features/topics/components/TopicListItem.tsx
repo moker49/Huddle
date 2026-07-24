@@ -12,6 +12,7 @@ interface TopicListItemProps {
   memberSummary?: string;
   mutedIcon?: boolean;
   position: TopicListItemPosition;
+  showUnreadCount?: boolean;
   onPress: () => void;
 }
 
@@ -23,6 +24,7 @@ export function TopicListItem({
   memberSummary,
   mutedIcon = false,
   position,
+  showUnreadCount = true,
   onPress
 }: TopicListItemProps) {
   const theme = useTheme();
@@ -62,7 +64,7 @@ export function TopicListItem({
           {memberSummary}
         </Text>
       </View>
-      {autoArchiveDate || topic.unreadCount ? (
+      {autoArchiveDate || (showUnreadCount && topic.unreadCount) ? (
         <View style={styles.trailing}>
           {autoArchiveDate ? (
             <Text
@@ -73,7 +75,7 @@ export function TopicListItem({
               {autoArchiveDate}
             </Text>
           ) : null}
-          {topic.unreadCount ? (
+          {showUnreadCount && topic.unreadCount ? (
             <Badge
               size={20}
               accessibilityLabel={`${topic.unreadCount} unread messages`}

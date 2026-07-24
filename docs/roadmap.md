@@ -37,6 +37,7 @@ Features should generally be implemented as complete vertical slices rather than
 - Member profile card from message authors, with shared-huddle navigation.
 - Optional Material icon selection for huddles, with title-initial fallback.
 - Leaving a huddle revokes access while retaining the membership lifecycle record.
+- Abandoned-huddle list and rejoin flow for retained left memberships.
 
 ## Current
 
@@ -60,7 +61,6 @@ Features should generally be implemented as complete vertical slices rather than
 - Host permissions.
 - Polls or voting.
 - Huddle continuation.
-- Personal past-huddles and rejoin flow for retained left memberships.
 - Profiles.
 - Attachments.
 

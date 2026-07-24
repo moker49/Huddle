@@ -19,10 +19,12 @@ import { createId } from "@/utils/createId";
 export interface TopicService {
   setAccountScope(accountId: string | null): void;
   listTopics(): Promise<Topic[]>;
+  listAbandonedTopics(): Promise<Topic[]>;
   getTopic(id: string): Promise<Topic | null>;
   createTopic(input: CreateTopicInput): Promise<Topic>;
   updateTopic(id: string, input: UpdateTopicInput): Promise<Topic>;
   leaveTopic(id: string): Promise<void>;
+  rejoinTopic(id: string): Promise<void>;
   deleteTopic(id: string): Promise<void>;
   markTopicRead(id: string): Promise<void>;
   subscribeToTopicChanges(onChange: () => void): Promise<() => void>;
@@ -32,6 +34,7 @@ export interface TopicService {
 const initialTopics: Topic[] = [];
 
 const topicStorageKey = "huddle:topics:v2";
+const abandonedTopicStorageKey = "huddle:abandoned-topics:v1";
 
 function isTopic(value: unknown): value is Topic {
   return (
@@ -57,6 +60,8 @@ function isTopic(value: unknown): value is Topic {
 export class LocalTopicService implements TopicService {
   private topics = [...initialTopics];
   private topicsPromise: Promise<Topic[]> | null = null;
+  private abandonedTopics: Topic[] = [];
+  private abandonedTopicsPromise: Promise<Topic[]> | null = null;
 
   constructor(
     private readonly storage: JsonStorage = localJsonStorage,
@@ -89,6 +94,11 @@ export class LocalTopicService implements TopicService {
     const topics = await this.listTopics();
 
     return topics.find((topic) => topic.id === id) ?? null;
+  }
+
+  async listAbandonedTopics(): Promise<Topic[]> {
+    return [...(await this.loadAbandonedTopics())]
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async createTopic(input: CreateTopicInput): Promise<Topic> {
@@ -191,7 +201,31 @@ export class LocalTopicService implements TopicService {
       activityType: "member_left"
     });
     this.topics = (await this.loadTopics()).filter((currentTopic) => currentTopic.id !== id);
+    this.abandonedTopics = [topic, ...(await this.loadAbandonedTopics())];
     await this.saveTopics();
+    await this.saveAbandonedTopics();
+  }
+
+  async rejoinTopic(id: string): Promise<void> {
+    const abandonedTopics = await this.loadAbandonedTopics();
+    const topic = abandonedTopics.find((currentTopic) => currentTopic.id === id);
+
+    if (!topic) {
+      throw new Error("Abandoned huddle could not be found.");
+    }
+
+    const localUser = await this.users.getUser();
+    const memberName = localUser.displayName || localUser.tag || localUser.phoneNumber || "Member";
+
+    this.abandonedTopics = abandonedTopics.filter((currentTopic) => currentTopic.id !== id);
+    this.topics = [topic, ...(await this.loadTopics()).filter((currentTopic) => currentTopic.id !== id)];
+    await this.saveAbandonedTopics();
+    await this.saveTopics();
+    await this.messages.createActivity({
+      topicId: id,
+      body: `Member rejoined: ${formatPublicIdentifier(memberName)}`,
+      activityType: "member_rejoined"
+    });
   }
 
   async markTopicRead(_id: string): Promise<void> {}
@@ -203,7 +237,10 @@ export class LocalTopicService implements TopicService {
   async resetLocalData(): Promise<void> {
     this.topics = [...initialTopics];
     this.topicsPromise = Promise.resolve(this.topics);
+    this.abandonedTopics = [];
+    this.abandonedTopicsPromise = Promise.resolve(this.abandonedTopics);
     await this.storage.remove(topicStorageKey);
+    await this.storage.remove(abandonedTopicStorageKey);
   }
 
   private async loadTopics(): Promise<Topic[]> {
@@ -223,6 +260,25 @@ export class LocalTopicService implements TopicService {
   private async saveTopics() {
     this.topicsPromise = Promise.resolve(this.topics);
     await this.storage.write(topicStorageKey, this.topics);
+  }
+
+  private async loadAbandonedTopics(): Promise<Topic[]> {
+    if (!this.abandonedTopicsPromise) {
+      this.abandonedTopicsPromise = this.storage.read<unknown>(abandonedTopicStorageKey).then((storedTopics) => {
+        if (Array.isArray(storedTopics) && storedTopics.every(isTopic)) {
+          this.abandonedTopics = storedTopics;
+        }
+
+        return this.abandonedTopics;
+      });
+    }
+
+    return this.abandonedTopicsPromise;
+  }
+
+  private async saveAbandonedTopics() {
+    this.abandonedTopicsPromise = Promise.resolve(this.abandonedTopics);
+    await this.storage.write(abandonedTopicStorageKey, this.abandonedTopics);
   }
 
   private async createUpdateActivities(
@@ -350,6 +406,20 @@ export class SupabaseTopicService implements TopicService {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  async listAbandonedTopics(): Promise<Topic[]> {
+    this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error } = await supabase.rpc("list_abandoned_huddles");
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as SupabaseHuddleRow[])
+      .map(mapSupabaseHuddle)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
   async getTopic(id: string): Promise<Topic | null> {
     const topics = await this.listTopics();
 
@@ -453,6 +523,16 @@ export class SupabaseTopicService implements TopicService {
     this.requireAccountScope();
     const { supabase } = await import("@/services/supabaseClient");
     const { error } = await supabase.rpc("leave_huddle", { p_huddle_id: id });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async rejoinTopic(id: string): Promise<void> {
+    this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const { error } = await supabase.rpc("rejoin_huddle", { p_huddle_id: id });
 
     if (error) {
       throw error;
