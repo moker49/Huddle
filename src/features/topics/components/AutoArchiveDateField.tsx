@@ -29,7 +29,7 @@ const weekdayAccessibilityLabels = [
   "Friday",
   "Saturday"
 ] as const;
-const fieldWidth = 168;
+const fieldWidth = 120;
 
 export function AutoArchiveDateField({
   error,
@@ -58,6 +58,11 @@ export function AutoArchiveDateField({
     closeDialog();
   }
 
+  function handleClear() {
+    onChange("");
+    closeDialog();
+  }
+
   function moveMonth(offset: number) {
     setDraftDate((currentDate) => (
       new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1)
@@ -77,32 +82,12 @@ export function AutoArchiveDateField({
           accessibilityLabel="Auto-archive date"
           style={styles.field}
           theme={themeOverride}
-          right={
-            value ? (
-              <TextInput.Icon
-                icon="close"
-                onPress={() => onChange("")}
-                accessibilityLabel="Clear auto-archive date"
-                forceTextInputFocus={false}
-              />
-            ) : (
-              <TextInput.Icon
-                icon="calendar"
-                onPress={openDialog}
-                accessibilityLabel="Choose auto-archive date"
-                forceTextInputFocus={false}
-              />
-            )
-          }
         />
         <Pressable
           onPress={openDialog}
           accessibilityRole="button"
           accessibilityLabel="Choose auto-archive date"
-          style={[
-            styles.fieldOverlay,
-            value ? styles.fieldOverlayWithClearButton : undefined
-          ]}
+          style={styles.fieldOverlay}
         />
       </View>
       <Portal>
@@ -182,6 +167,7 @@ export function AutoArchiveDateField({
             </View>
           </Dialog.Content>
           <Dialog.Actions>
+            <Button onPress={handleClear}>Clear</Button>
             <Button onPress={closeDialog}>Cancel</Button>
             <Button onPress={handleConfirm}>OK</Button>
           </Dialog.Actions>
@@ -301,9 +287,6 @@ const styles = StyleSheet.create({
     right: spacing.none,
     bottom: spacing.none,
     left: spacing.none
-  },
-  fieldOverlayWithClearButton: {
-    right: 48
   },
   dialog: {
     alignSelf: "center",
