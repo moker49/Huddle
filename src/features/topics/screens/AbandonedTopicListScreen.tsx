@@ -7,6 +7,7 @@ import { Screen } from "@/components/Screen";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { useTopics } from "@/features/topics/TopicProvider";
+import { getNextTopicArchiveTime, isTopicArchived } from "@/features/topics/topicArchive";
 import { useUser } from "@/features/users/UserProvider";
 import { getConnectionMemberAliases } from "@/models/connectionAliases";
 import { getConnectionDisplayName } from "@/models/connectionDisplay";
@@ -30,6 +31,7 @@ export function AbandonedTopicListScreen() {
   const [topicToRejoin, setTopicToRejoin] = useState<Topic | null>(null);
   const [isRejoining, setIsRejoining] = useState(false);
   const [rejoinError, setRejoinError] = useState("");
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
   const connectionNameById = useMemo(() => {
     return connections.reduce<Record<string, string>>((nameById, connection) => {
       getConnectionMemberAliases(connection).forEach((alias) => {
@@ -38,10 +40,34 @@ export function AbandonedTopicListScreen() {
       return nameById;
     }, {});
   }, [connections]);
+  const activeTopics = useMemo(
+    () => abandonedTopics.filter((topic) => !isTopicArchived(topic.autoArchiveAt, currentTime)),
+    [abandonedTopics, currentTime]
+  );
+  const archivedTopics = useMemo(
+    () => abandonedTopics.filter((topic) => isTopicArchived(topic.autoArchiveAt, currentTime)),
+    [abandonedTopics, currentTime]
+  );
+  const nextArchiveTime = useMemo(
+    () => getNextTopicArchiveTime(abandonedTopics, currentTime),
+    [abandonedTopics, currentTime]
+  );
 
   useEffect(() => {
     void reloadAbandonedTopics();
   }, [reloadAbandonedTopics]);
+
+  useEffect(() => {
+    if (!nextArchiveTime) {
+      return;
+    }
+
+    const maximumTimerDelay = 2_147_483_647;
+    const delay = Math.min(Math.max(0, nextArchiveTime - Date.now()), maximumTimerDelay);
+    const timer = setTimeout(() => setCurrentTime(Date.now()), delay);
+
+    return () => clearTimeout(timer);
+  }, [nextArchiveTime]);
 
   function getMemberSummary(memberIds: string[]) {
     const names = memberIds
@@ -101,12 +127,12 @@ export function AbandonedTopicListScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {abandonedTopics.map((topic, index) => (
+            {activeTopics.map((topic, index) => (
               <TopicListItem
                 key={topic.id}
                 topic={topic}
                 memberSummary={getMemberSummary(topic.memberIds)}
-                position={getTopicListItemPosition(index, abandonedTopics.length)}
+                position={getTopicListItemPosition(index, activeTopics.length)}
                 showUnreadCount={false}
                 onPress={() => {
                   setRejoinError("");
@@ -114,6 +140,32 @@ export function AbandonedTopicListScreen() {
                 }}
               />
             ))}
+            {archivedTopics.length > 0 ? (
+              <View style={styles.archivedSection}>
+                <Text
+                  variant="labelLarge"
+                  style={[styles.archivedHeader, { color: theme.colors.onSurfaceVariant }]}
+                >
+                  Archived
+                </Text>
+                <View style={styles.archivedList}>
+                  {archivedTopics.map((topic, index) => (
+                    <TopicListItem
+                      key={topic.id}
+                      topic={topic}
+                      memberSummary={getMemberSummary(topic.memberIds)}
+                      mutedIcon
+                      position={getTopicListItemPosition(index, archivedTopics.length)}
+                      showUnreadCount={false}
+                      onPress={() => {
+                        setRejoinError("");
+                        setTopicToRejoin(topic);
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </ScrollView>
         )}
       </Screen>
@@ -171,6 +223,15 @@ const styles = StyleSheet.create({
   },
   listScroller: {
     flex: 1
+  },
+  archivedSection: {
+    paddingTop: spacing.md
+  },
+  archivedHeader: {
+    paddingBottom: spacing.xs
+  },
+  archivedList: {
+    gap: spacing.xxs
   },
   dialogError: {
     marginTop: spacing.sm
