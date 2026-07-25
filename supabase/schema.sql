@@ -147,11 +147,17 @@ create table if not exists public.huddle_messages (
   author_id uuid references public.profiles(id) on delete set null,
   author_name text not null,
   created_at timestamptz not null default now(),
+  edited_at timestamptz,
+  deleted_at timestamptz,
   constraint huddle_messages_kind_matches_activity check (
     (kind = 'user' and activity_type is null)
     or (kind = 'system' and activity_type is not null)
   )
 );
+
+alter table public.huddle_messages
+  add column if not exists edited_at timestamptz,
+  add column if not exists deleted_at timestamptz;
 
 alter table public.huddle_messages
   drop constraint if exists huddle_messages_activity_type_check;
@@ -1013,7 +1019,9 @@ returns table (
   author_id uuid,
   author_name text,
   author_avatar_url text,
-  created_at timestamptz
+  created_at timestamptz,
+  edited_at timestamptz,
+  deleted_at timestamptz
 )
 language plpgsql
 security definer
@@ -1082,13 +1090,174 @@ begin
     message.author_id,
     message.author_name,
     current_profile.avatar_url,
-    message.created_at
+    message.created_at,
+    message.edited_at,
+    message.deleted_at
   from public.huddle_messages message
   where message.id = new_message_id;
 end;
 $$;
 
 grant execute on function public.create_huddle_message(uuid, text) to authenticated;
+
+drop function if exists public.update_huddle_message(uuid, text);
+
+create or replace function public.update_huddle_message(
+  p_message_id uuid,
+  p_body text
+)
+returns table (
+  id uuid,
+  huddle_id uuid,
+  body text,
+  kind text,
+  activity_type text,
+  author_id uuid,
+  author_name text,
+  author_avatar_url text,
+  created_at timestamptz,
+  edited_at timestamptz,
+  deleted_at timestamptz,
+  is_unread boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing_message public.huddle_messages;
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  if coalesce(trim(p_body), '') = '' then
+    raise exception 'Message is required.';
+  end if;
+
+  select *
+  into existing_message
+  from public.huddle_messages message
+  where message.id = p_message_id;
+
+  if not found or existing_message.kind <> 'user' then
+    raise exception 'Message could not be found.';
+  end if;
+
+  if existing_message.author_id is distinct from auth.uid() then
+    raise exception 'You can only update your own messages.';
+  end if;
+
+  if existing_message.deleted_at is not null then
+    raise exception 'Deleted messages cannot be edited.';
+  end if;
+
+  if not public.can_access_huddle(existing_message.huddle_id) then
+    raise exception 'You are not allowed to update this message.';
+  end if;
+
+  update public.huddle_messages message
+  set
+    body = trim(p_body),
+    edited_at = case
+      when date_trunc('minute', message.created_at) is distinct from date_trunc('minute', now())
+        then now()
+      else message.edited_at
+    end
+  where message.id = p_message_id;
+
+  return query
+  select
+    message.id,
+    message.huddle_id,
+    message.body,
+    message.kind,
+    message.activity_type,
+    message.author_id,
+    message.author_name,
+    nullif(author_profile.avatar_url, ''),
+    message.created_at,
+    message.edited_at,
+    message.deleted_at,
+    false
+  from public.huddle_messages message
+  left join public.profiles author_profile on author_profile.id = message.author_id
+  where message.id = p_message_id;
+end;
+$$;
+
+grant execute on function public.update_huddle_message(uuid, text) to authenticated;
+
+drop function if exists public.delete_huddle_message(uuid);
+
+create or replace function public.delete_huddle_message(p_message_id uuid)
+returns table (
+  id uuid,
+  huddle_id uuid,
+  body text,
+  kind text,
+  activity_type text,
+  author_id uuid,
+  author_name text,
+  author_avatar_url text,
+  created_at timestamptz,
+  edited_at timestamptz,
+  deleted_at timestamptz,
+  is_unread boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing_message public.huddle_messages;
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  select *
+  into existing_message
+  from public.huddle_messages message
+  where message.id = p_message_id;
+
+  if not found or existing_message.kind <> 'user' then
+    raise exception 'Message could not be found.';
+  end if;
+
+  if existing_message.author_id is distinct from auth.uid() then
+    raise exception 'You can only delete your own messages.';
+  end if;
+
+  if not public.can_access_huddle(existing_message.huddle_id) then
+    raise exception 'You are not allowed to delete this message.';
+  end if;
+
+  update public.huddle_messages message
+  set body = '[deleted]', edited_at = null, deleted_at = now()
+  where message.id = p_message_id;
+
+  return query
+  select
+    message.id,
+    message.huddle_id,
+    message.body,
+    message.kind,
+    message.activity_type,
+    message.author_id,
+    message.author_name,
+    nullif(author_profile.avatar_url, ''),
+    message.created_at,
+    message.edited_at,
+    message.deleted_at,
+    false
+  from public.huddle_messages message
+  left join public.profiles author_profile on author_profile.id = message.author_id
+  where message.id = p_message_id;
+end;
+$$;
+
+grant execute on function public.delete_huddle_message(uuid) to authenticated;
 
 -- Adding return columns changes the function's PostgreSQL row type.
 drop function if exists public.list_huddle_messages(uuid);
@@ -1104,6 +1273,8 @@ returns table (
   author_name text,
   author_avatar_url text,
   created_at timestamptz,
+  edited_at timestamptz,
+  deleted_at timestamptz,
   is_unread boolean
 )
 language plpgsql
@@ -1130,6 +1301,8 @@ begin
     message.author_name,
     nullif(author_profile.avatar_url, ''),
     message.created_at,
+    message.edited_at,
+    message.deleted_at,
     (
       message.created_at > coalesce(read_state.last_read_at, '-infinity'::timestamptz)
       and message.author_id is distinct from auth.uid()

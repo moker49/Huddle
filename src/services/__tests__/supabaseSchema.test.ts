@@ -59,6 +59,23 @@ test("cloud messages are member-scoped and activities are created with huddle ch
   assert.match(schema, /existing_huddle\.icon is distinct from nullif\(trim\(p_icon\), ''\)/i);
 });
 
+test("cloud messages support author-only edits and tombstone deletes", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+  const updateMessage = schema.match(/create or replace function public\.update_huddle_message\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const deleteMessage = schema.match(/create or replace function public\.delete_huddle_message\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const messageList = schema.match(/create or replace function public\.list_huddle_messages\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+
+  assert.match(schema, /add column if not exists edited_at timestamptz/i);
+  assert.match(schema, /add column if not exists deleted_at timestamptz/i);
+  assert.match(updateMessage, /existing_message\.author_id is distinct from auth\.uid\(\)/i);
+  assert.match(updateMessage, /date_trunc\('minute', message\.created_at\)/i);
+  assert.match(deleteMessage, /body = '\[deleted\]', edited_at = null, deleted_at = now\(\)/i);
+  assert.match(messageList, /message\.edited_at/i);
+  assert.match(messageList, /message\.deleted_at/i);
+  assert.match(schema, /grant execute on function public\.update_huddle_message\(uuid, text\) to authenticated/i);
+  assert.match(schema, /grant execute on function public\.delete_huddle_message\(uuid\) to authenticated/i);
+});
+
 test("cloud huddle membership retains leaves without retaining access", () => {
   const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
   const accessCheck = schema.match(/create or replace function public\.can_access_huddle\([\s\S]*?\n\$\$;/i)?.[0] ?? "";

@@ -44,7 +44,9 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     loadMessages,
     saveDraft,
     sendMessage,
-    subscribeToMessages
+    deleteMessage,
+    subscribeToMessages,
+    updateMessage
   } = useMessages();
   const { user } = useUser();
   const { session } = useAuth();
@@ -260,8 +262,11 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               messages={messages}
               hasLoaded={messagesHaveLoaded}
               errorMessage={messageError}
+              currentUserId={userId}
               getAuthorAvatarUrl={getAuthorAvatarUrl}
+              onDeleteMessage={deleteMessage}
               onPressAuthor={handlePressAuthor}
+              onUpdateMessage={updateMessage}
             />
           </View>
           {!hasDisplayName ? (

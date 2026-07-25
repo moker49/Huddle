@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
-import { Divider, Text, useTheme } from "react-native-paper";
+import { Button, Dialog, Divider, Portal, Text, TextInput, useTheme } from "react-native-paper";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
 import { MessageActionSheet } from "@/features/messages/components/MessageActionSheet";
@@ -14,7 +14,10 @@ interface MessageListProps {
   messages: Message[];
   hasLoaded: boolean;
   errorMessage: string | null;
+  currentUserId?: string;
   getAuthorAvatarUrl?: (message: Message) => string | undefined;
+  onDeleteMessage?: (messageId: string) => Promise<Message>;
+  onUpdateMessage?: (messageId: string, body: string) => Promise<Message>;
   onPressAuthor?: (message: Message) => void;
 }
 
@@ -29,7 +32,10 @@ export function MessageList({
   messages,
   hasLoaded,
   errorMessage,
+  currentUserId,
   getAuthorAvatarUrl,
+  onDeleteMessage,
+  onUpdateMessage,
   onPressAuthor
 }: MessageListProps) {
   const theme = useTheme();
@@ -37,6 +43,10 @@ export function MessageList({
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
   const [unreadMarkerIsPositioned, setUnreadMarkerIsPositioned] = useState(false);
   const [contextMessage, setContextMessage] = useState<Message | null>(null);
+  const [messageToEdit, setMessageToEdit] = useState<Message | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [editError, setEditError] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const rows = getMessageRows(messages);
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
@@ -65,6 +75,34 @@ export function MessageList({
       });
     });
   }, [hasLoaded, unreadMarkerId, unreadMarkerIndex]);
+
+  function openEdit(message: Message) {
+    setEditError("");
+    setEditBody(message.body);
+    setMessageToEdit(message);
+  }
+
+  async function handleSaveEdit() {
+    if (!messageToEdit || !onUpdateMessage || isSavingEdit) {
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditError("");
+
+    try {
+      await onUpdateMessage(messageToEdit.id, editBody);
+      setMessageToEdit(null);
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : "Message could not be updated.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
+  function handleDelete(message: Message) {
+    void onDeleteMessage?.(message.id);
+  }
 
   if (errorMessage) {
     return (
@@ -143,7 +181,52 @@ export function MessageList({
       ]}
         contentContainerStyle={styles.listContent}
       />
-      <MessageActionSheet message={contextMessage} onDismiss={() => setContextMessage(null)} />
+      <MessageActionSheet
+        currentUserId={currentUserId}
+        message={contextMessage}
+        onDelete={handleDelete}
+        onDismiss={() => setContextMessage(null)}
+        onEdit={openEdit}
+      />
+      <Portal>
+        <Dialog
+          visible={Boolean(messageToEdit)}
+          onDismiss={() => {
+            if (!isSavingEdit) {
+              setMessageToEdit(null);
+            }
+          }}
+        >
+          <Dialog.Title>Edit message</Dialog.Title>
+          <Dialog.Content>
+            <TextInput
+              mode="outlined"
+              value={editBody}
+              onChangeText={setEditBody}
+              autoFocus
+              multiline
+              label="Message"
+              error={Boolean(editError)}
+              accessibilityLabel="Edit message"
+              right={
+                editBody ? (
+                  <TextInput.Icon
+                    icon="close"
+                    onPress={() => setEditBody("")}
+                    accessibilityLabel="Clear message"
+                    forceTextInputFocus={false}
+                  />
+                ) : undefined
+              }
+            />
+            {editError ? <Text style={{ color: theme.colors.error }}>{editError}</Text> : null}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setMessageToEdit(null)} disabled={isSavingEdit}>Cancel</Button>
+            <Button onPress={handleSaveEdit} disabled={isSavingEdit}>Save</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </>
   );
 }

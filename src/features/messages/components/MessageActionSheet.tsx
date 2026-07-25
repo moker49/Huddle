@@ -6,17 +6,27 @@ import { Message } from "@/models/message";
 import { shape, spacing } from "@/theme/tokens";
 
 interface MessageActionSheetProps {
+  currentUserId?: string;
   message: Message | null;
+  onDelete: (message: Message) => void;
   onDismiss: () => void;
+  onEdit: (message: Message) => void;
 }
 
-const actions: readonly { icon: string; title: string; destructive?: boolean }[] = [
-  { icon: "reply", title: "Reply" },
-  { icon: "pencil", title: "Edit" },
-  { icon: "delete", title: "Delete", destructive: true }
-] as const;
+interface MessageAction {
+  icon: string;
+  title: string;
+  destructive?: boolean;
+  onPress?: (message: Message) => void;
+}
 
-export function MessageActionSheet({ message, onDismiss }: MessageActionSheetProps) {
+export function MessageActionSheet({
+  currentUserId,
+  message,
+  onDelete,
+  onDismiss,
+  onEdit
+}: MessageActionSheetProps) {
   const theme = useTheme();
   const [isMounted, setIsMounted] = useState(Boolean(message));
   const scrimOpacity = useRef(new Animated.Value(0)).current;
@@ -68,6 +78,16 @@ export function MessageActionSheet({ message, onDismiss }: MessageActionSheetPro
     return null;
   }
 
+  const canManageMessage = Boolean(
+    message && !message.isDeleted && message.authorId === currentUserId
+  );
+  const actions: readonly MessageAction[] = [
+    { icon: "reply", title: "Reply" },
+    ...(canManageMessage ? [{ icon: "pencil", title: "Edit", onPress: onEdit }] : []),
+    { icon: "pin", title: "Pin" },
+    ...(canManageMessage ? [{ icon: "delete", title: "Delete", destructive: true, onPress: onDelete }] : [])
+  ];
+
   return (
     <Modal
       transparent
@@ -104,7 +124,13 @@ export function MessageActionSheet({ message, onDismiss }: MessageActionSheetPro
                     />
                   )}
                   titleStyle={action.destructive ? { color: theme.colors.error } : undefined}
-                  onPress={onDismiss}
+                  onPress={() => {
+                    if (message && action.onPress) {
+                      action.onPress(message);
+                    }
+
+                    onDismiss();
+                  }}
                   style={[
                     styles.actionItem,
                     getActionItemCornerStyle(index, actions.length),

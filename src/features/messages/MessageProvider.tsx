@@ -17,6 +17,8 @@ interface MessageContextValue {
   loadMessages(topicId: string): Promise<boolean>;
   subscribeToMessages(topicId: string): Promise<() => void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
+  updateMessage(messageId: string, body: string): Promise<Message>;
+  deleteMessage(messageId: string): Promise<Message>;
   getDraft(topicId: string): string;
   loadDraft(topicId: string): Promise<void>;
   saveDraft(topicId: string, body: string): Promise<void>;
@@ -139,6 +141,38 @@ export function MessageProvider({ children, service = messageService }: MessageP
     [clearDraft, service]
   );
 
+  const updateMessage = useCallback(
+    async (messageId: string, body: string) => {
+      const message = await service.updateMessage(messageId, body);
+
+      setMessagesByTopicId((current) => ({
+        ...current,
+        [message.topicId]: (current[message.topicId] ?? []).map((currentMessage) => (
+          currentMessage.id === message.id ? message : currentMessage
+        ))
+      }));
+
+      return message;
+    },
+    [service]
+  );
+
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      const message = await service.deleteMessage(messageId);
+
+      setMessagesByTopicId((current) => ({
+        ...current,
+        [message.topicId]: (current[message.topicId] ?? []).map((currentMessage) => (
+          currentMessage.id === message.id ? message : currentMessage
+        ))
+      }));
+
+      return message;
+    },
+    [service]
+  );
+
   const subscribeToMessages = useCallback(
     async (topicId: string) => service.subscribeToMessages(topicId, () => {
       void loadMessages(topicId);
@@ -154,6 +188,8 @@ export function MessageProvider({ children, service = messageService }: MessageP
       loadMessages,
       subscribeToMessages,
       sendMessage,
+      updateMessage,
+      deleteMessage,
       getDraft(topicId) {
         return draftsByTopicId[topicId] ?? "";
       },
@@ -186,7 +222,9 @@ export function MessageProvider({ children, service = messageService }: MessageP
       messagesByTopicId,
       saveDraft,
       sendMessage,
-      subscribeToMessages
+      subscribeToMessages,
+      updateMessage,
+      deleteMessage
     ]
   );
 

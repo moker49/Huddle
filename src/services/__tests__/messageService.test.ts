@@ -171,6 +171,46 @@ test("cloud messages reject blank text and client-created activities", async () 
   );
 });
 
+test("local messages preserve edits outside their original minute and leave tombstones", async () => {
+  const storage = new MemoryJsonStorage();
+  const messages = new LocalMessageService(storage);
+
+  await storage.write("huddle:messages:v2", [
+    {
+      id: "message-1",
+      topicId: "topic-1",
+      body: "Original message",
+      kind: "user",
+      authorId: "author-1",
+      authorName: "Andre",
+      createdAt: "2026-07-21T12:00:00.000Z"
+    }
+  ]);
+  messages.setAccountScope("author-1");
+
+  const edited = await messages.updateMessage("message-1", "Updated message");
+  const deleted = await messages.deleteMessage("message-1");
+
+  assert.equal(edited.body, "Updated message");
+  assert.equal(typeof edited.editedAt, "string");
+  assert.equal(deleted.body, "[deleted]");
+  assert.equal(deleted.isDeleted, true);
+  assert.equal(deleted.editedAt, undefined);
+});
+
+test("cloud message mutations map edited and deleted state", async () => {
+  const repository = new MemorySupabaseMessageRepository();
+  const messages = new SupabaseMessageService(repository);
+
+  const edited = await messages.updateMessage("message-1", "Updated message");
+  const deleted = await messages.deleteMessage("message-1");
+
+  assert.equal(repository.updatedBodies[0], "Updated message");
+  assert.equal(edited.editedAt, "2026-07-21T12:05:00.000Z");
+  assert.equal(deleted.body, "[deleted]");
+  assert.equal(deleted.isDeleted, true);
+});
+
 test("local message subscriptions are safe no-ops", async () => {
   const messages = new LocalMessageService(new MemoryJsonStorage());
   const unsubscribe = await messages.subscribeToMessages("topic-1", () => {
@@ -182,6 +222,7 @@ test("local message subscriptions are safe no-ops", async () => {
 
 class MemorySupabaseMessageRepository implements SupabaseMessageRepository {
   readonly createdBodies: string[] = [];
+  readonly updatedBodies: string[] = [];
 
   constructor(private readonly rows: SupabaseMessageRow[] = []) {}
 
@@ -198,6 +239,24 @@ class MemorySupabaseMessageRepository implements SupabaseMessageRepository {
       body,
       author_id: "profile-1",
       author_name: "Server profile"
+    });
+  }
+
+  async updateMessage(messageId: string, body: string): Promise<SupabaseMessageRow> {
+    this.updatedBodies.push(body);
+
+    return messageRow({
+      id: messageId,
+      body,
+      edited_at: "2026-07-21T12:05:00.000Z"
+    });
+  }
+
+  async deleteMessage(messageId: string): Promise<SupabaseMessageRow> {
+    return messageRow({
+      id: messageId,
+      body: "[deleted]",
+      deleted_at: "2026-07-21T12:05:00.000Z"
     });
   }
 }

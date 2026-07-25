@@ -16,6 +16,8 @@ interface MessageBubbleProps {
 export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor }: MessageBubbleProps) {
   const theme = useTheme();
   const message = messages[0];
+  const isDeleted = Boolean(message.isDeleted);
+  const isEdited = Boolean(message.editedAt);
 
   if (message.kind === "system") {
     return (
@@ -75,14 +77,25 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
             {formatMessageTimestamp(message.createdAt)}
           </Text>
+          {isEdited ? (
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              Edited
+            </Text>
+          ) : null}
         </View>
         <TouchableRipple
+          disabled={isDeleted || !onLongPress}
           onLongPress={() => onLongPress?.(message)}
           delayLongPress={180}
           accessibilityHint="Hold for message options"
           style={styles.messageBody}
         >
-          <Text variant="bodyLarge">{messages.map((currentMessage) => currentMessage.body).join("\n")}</Text>
+          <Text
+            variant="bodyLarge"
+            style={isDeleted ? { color: theme.colors.onSurfaceVariant, fontStyle: "italic" } : undefined}
+          >
+            {messages.map((currentMessage) => currentMessage.body).join("\n")}
+          </Text>
         </TouchableRipple>
       </View>
     </View>

@@ -8,6 +8,8 @@ export interface Message {
   authorName: string;
   authorAvatarUrl?: string;
   createdAt: string;
+  editedAt?: string;
+  isDeleted?: boolean;
   isUnread?: boolean;
 }
 
