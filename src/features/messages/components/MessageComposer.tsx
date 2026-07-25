@@ -90,7 +90,7 @@ export const MessageComposer = memo(function MessageComposer({
         <View
           style={[
             styles.contextBar,
-            { backgroundColor: theme.colors.surfaceVariant }
+            { backgroundColor: theme.colors.surface }
           ]}
         >
           <IconButton
@@ -188,11 +188,15 @@ const styles = StyleSheet.create({
     minHeight: 40,
     flexDirection: "row",
     alignItems: "center",
-    borderRadius: spacing.sm,
-    paddingRight: spacing.md
+    marginHorizontal: -spacing.lg,
+    paddingRight: spacing.lg
   },
   contextDismissButton: {
-    margin: spacing.none
+    width: 40,
+    height: 40,
+    margin: spacing.none,
+    marginLeft: spacing.sm,
+    marginRight: spacing.xs
   },
   contextLabel: {
     flex: 1
