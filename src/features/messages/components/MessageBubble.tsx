@@ -60,22 +60,30 @@ export function MessageBubble({
 
   if (message.kind === "system") {
     return (
-      <View style={styles.systemRow}>
-        <Text
-          variant="labelSmall"
-          numberOfLines={2}
-          style={[styles.systemText, { color: theme.colors.outline }]}
-        >
-          {message.body}
-        </Text>
-        <Text
-          variant="labelSmall"
-          numberOfLines={1}
-          style={[styles.systemTime, { color: theme.colors.outline }]}
-        >
-          {formatMessageTimestamp(message.createdAt)}
-        </Text>
-      </View>
+      <TouchableRipple
+        disabled={!onLongPress}
+        onLongPress={() => onLongPress?.(message)}
+        delayLongPress={180}
+        accessibilityHint="Hold for message options"
+        style={styles.systemRow}
+      >
+        <View style={styles.systemRowContent}>
+          <Text
+            variant="labelSmall"
+            numberOfLines={2}
+            style={[styles.systemText, { color: theme.colors.outline }]}
+          >
+            {message.body}
+          </Text>
+          <Text
+            variant="labelSmall"
+            numberOfLines={1}
+            style={[styles.systemTime, { color: theme.colors.outline }]}
+          >
+            {formatMessageTimestamp(message.createdAt)}
+          </Text>
+        </View>
+      </TouchableRipple>
     );
   }
 
@@ -260,11 +268,15 @@ const styles = StyleSheet.create({
     minWidth: 0
   },
   systemRow: {
+    marginHorizontal: -spacing.xs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs
+  },
+  systemRowContent: {
     flexDirection: "row",
     alignItems: "baseline",
     justifyContent: "space-between",
-    gap: spacing.md,
-    paddingVertical: spacing.xxs
+    gap: spacing.md
   },
   systemText: {
     flex: 1,

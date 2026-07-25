@@ -354,7 +354,9 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               id: messageBeingRepliedTo.id,
               label: "Replying to ",
               mode: "reply",
-              detail: messageBeingRepliedTo.authorName,
+              detail: messageBeingRepliedTo.kind === "system"
+                ? messageBeingRepliedTo.body
+                : messageBeingRepliedTo.authorName,
               onDismiss: handleDismissReply
             } : undefined}
             disabled={!hasDisplayName || (!messageBeingEdited && !draftHasLoaded)}
