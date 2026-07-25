@@ -1,6 +1,6 @@
-import { memo, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
-import { IconButton, TextInput, useTheme } from "react-native-paper";
+import { IconButton, Text, TextInput, useTheme } from "react-native-paper";
 
 import { layout, spacing } from "@/theme/tokens";
 
@@ -9,6 +9,14 @@ interface MessageComposerProps {
   onChangeText: (body: string) => void;
   value: string;
   disabled?: boolean;
+  context?: ComposerContext;
+}
+
+interface ComposerContext {
+  id: string;
+  label: string;
+  errorMessage?: string;
+  onDismiss(): void;
 }
 
 interface FocusHandle {
@@ -34,7 +42,8 @@ export const MessageComposer = memo(function MessageComposer({
   onSend,
   onChangeText,
   value,
-  disabled = false
+  disabled = false,
+  context
 }: MessageComposerProps) {
   const theme = useTheme();
   const inputRef = useRef<FocusHandle | null>(null);
@@ -43,6 +52,15 @@ export const MessageComposer = memo(function MessageComposer({
   const inputHeight =
     layout.composerControlSize + (lineCount - 1) * composerLineHeight;
   const canSend = value.trim().length > 0 && !disabled;
+
+  useEffect(() => {
+    if (!context?.id) {
+      return;
+    }
+
+    const animationFrame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(animationFrame);
+  }, [context?.id]);
 
   async function handleSend() {
     if (!canSend || isSending) {
@@ -62,83 +80,127 @@ export const MessageComposer = memo(function MessageComposer({
   return (
     <View
       style={[
-        styles.container,
+        styles.root,
         {
           backgroundColor: theme.colors.background
         }
       ]}
     >
-      <View
-        style={[
-          styles.inputShell,
-          {
-            backgroundColor: theme.colors.surfaceVariant
-          }
-        ]}
-      >
+      {context ? (
+        <View
+          style={[
+            styles.contextBar,
+            { backgroundColor: theme.colors.surfaceVariant }
+          ]}
+        >
+          <IconButton
+            {...keepTextInputFocusedProps}
+            icon="close"
+            size={20}
+            onPress={context.onDismiss}
+            accessibilityLabel={`Stop ${context.label.toLowerCase()}`}
+            focusable={false}
+            iconColor={theme.colors.onSurfaceVariant}
+            style={styles.contextDismissButton}
+          />
+          <Text
+            variant="labelLarge"
+            numberOfLines={1}
+            style={[styles.contextLabel, { color: context.errorMessage ? theme.colors.error : theme.colors.onSurfaceVariant }]}
+          >
+            {context.errorMessage || context.label}
+          </Text>
+        </View>
+      ) : null}
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.inputShell,
+            {
+              backgroundColor: theme.colors.surfaceVariant
+            }
+          ]}
+        >
+          <IconButton
+            {...keepTextInputFocusedProps}
+            icon="plus"
+            size={24}
+            onPress={() => undefined}
+            accessibilityLabel="Attach file"
+            focusable={false}
+            iconColor={theme.colors.onSurfaceVariant}
+            style={styles.attachmentButton}
+          />
+          <TextInput
+            ref={(instance: FocusHandle | null) => {
+              inputRef.current = instance;
+            }}
+            mode="flat"
+            dense
+            placeholder={context ? "Edit message..." : "Message..."}
+            value={value}
+            onChangeText={onChangeText}
+            disabled={disabled}
+            multiline
+            blurOnSubmit={false}
+            accessibilityLabel={context ? "Edit message" : "Message"}
+            underlineColor="transparent"
+            activeUnderlineColor="transparent"
+            style={[styles.input, { height: inputHeight }]}
+            contentStyle={styles.inputContent}
+            right={
+              value ? (
+                <TextInput.Icon
+                  icon="close"
+                  onPress={() => onChangeText("")}
+                  accessibilityLabel="Clear message"
+                  forceTextInputFocus={false}
+                />
+              ) : undefined
+            }
+          />
+        </View>
         <IconButton
           {...keepTextInputFocusedProps}
-          icon="plus"
+          mode="contained"
+          icon="send"
           size={24}
-          onPress={() => undefined}
-          accessibilityLabel="Attach file"
+          disabled={!canSend}
+          onPress={handleSend}
+          accessibilityLabel={context ? "Save message changes" : "Send message"}
           focusable={false}
-          iconColor={theme.colors.onSurfaceVariant}
-          style={styles.attachmentButton}
-        />
-        <TextInput
-          ref={(instance: FocusHandle | null) => {
-            inputRef.current = instance;
-          }}
-          mode="flat"
-          dense
-          placeholder="Message..."
-          value={value}
-          onChangeText={onChangeText}
-          disabled={disabled}
-          multiline
-          blurOnSubmit={false}
-          accessibilityLabel="Message"
-          underlineColor="transparent"
-          activeUnderlineColor="transparent"
-          style={[styles.input, { height: inputHeight }]}
-          contentStyle={styles.inputContent}
-          right={
-            value ? (
-              <TextInput.Icon
-                icon="close"
-                onPress={() => onChangeText("")}
-                accessibilityLabel="Clear message"
-                forceTextInputFocus={false}
-              />
-            ) : undefined
-          }
+          containerColor={canSend ? theme.colors.primaryContainer : theme.colors.surfaceVariant}
+          iconColor={canSend ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant}
+          style={styles.sendButton}
         />
       </View>
-      <IconButton
-        {...keepTextInputFocusedProps}
-        mode="contained"
-        icon="send"
-        size={24}
-        disabled={!canSend}
-        onPress={handleSend}
-        accessibilityLabel="Send message"
-        focusable={false}
-        containerColor={canSend ? theme.colors.primaryContainer : theme.colors.surfaceVariant}
-        iconColor={canSend ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant}
-        style={styles.sendButton}
-      />
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    alignItems: "flex-end",
+  root: {
     gap: spacing.xs,
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm
+  },
+  contextBar: {
+    minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: spacing.sm,
+    paddingRight: spacing.md
+  },
+  contextDismissButton: {
+    margin: spacing.none
+  },
+  contextLabel: {
+    flex: 1
+  },
+  container: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: spacing.xs
   },
   inputShell: {
     flex: 1,

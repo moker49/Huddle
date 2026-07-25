@@ -62,6 +62,9 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const userDisplayName = user?.displayName;
   const userAvatarUrl = getGoogleAvatarUrl(session) || user?.avatarUrl;
   const [profileConnection, setProfileConnection] = useState<Connection | null>(null);
+  const [messageBeingEdited, setMessageBeingEdited] = useState<Message | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [editError, setEditError] = useState("");
   const connectionAvatarUrlByAlias = useMemo(() => {
     return connections.reduce<Record<string, string>>((avatarUrlByAlias, connection) => {
       if (!connection.avatarUrl) {
@@ -144,6 +147,33 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     },
     [sendMessage, topicId, userAvatarUrl, userDisplayName, userId]
   );
+
+  const handleRequestEdit = useCallback((message: Message) => {
+    setEditError("");
+    setEditBody(message.body);
+    setMessageBeingEdited(message);
+  }, []);
+
+  const handleDismissEdit = useCallback(() => {
+    setEditError("");
+    setEditBody("");
+    setMessageBeingEdited(null);
+  }, []);
+
+  const handleSaveEdit = useCallback(async (body: string) => {
+    if (!messageBeingEdited) {
+      return;
+    }
+
+    setEditError("");
+
+    try {
+      await updateMessage(messageBeingEdited.id, body);
+      handleDismissEdit();
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : "Message could not be updated.");
+    }
+  }, [handleDismissEdit, messageBeingEdited, updateMessage]);
 
   const handlePressAuthor = useCallback((message: Message) => {
     if (!message.authorId) {
@@ -266,7 +296,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               getAuthorAvatarUrl={getAuthorAvatarUrl}
               onDeleteMessage={deleteMessage}
               onPressAuthor={handlePressAuthor}
-              onUpdateMessage={updateMessage}
+              onRequestEdit={handleRequestEdit}
             />
           </View>
           {!hasDisplayName ? (
@@ -290,14 +320,26 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             </View>
           ) : null}
           <MessageComposer
-            disabled={!hasDisplayName || !draftHasLoaded}
+            context={
+              messageBeingEdited
+                ? {
+                    id: messageBeingEdited.id,
+                    label: "Editing message",
+                    errorMessage: editError || undefined,
+                    onDismiss: handleDismissEdit
+                  }
+                : undefined
+            }
+            disabled={!hasDisplayName || (!messageBeingEdited && !draftHasLoaded)}
             onChangeText={(body) => {
-              if (topicId) {
+              if (messageBeingEdited) {
+                setEditBody(body);
+              } else if (topicId) {
                 void saveDraft(topicId, body);
               }
             }}
-            onSend={handleSendMessage}
-            value={draft}
+            onSend={messageBeingEdited ? handleSaveEdit : handleSendMessage}
+            value={messageBeingEdited ? editBody : draft}
           />
         </KeyboardAvoidingView>
       </View>
