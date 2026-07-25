@@ -113,7 +113,7 @@ export function MessageList({
         item.type === "date-divider" ? (
           <View accessibilityRole="header" style={styles.dateDivider}>
             <Divider style={styles.dateDividerLine} />
-            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
               {item.label}
             </Text>
             <Divider style={styles.dateDividerLine} />
@@ -121,7 +121,7 @@ export function MessageList({
         ) : item.type === "unread-marker" ? (
           <View accessibilityLabel="Unread messages begin here" style={styles.unreadMarker}>
             <Divider style={styles.unreadDivider} />
-            <Text variant="labelMedium" style={{ color: theme.colors.primary }}>
+            <Text variant="labelSmall" style={{ color: theme.colors.primary }}>
               Unread
             </Text>
             <Divider style={styles.unreadDivider} />
@@ -214,12 +214,14 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end"
   },
   list: {
-    flex: 1
+    flex: 1,
+    marginHorizontal: -spacing.lg
   },
   hiddenList: {
     opacity: 0
   },
   listContent: {
+    paddingHorizontal: spacing.xs,
     paddingVertical: spacing.lg
   },
   separator: {

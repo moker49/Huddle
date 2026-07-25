@@ -6,6 +6,8 @@ import { formatMessageTimestamp } from "@/features/messages/messageDates";
 import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 
+const messageAvatarSize = layout.appBarActionSize;
+
 interface MessageBubbleProps {
   messages: Message[];
   avatarUrl?: string;
@@ -22,14 +24,14 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
     return (
       <View style={styles.systemRow}>
         <Text
-          variant="bodySmall"
+          variant="labelSmall"
           numberOfLines={2}
           style={[styles.systemText, { color: theme.colors.outline }]}
         >
           {message.body}
         </Text>
         <Text
-          variant="bodySmall"
+          variant="labelSmall"
           numberOfLines={1}
           style={[styles.systemTime, { color: theme.colors.outline }]}
         >
@@ -51,7 +53,7 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
         <MemberAvatar
           avatarUrl={avatarUrl ?? message.authorAvatarUrl}
           label={message.authorName}
-          size={layout.minTouchTarget}
+          size={messageAvatarSize}
         />
         <View
           style={[
@@ -82,20 +84,20 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
                     accessibilityLabel={`Open ${message.authorName}'s profile`}
                     accessibilityRole="button"
                   >
-                    <Text variant="titleSmall">{message.authorName}</Text>
+                    <Text variant="labelLarge">{message.authorName}</Text>
                   </Pressable>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                     {formatMessageTimestamp(message.createdAt)}
                   </Text>
                   {isEdited ? (
-                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       Edited
                     </Text>
                   ) : null}
                 </View>
               ) : null}
               <Text
-                variant="bodyLarge"
+                variant="bodyMedium"
                 style={
                   currentMessage.isDeleted
                     ? { color: theme.colors.onSurfaceVariant, fontStyle: "italic" }
@@ -116,21 +118,21 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: spacing.md
+    gap: spacing.sm
   },
   avatar: {
-    width: layout.minTouchTarget,
-    height: layout.minTouchTarget,
-    borderRadius: layout.minTouchTarget / 2,
+    width: messageAvatarSize,
+    height: messageAvatarSize,
+    borderRadius: messageAvatarSize / 2,
     zIndex: 1
   },
   presenceDot: {
     position: "absolute",
     right: spacing.none,
     bottom: spacing.none,
-    width: spacing.md,
-    height: spacing.md,
-    borderRadius: spacing.xs,
+    width: spacing.sm,
+    height: spacing.sm,
+    borderRadius: spacing.sm / 2,
     borderWidth: 2
   },
   message: {
@@ -138,10 +140,10 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
   },
   messageBody: {
-    marginLeft: -(layout.minTouchTarget + spacing.md + spacing.lg),
-    marginRight: -spacing.lg,
-    paddingLeft: layout.minTouchTarget + spacing.md + spacing.lg,
-    paddingRight: spacing.lg,
+    marginLeft: -(messageAvatarSize + spacing.sm + spacing.xs),
+    marginRight: -spacing.xs,
+    paddingLeft: messageAvatarSize + spacing.sm + spacing.xs,
+    paddingRight: spacing.xs,
     paddingVertical: spacing.xxs
   },
   messageBodyContent: {
