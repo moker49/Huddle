@@ -14,6 +14,7 @@ interface TopicListItemProps {
   position: TopicListItemPosition;
   showUnreadCount?: boolean;
   onPress: () => void;
+  onLongPress?: (topic: Topic) => void;
 }
 
 const outerCardRadius = shape.large;
@@ -25,7 +26,8 @@ export function TopicListItem({
   mutedIcon = false,
   position,
   showUnreadCount = true,
-  onPress
+  onPress,
+  onLongPress
 }: TopicListItemProps) {
   const theme = useTheme();
   const autoArchiveDate = formatAutoArchiveDate(topic.autoArchiveAt);
@@ -33,8 +35,11 @@ export function TopicListItem({
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress ? () => onLongPress(topic) : undefined}
+      delayLongPress={180}
       accessibilityLabel={`Open huddle ${topic.title}`}
       accessibilityRole="button"
+      accessibilityHint={onLongPress ? "Hold for huddle options" : undefined}
       style={({ pressed }) => [
         styles.card,
         getCardCornerStyle(position),

@@ -1,7 +1,8 @@
 import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  BackHandler,
   Easing,
   Platform,
   Pressable,
@@ -13,6 +14,8 @@ import {
 import {
   ActivityIndicator,
   Appbar,
+  Button,
+  Dialog,
   Icon,
   IconButton,
   Portal,
@@ -24,6 +27,7 @@ import { Screen } from "@/components/Screen";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { MemberRail } from "@/features/connections/components/MemberRail";
 import { useConnections } from "@/features/connections/ConnectionProvider";
+import { TopicActionSheet } from "@/features/topics/components/TopicActionSheet";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { getNextTopicArchiveTime, isTopicArchived } from "@/features/topics/topicArchive";
 import { useTopics } from "@/features/topics/TopicProvider";
@@ -31,6 +35,7 @@ import { useUser } from "@/features/users/UserProvider";
 import { Connection } from "@/models/connection";
 import { getConnectionMemberAliases } from "@/models/connectionAliases";
 import { connectionMatchesText, getConnectionDisplayName } from "@/models/connectionDisplay";
+import { Topic } from "@/models/topic";
 import { layout, shape, spacing } from "@/theme/tokens";
 
 type TopicListItemPosition = "single" | "first" | "middle" | "last";
@@ -58,7 +63,7 @@ const drawerWidth = 304;
 
 export function TopicListScreen() {
   const theme = useTheme();
-  const { errorMessage, isLoading, lastCreatedTopicId, topics } = useTopics();
+  const { errorMessage, isLoading, lastCreatedTopicId, leaveTopic, topics } = useTopics();
   const {
     connections,
     errorMessage: connectionErrorMessage,
@@ -67,10 +72,16 @@ export function TopicListScreen() {
   const { user } = useUser();
   const searchInputRef = useRef<FocusHandle | null>(null);
   const observedCreatedTopicIdRef = useRef(lastCreatedTopicId);
+  const leaveDialogHistoryEntryIsActiveRef = useRef(false);
+  const leaveDialogScrollRestorationRef = useRef<History["scrollRestoration"] | null>(null);
   const drawerAnimation = useRef(new Animated.Value(0)).current;
   const [query, setQuery] = useState("");
   const [selectedConnectionIds, setSelectedConnectionIds] = useState<string[]>([]);
   const [drawerIsMounted, setDrawerIsMounted] = useState(false);
+  const [topicForActions, setTopicForActions] = useState<Topic | null>(null);
+  const [topicToLeave, setTopicToLeave] = useState<Topic | null>(null);
+  const [leaveError, setLeaveError] = useState("");
+  const [isLeaving, setIsLeaving] = useState(false);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const trimmedQuery = query.trim();
   const normalizedQuery = trimmedQuery.toLocaleLowerCase();
@@ -172,6 +183,52 @@ export function TopicListScreen() {
     return () => clearTimeout(timer);
   }, [nextArchiveTime]);
 
+  const dismissLeaveDialog = useCallback(() => {
+    if (Platform.OS === "web" && leaveDialogHistoryEntryIsActiveRef.current) {
+      leaveDialogHistoryEntryIsActiveRef.current = false;
+      window.history.back();
+    }
+
+    setLeaveError("");
+    setTopicToLeave(null);
+  }, []);
+
+  useEffect(() => {
+    if (!topicToLeave) {
+      return;
+    }
+
+    if (Platform.OS === "web") {
+      const handlePopState = () => {
+        leaveDialogHistoryEntryIsActiveRef.current = false;
+        setLeaveError("");
+        setTopicToLeave(null);
+      };
+
+      leaveDialogScrollRestorationRef.current = window.history.scrollRestoration;
+      window.history.scrollRestoration = "manual";
+      window.history.pushState({ leaveHuddleDialog: true }, "");
+      leaveDialogHistoryEntryIsActiveRef.current = true;
+      window.addEventListener("popstate", handlePopState);
+
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+
+        if (leaveDialogScrollRestorationRef.current) {
+          window.history.scrollRestoration = leaveDialogScrollRestorationRef.current;
+          leaveDialogScrollRestorationRef.current = null;
+        }
+      };
+    }
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      dismissLeaveDialog();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [dismissLeaveDialog, topicToLeave]);
+
   function handleClearQuery() {
     setQuery("");
   }
@@ -197,6 +254,33 @@ export function TopicListScreen() {
   function handleChangeQuery(nextQuery: string) {
     setQuery(nextQuery);
   }
+
+  const handleDismissTopicActions = useCallback(() => {
+    setTopicForActions(null);
+  }, []);
+
+  const handleRequestLeave = useCallback((topic: Topic) => {
+    setLeaveError("");
+    setTopicToLeave(topic);
+  }, []);
+
+  const handleConfirmLeave = useCallback(async () => {
+    if (!topicToLeave || isLeaving) {
+      return;
+    }
+
+    setIsLeaving(true);
+    setLeaveError("");
+
+    try {
+      await leaveTopic(topicToLeave.id);
+      dismissLeaveDialog();
+    } catch (error) {
+      setLeaveError(error instanceof Error ? error.message : "Huddle could not be left.");
+    } finally {
+      setIsLeaving(false);
+    }
+  }, [dismissLeaveDialog, isLeaving, leaveTopic, topicToLeave]);
 
   function openCreateScreen() {
     router.push({
@@ -353,6 +437,7 @@ export function TopicListScreen() {
                   memberSummary={getMemberSummary(topic.memberIds)}
                   position={getTopicListItemPosition(index, activeListItemCount)}
                   onPress={() => router.push(`/topics/${topic.id}`)}
+                  onLongPress={setTopicForActions}
                 />
               </View>
             ))}
@@ -425,6 +510,7 @@ export function TopicListScreen() {
                         mutedIcon
                         position={getTopicListItemPosition(index, archivedTopics.length)}
                         onPress={() => router.push(`/topics/${topic.id}`)}
+                        onLongPress={setTopicForActions}
                       />
                     </View>
                   ))}
@@ -541,7 +627,38 @@ export function TopicListScreen() {
             </Animated.View>
           </View>
         ) : null}
+        <Dialog
+          visible={Boolean(topicToLeave)}
+          onDismiss={() => {
+            if (!isLeaving) {
+              dismissLeaveDialog();
+            }
+          }}
+        >
+          <Dialog.Title>Leave huddle?</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">
+              You will lose access to this huddle and its message history.
+            </Text>
+            {leaveError ? (
+              <Text variant="bodySmall" style={{ color: theme.colors.error }}>
+                {leaveError}
+              </Text>
+            ) : null}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={dismissLeaveDialog} disabled={isLeaving}>Cancel</Button>
+            <Button onPress={handleConfirmLeave} loading={isLeaving} disabled={isLeaving}>
+              Leave
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
       </Portal>
+      <TopicActionSheet
+        topic={topicForActions}
+        onDismiss={handleDismissTopicActions}
+        onLeave={handleRequestLeave}
+      />
     </Screen>
   );
 }

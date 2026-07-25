@@ -44,7 +44,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
     errorMessage: connectionErrorMessage,
     isLoading: connectionsAreLoading
   } = useConnections();
-  const { deleteTopic, getTopic, isLoading, leaveTopic, updateTopic } = useTopics();
+  const { deleteTopic, getTopic, isLoading, updateTopic } = useTopics();
   const topic = topicId ? getTopic(topicId) : undefined;
   const [title, setTitle] = useState("");
   const [icon, setIcon] = useState<string | undefined>();
@@ -54,11 +54,9 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isLeaving, setIsLeaving] = useState(false);
   const [fabIsExtended, setFabIsExtended] = useState(true);
   const [discardDialogIsVisible, setDiscardDialogIsVisible] = useState(false);
   const [deleteDialogIsVisible, setDeleteDialogIsVisible] = useState(false);
-  const [leaveDialogIsVisible, setLeaveDialogIsVisible] = useState(false);
   const [memberHistoryDialogIsVisible, setMemberHistoryDialogIsVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const initializedTopicIdRef = useRef<string | null>(null);
@@ -211,25 +209,6 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
     }
   }
 
-  async function handleLeave() {
-    if (!topic) {
-      return;
-    }
-
-    setIsLeaving(true);
-    setErrorMessage("");
-
-    try {
-      await leaveTopic(topic.id);
-      router.replace("/");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Huddle could not be left.");
-    } finally {
-      setIsLeaving(false);
-      setLeaveDialogIsVisible(false);
-    }
-  }
-
   if (isLoading) {
     return (
       <Screen title="Huddle settings" onBack={() => goBackOrReplace("/")}>
@@ -268,16 +247,9 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
       action={
         <View style={styles.appBarActions}>
           <Appbar.Action
-            icon="exit-to-app"
-            onPress={() => setLeaveDialogIsVisible(true)}
-            disabled={isSaving || isDeleting || isLeaving}
-            accessibilityLabel="Leave huddle"
-            iconColor={theme.colors.error}
-          />
-          <Appbar.Action
             icon="delete"
             onPress={() => setDeleteDialogIsVisible(true)}
-            disabled={isSaving || isDeleting || isLeaving}
+            disabled={isSaving || isDeleting}
             accessibilityLabel="Delete huddle"
             iconColor={theme.colors.error}
           />
@@ -362,23 +334,6 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
             <Button onPress={() => setDeleteDialogIsVisible(false)}>Cancel</Button>
             <Button onPress={handleDelete} loading={isDeleting} disabled={isDeleting}>
               Delete
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-        <Dialog
-          visible={leaveDialogIsVisible}
-          onDismiss={() => setLeaveDialogIsVisible(false)}
-        >
-          <Dialog.Title>Leave huddle?</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              You will lose access to this huddle and its message history.
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setLeaveDialogIsVisible(false)}>Cancel</Button>
-            <Button onPress={handleLeave} loading={isLeaving} disabled={isLeaving}>
-              Leave
             </Button>
           </Dialog.Actions>
         </Dialog>
