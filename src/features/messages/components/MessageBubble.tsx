@@ -64,25 +64,7 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
         />
       </Pressable>
       <View style={styles.message}>
-        <View style={styles.metaRow}>
-          <Pressable
-            onPress={() => onPressAuthor?.(message)}
-            disabled={!onPressAuthor}
-            accessibilityLabel={`Open ${message.authorName}'s profile`}
-            accessibilityRole="button"
-          >
-            <Text variant="titleSmall">{message.authorName}</Text>
-          </Pressable>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-            {formatMessageTimestamp(message.createdAt)}
-          </Text>
-          {isEdited ? (
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              Edited
-            </Text>
-          ) : null}
-        </View>
-        {messages.map((currentMessage) => (
+        {messages.map((currentMessage, index) => (
           <TouchableRipple
             key={currentMessage.id}
             disabled={currentMessage.isDeleted || !onLongPress}
@@ -91,16 +73,38 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
             accessibilityHint="Hold for message options"
             style={styles.messageBody}
           >
-            <Text
-              variant="bodyLarge"
-              style={
-                currentMessage.isDeleted
-                  ? { color: theme.colors.onSurfaceVariant, fontStyle: "italic" }
-                  : undefined
-              }
-            >
-              {currentMessage.body}
-            </Text>
+            <View style={styles.messageBodyContent}>
+              {index === 0 ? (
+                <View style={styles.metaRow}>
+                  <Pressable
+                    onPress={() => onPressAuthor?.(message)}
+                    disabled={!onPressAuthor}
+                    accessibilityLabel={`Open ${message.authorName}'s profile`}
+                    accessibilityRole="button"
+                  >
+                    <Text variant="titleSmall">{message.authorName}</Text>
+                  </Pressable>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {formatMessageTimestamp(message.createdAt)}
+                  </Text>
+                  {isEdited ? (
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      Edited
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+              <Text
+                variant="bodyLarge"
+                style={
+                  currentMessage.isDeleted
+                    ? { color: theme.colors.onSurfaceVariant, fontStyle: "italic" }
+                    : undefined
+                }
+              >
+                {currentMessage.body}
+              </Text>
+            </View>
           </TouchableRipple>
         ))}
       </View>
@@ -117,7 +121,8 @@ const styles = StyleSheet.create({
   avatar: {
     width: layout.minTouchTarget,
     height: layout.minTouchTarget,
-    borderRadius: layout.minTouchTarget / 2
+    borderRadius: layout.minTouchTarget / 2,
+    zIndex: 1
   },
   presenceDot: {
     position: "absolute",
@@ -138,6 +143,9 @@ const styles = StyleSheet.create({
     paddingLeft: layout.minTouchTarget + spacing.md + spacing.lg,
     paddingRight: spacing.lg,
     paddingVertical: spacing.xxs
+  },
+  messageBodyContent: {
+    gap: spacing.xxs
   },
   metaRow: {
     flexDirection: "row",
