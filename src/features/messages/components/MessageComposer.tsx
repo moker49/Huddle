@@ -32,10 +32,10 @@ const composerLineHeight = 22;
 const keepTextInputFocusedProps =
   Platform.OS === "web"
     ? {
-        onMouseDown: (event: PreventableEvent) => event.preventDefault(),
-        onPointerDown: (event: PreventableEvent) => event.preventDefault(),
-        onTouchStart: (event: PreventableEvent) => event.preventDefault()
-      }
+      onMouseDown: (event: PreventableEvent) => event.preventDefault(),
+      onPointerDown: (event: PreventableEvent) => event.preventDefault(),
+      onTouchStart: (event: PreventableEvent) => event.preventDefault()
+    }
     : undefined;
 
 export const MessageComposer = memo(function MessageComposer({
@@ -90,7 +90,7 @@ export const MessageComposer = memo(function MessageComposer({
         <View
           style={[
             styles.contextBar,
-            { backgroundColor: theme.colors.surface }
+            { backgroundColor: theme.colors.elevation.level1 }
           ]}
         >
           <IconButton
