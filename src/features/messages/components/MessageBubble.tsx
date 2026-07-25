@@ -4,7 +4,7 @@ import { Text, TouchableRipple, useTheme } from "react-native-paper";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { formatMessageTimestamp } from "@/features/messages/messageDates";
 import { Message } from "@/models/message";
-import { layout, shape, spacing } from "@/theme/tokens";
+import { layout, spacing } from "@/theme/tokens";
 
 interface MessageBubbleProps {
   messages: Message[];
@@ -16,7 +16,6 @@ interface MessageBubbleProps {
 export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor }: MessageBubbleProps) {
   const theme = useTheme();
   const message = messages[0];
-  const isDeleted = Boolean(message.isDeleted);
   const isEdited = Boolean(message.editedAt);
 
   if (message.kind === "system") {
@@ -83,20 +82,27 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
             </Text>
           ) : null}
         </View>
-        <TouchableRipple
-          disabled={isDeleted || !onLongPress}
-          onLongPress={() => onLongPress?.(message)}
-          delayLongPress={180}
-          accessibilityHint="Hold for message options"
-          style={styles.messageBody}
-        >
-          <Text
-            variant="bodyLarge"
-            style={isDeleted ? { color: theme.colors.onSurfaceVariant, fontStyle: "italic" } : undefined}
+        {messages.map((currentMessage) => (
+          <TouchableRipple
+            key={currentMessage.id}
+            disabled={currentMessage.isDeleted || !onLongPress}
+            onLongPress={() => onLongPress?.(currentMessage)}
+            delayLongPress={180}
+            accessibilityHint="Hold for message options"
+            style={styles.messageBody}
           >
-            {messages.map((currentMessage) => currentMessage.body).join("\n")}
-          </Text>
-        </TouchableRipple>
+            <Text
+              variant="bodyLarge"
+              style={
+                currentMessage.isDeleted
+                  ? { color: theme.colors.onSurfaceVariant, fontStyle: "italic" }
+                  : undefined
+              }
+            >
+              {currentMessage.body}
+            </Text>
+          </TouchableRipple>
+        ))}
       </View>
     </View>
   );
@@ -127,9 +133,10 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
   },
   messageBody: {
-    borderRadius: shape.compact,
-    marginHorizontal: -spacing.xs,
-    paddingHorizontal: spacing.xs,
+    marginLeft: -(layout.minTouchTarget + spacing.md + spacing.lg),
+    marginRight: -spacing.lg,
+    paddingLeft: layout.minTouchTarget + spacing.md + spacing.lg,
+    paddingRight: spacing.lg,
     paddingVertical: spacing.xxs
   },
   metaRow: {
