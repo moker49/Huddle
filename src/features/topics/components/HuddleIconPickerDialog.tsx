@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Button, Dialog, Icon, IconButton, Portal, Text, useTheme } from "react-native-paper";
 
-import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
+import { HuddleIcon, resolveFilledIcon } from "@/features/topics/components/HuddleIcon";
 import { materialCommunityIconSearchTerms } from "@/features/topics/data/materialCommunityIconSearchTerms";
 import { shape, spacing } from "@/theme/tokens";
 import { preserveFocusOnPressStart } from "@/utils/preserveFocusOnPressStart";
@@ -24,7 +24,9 @@ interface HuddleIconPickerDialogProps {
   visible: boolean;
 }
 
-const availableIcons = Object.keys(MaterialCommunityIcons.glyphMap).sort();
+const availableIcons = Object.keys(MaterialCommunityIcons.glyphMap)
+  .filter((icon) => !icon.endsWith("-outline"))
+  .sort();
 const iconOptionMaxWidth = 56;
 const iconOptionGap = spacing.xxs;
 const webInputFocusReset = Platform.OS === "web"
@@ -122,7 +124,7 @@ export function HuddleIconPickerDialog({
               columnWrapperStyle={columnCount > 1 ? styles.iconRow : undefined}
               style={[styles.iconList, { maxHeight: iconListMaxHeight }]}
               renderItem={({ item }) => {
-                const isSelected = item === selectedIcon;
+                const isSelected = item === (selectedIcon ? resolveFilledIcon(selectedIcon) : undefined);
 
                 return (
                   <Pressable
@@ -168,7 +170,7 @@ export function HuddleIconPickerDialog({
           </Button>
           <Button
             onPress={() => {
-              onSelect(selectedIcon);
+              onSelect(selectedIcon ? resolveFilledIcon(selectedIcon) : undefined);
               dismiss();
             }}
           >

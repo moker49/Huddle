@@ -11,9 +11,9 @@ interface MessageActionSheetProps {
 }
 
 const actions: readonly { icon: string; title: string; destructive?: boolean }[] = [
-  { icon: "reply-outline", title: "Reply" },
-  { icon: "pencil-outline", title: "Edit" },
-  { icon: "delete-outline", title: "Delete", destructive: true }
+  { icon: "reply", title: "Reply" },
+  { icon: "pencil", title: "Edit" },
+  { icon: "delete", title: "Delete", destructive: true }
 ] as const;
 
 export function MessageActionSheet({ message, onDismiss }: MessageActionSheetProps) {

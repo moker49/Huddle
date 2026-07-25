@@ -66,6 +66,8 @@ Use adaptive layout choices where Material guidance differs by window size. Do n
 
 ## Component Usage
 
+Use filled Material Community icons for app actions and states. Do not introduce outline variants when a filled counterpart exists; select the closest filled semantic alternative when it does not.
+
 Prefer React Native Paper components such as:
 
 - `Appbar`

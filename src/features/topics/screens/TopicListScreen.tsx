@@ -454,7 +454,7 @@ export function TopicListScreen() {
                 ]}
               >
                 <Icon
-                  source="account-plus-outline"
+                  source="account-plus"
                   size={24}
                   color={theme.colors.onSurfaceVariant}
                 />

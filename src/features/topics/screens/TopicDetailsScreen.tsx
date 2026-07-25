@@ -243,7 +243,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
         }
         action={
           <Appbar.Action
-            icon="cog-outline"
+            icon="cog"
             onPress={() => router.push(`/topics/${topic.id}/settings`)}
             accessibilityLabel="Open huddle settings"
           />

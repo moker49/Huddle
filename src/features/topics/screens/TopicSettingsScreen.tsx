@@ -275,7 +275,7 @@ export function TopicSettingsScreen({ topicId }: TopicSettingsScreenProps) {
             iconColor={theme.colors.error}
           />
           <Appbar.Action
-            icon="delete-outline"
+            icon="delete"
             onPress={() => setDeleteDialogIsVisible(true)}
             disabled={isSaving || isDeleting || isLeaving}
             accessibilityLabel="Delete huddle"

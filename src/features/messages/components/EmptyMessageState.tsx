@@ -8,7 +8,7 @@ export function EmptyMessageState() {
 
   return (
     <View style={styles.container} accessibilityRole="summary">
-      <Icon source="message-outline" size={40} color={theme.colors.onSurfaceVariant} />
+      <Icon source="message" size={40} color={theme.colors.onSurfaceVariant} />
       <Text variant="titleMedium" style={styles.title}>
         No messages yet
       </Text>
