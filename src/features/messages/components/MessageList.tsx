@@ -116,7 +116,9 @@ export function MessageList({
     }
 
     listRef.current?.scrollToIndex({ index: rowIndex, viewPosition: 0.5, animated: false });
-    requestAnimationFrame(() => highlightMessage(messageId));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => highlightMessage(messageId));
+    });
   }
 
   useEffect(() => () => {

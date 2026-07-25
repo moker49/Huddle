@@ -68,6 +68,18 @@ export function MessageBubble({
         style={styles.systemRow}
       >
         <View style={styles.systemRowContent}>
+          {message.id === highlightedMessageId ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.systemHighlight,
+                {
+                  backgroundColor: theme.colors.primary,
+                  opacity: highlightOpacity
+                }
+              ]}
+            />
+          ) : null}
           <Text
             variant="labelSmall"
             numberOfLines={2}
@@ -114,6 +126,7 @@ export function MessageBubble({
       <View style={styles.message}>
         {messages.map((currentMessage, index) => {
           const replyTarget = getReplyToMessage?.(currentMessage);
+          const replyIsActivity = replyTarget?.kind === "system";
 
           return (
             <TouchableRipple
@@ -159,14 +172,14 @@ export function MessageBubble({
               ) : null}
               {currentMessage.replyToMessageId ? (
                 <Pressable
-                  onPress={() => onPressReply?.(currentMessage.replyToMessageId as string)}
+                  onPress={() => onPressReply?.(currentMessage.replyToMessageId ?? "")}
                   disabled={!onPressReply}
                   accessibilityLabel="Open replied message"
                   accessibilityRole="button"
                   style={styles.replyPreview}
                 >
                   <View style={[styles.replyIndicator, { backgroundColor: theme.colors.outline }]} />
-                  {replyTarget ? (
+                  {replyTarget && !replyIsActivity ? (
                     <MemberAvatar
                       avatarUrl={getAuthorAvatarUrl?.(replyTarget)}
                       label={replyTarget.authorName}
@@ -174,9 +187,11 @@ export function MessageBubble({
                     />
                   ) : null}
                   <View style={styles.replyCopy}>
-                    <Text variant="labelSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
-                      {replyTarget?.authorName ?? "Original message"}
-                    </Text>
+                    {!replyIsActivity ? (
+                      <Text variant="labelSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
+                        {replyTarget?.authorName ?? "Original message"}
+                      </Text>
+                    ) : null}
                     <Text variant="labelSmall" numberOfLines={1} style={{ color: theme.colors.outline }}>
                       {replyTarget?.body ?? "Message unavailable"}
                     </Text>
@@ -273,10 +288,18 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxs
   },
   systemRowContent: {
+    position: "relative",
     flexDirection: "row",
     alignItems: "baseline",
     justifyContent: "space-between",
     gap: spacing.md
+  },
+  systemHighlight: {
+    position: "absolute",
+    top: -spacing.xxs,
+    right: -spacing.xs,
+    bottom: -spacing.xxs,
+    left: -spacing.xs
   },
   systemText: {
     flex: 1,
