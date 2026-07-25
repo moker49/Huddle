@@ -147,6 +147,7 @@ create table if not exists public.huddle_messages (
   author_id uuid references public.profiles(id) on delete set null,
   author_name text not null,
   created_at timestamptz not null default now(),
+  reply_to_message_id uuid references public.huddle_messages(id) on delete set null,
   edited_at timestamptz,
   deleted_at timestamptz,
   constraint huddle_messages_kind_matches_activity check (
@@ -157,7 +158,8 @@ create table if not exists public.huddle_messages (
 
 alter table public.huddle_messages
   add column if not exists edited_at timestamptz,
-  add column if not exists deleted_at timestamptz;
+  add column if not exists deleted_at timestamptz,
+  add column if not exists reply_to_message_id uuid references public.huddle_messages(id) on delete set null;
 
 alter table public.huddle_messages
   drop constraint if exists huddle_messages_activity_type_check;
@@ -1005,10 +1007,12 @@ grant execute on function public.rejoin_huddle(uuid) to authenticated;
 
 -- Adding return columns changes the function's PostgreSQL row type.
 drop function if exists public.create_huddle_message(uuid, text);
+drop function if exists public.create_huddle_message(uuid, text, uuid);
 
 create or replace function public.create_huddle_message(
   p_huddle_id uuid,
-  p_body text
+  p_body text,
+  p_reply_to_message_id uuid default null
 )
 returns table (
   id uuid,
@@ -1020,6 +1024,7 @@ returns table (
   author_name text,
   author_avatar_url text,
   created_at timestamptz,
+  reply_to_message_id uuid,
   edited_at timestamptz,
   deleted_at timestamptz
 )
@@ -1029,6 +1034,7 @@ set search_path = public
 as $$
 declare
   current_profile public.profiles;
+  reply_target public.huddle_messages;
   new_message_id uuid;
 begin
   if auth.uid() is null then
@@ -1041,6 +1047,17 @@ begin
 
   if coalesce(trim(p_body), '') = '' then
     raise exception 'Message is required.';
+  end if;
+
+  if p_reply_to_message_id is not null then
+    select *
+    into reply_target
+    from public.huddle_messages message
+    where message.id = p_reply_to_message_id;
+
+    if not found or reply_target.huddle_id <> p_huddle_id then
+      raise exception 'Reply target could not be found.';
+    end if;
   end if;
 
   select *
@@ -1065,7 +1082,8 @@ begin
     body,
     kind,
     author_id,
-    author_name
+    author_name,
+    reply_to_message_id
   )
   values (
     p_huddle_id,
@@ -1076,7 +1094,8 @@ begin
       nullif(current_profile.display_name, ''),
       nullif(current_profile.tag, ''),
       current_profile.phone_number
-    )
+    ),
+    p_reply_to_message_id
   )
   returning message.id into new_message_id;
 
@@ -1091,6 +1110,7 @@ begin
     message.author_name,
     current_profile.avatar_url,
     message.created_at,
+    message.reply_to_message_id,
     message.edited_at,
     message.deleted_at
   from public.huddle_messages message
@@ -1098,7 +1118,7 @@ begin
 end;
 $$;
 
-grant execute on function public.create_huddle_message(uuid, text) to authenticated;
+grant execute on function public.create_huddle_message(uuid, text, uuid) to authenticated;
 
 drop function if exists public.update_huddle_message(uuid, text);
 
@@ -1116,6 +1136,7 @@ returns table (
   author_name text,
   author_avatar_url text,
   created_at timestamptz,
+  reply_to_message_id uuid,
   edited_at timestamptz,
   deleted_at timestamptz,
   is_unread boolean
@@ -1177,6 +1198,7 @@ begin
     message.author_name,
     nullif(author_profile.avatar_url, ''),
     message.created_at,
+    message.reply_to_message_id,
     message.edited_at,
     message.deleted_at,
     false
@@ -1201,6 +1223,7 @@ returns table (
   author_name text,
   author_avatar_url text,
   created_at timestamptz,
+  reply_to_message_id uuid,
   edited_at timestamptz,
   deleted_at timestamptz,
   is_unread boolean
@@ -1248,6 +1271,7 @@ begin
     message.author_name,
     nullif(author_profile.avatar_url, ''),
     message.created_at,
+    message.reply_to_message_id,
     message.edited_at,
     message.deleted_at,
     false
@@ -1273,6 +1297,7 @@ returns table (
   author_name text,
   author_avatar_url text,
   created_at timestamptz,
+  reply_to_message_id uuid,
   edited_at timestamptz,
   deleted_at timestamptz,
   is_unread boolean
@@ -1301,6 +1326,7 @@ begin
     message.author_name,
     nullif(author_profile.avatar_url, ''),
     message.created_at,
+    message.reply_to_message_id,
     message.edited_at,
     message.deleted_at,
     (

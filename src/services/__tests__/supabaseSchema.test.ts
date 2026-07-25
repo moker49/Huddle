@@ -76,6 +76,20 @@ test("cloud messages support author-only edits and tombstone deletes", () => {
   assert.match(schema, /grant execute on function public\.delete_huddle_message\(uuid\) to authenticated/i);
 });
 
+test("cloud messages persist replies within the same huddle", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+  const createMessage = schema.match(/create or replace function public\.create_huddle_message\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const messageList = schema.match(/create or replace function public\.list_huddle_messages\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+
+  assert.match(schema, /add column if not exists reply_to_message_id uuid references public\.huddle_messages/i);
+  assert.match(createMessage, /p_reply_to_message_id uuid default null/i);
+  assert.match(createMessage, /reply_target\.huddle_id <> p_huddle_id/i);
+  assert.match(createMessage, /reply_to_message_id/i);
+  assert.match(messageList, /reply_to_message_id uuid/i);
+  assert.match(messageList, /message\.reply_to_message_id/i);
+  assert.match(schema, /grant execute on function public\.create_huddle_message\(uuid, text, uuid\) to authenticated/i);
+});
+
 test("cloud huddle membership retains leaves without retaining access", () => {
   const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
   const accessCheck = schema.match(/create or replace function public\.can_access_huddle\([\s\S]*?\n\$\$;/i)?.[0] ?? "";

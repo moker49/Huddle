@@ -11,6 +11,7 @@ interface MessageActionSheetProps {
   onDelete: (message: Message) => void;
   onDismiss: () => void;
   onEdit: (message: Message) => void;
+  onReply: (message: Message) => void;
 }
 
 interface MessageAction {
@@ -25,7 +26,8 @@ export function MessageActionSheet({
   message,
   onDelete,
   onDismiss,
-  onEdit
+  onEdit,
+  onReply
 }: MessageActionSheetProps) {
   const theme = useTheme();
   const [isMounted, setIsMounted] = useState(Boolean(message));
@@ -139,7 +141,7 @@ export function MessageActionSheet({
     activeMessage && !activeMessage.isDeleted && activeMessage.authorId === currentUserId
   );
   const actions: readonly MessageAction[] = [
-    { icon: "reply", title: "Reply" },
+    { icon: "reply", title: "Reply", onPress: onReply },
     ...(canManageMessage ? [{ icon: "pencil", title: "Edit", onPress: onEdit }] : []),
     { icon: "pin", title: "Pin" },
     ...(canManageMessage ? [{ icon: "delete", title: "Delete", destructive: true, onPress: onDelete }] : [])

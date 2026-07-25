@@ -75,6 +75,35 @@ test("messages from one huddle do not appear in another huddle", async () => {
   assert.deepEqual(topicTwoMessages.map((message) => message.body), ["topic two"]);
 });
 
+test("replies retain their source message and reject sources from another huddle", async () => {
+  const messages = new LocalMessageService(new MemoryJsonStorage());
+  const source = await messages.createMessage({
+    topicId: "topic-1",
+    body: "Original message",
+    authorId: "user-1",
+    authorName: "Efren"
+  });
+  const reply = await messages.createMessage({
+    topicId: "topic-1",
+    body: "Reply message",
+    authorId: "user-2",
+    authorName: "Jay",
+    replyToMessageId: source.id
+  });
+
+  assert.equal(reply.replyToMessageId, source.id);
+  await assert.rejects(
+    messages.createMessage({
+      topicId: "topic-2",
+      body: "Wrong huddle",
+      authorId: "user-2",
+      authorName: "Jay",
+      replyToMessageId: source.id
+    }),
+    /Reply target could not be found/
+  );
+});
+
 test("message drafts are isolated by huddle and authenticated account", async () => {
   const messages = new LocalMessageService(new MemoryJsonStorage());
 
@@ -150,10 +179,12 @@ test("cloud message creation trims text and uses the backend-resolved author", a
     topicId: "topic-1",
     body: "  Ready when you are.  ",
     authorId: "untrusted-client-author",
-    authorName: "Untrusted client name"
+    authorName: "Untrusted client name",
+    replyToMessageId: "source-message"
   });
 
   assert.equal(repository.createdBodies[0], "Ready when you are.");
+  assert.equal(repository.createdReplyTargets[0], "source-message");
   assert.equal(created.authorId, "profile-1");
   assert.equal(created.authorName, "Server profile");
 });
@@ -222,6 +253,7 @@ test("local message subscriptions are safe no-ops", async () => {
 
 class MemorySupabaseMessageRepository implements SupabaseMessageRepository {
   readonly createdBodies: string[] = [];
+  readonly createdReplyTargets: (string | undefined)[] = [];
   readonly updatedBodies: string[] = [];
 
   constructor(private readonly rows: SupabaseMessageRow[] = []) {}
@@ -230,13 +262,19 @@ class MemorySupabaseMessageRepository implements SupabaseMessageRepository {
     return this.rows;
   }
 
-  async createMessage(topicId: string, body: string): Promise<SupabaseMessageRow> {
+  async createMessage(
+    topicId: string,
+    body: string,
+    replyToMessageId?: string
+  ): Promise<SupabaseMessageRow> {
     this.createdBodies.push(body);
+    this.createdReplyTargets.push(replyToMessageId);
 
     return messageRow({
       id: "created-message",
       huddle_id: topicId,
       body,
+      reply_to_message_id: replyToMessageId ?? null,
       author_id: "profile-1",
       author_name: "Server profile"
     });

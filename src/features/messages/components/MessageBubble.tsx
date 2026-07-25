@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { Text, TouchableRipple, useTheme } from "react-native-paper";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -11,14 +12,51 @@ const messageAvatarSize = layout.appBarActionSize;
 interface MessageBubbleProps {
   messages: Message[];
   avatarUrl?: string;
+  getAuthorAvatarUrl?: (message: Message) => string | undefined;
+  getReplyToMessage?: (message: Message) => Message | undefined;
+  highlightedMessageId?: string | null;
   onLongPress?: (message: Message) => void;
   onPressAuthor?: (message: Message) => void;
+  onPressReply?: (messageId: string) => void;
 }
 
-export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor }: MessageBubbleProps) {
+export function MessageBubble({
+  messages,
+  avatarUrl,
+  getAuthorAvatarUrl,
+  getReplyToMessage,
+  highlightedMessageId,
+  onLongPress,
+  onPressAuthor,
+  onPressReply
+}: MessageBubbleProps) {
   const theme = useTheme();
   const message = messages[0];
   const isEdited = Boolean(message.editedAt);
+  const highlightOpacity = useRef(new Animated.Value(0)).current;
+  const highlightedMessageIsInGroup = messages.some((currentMessage) => (
+    currentMessage.id === highlightedMessageId
+  ));
+
+  useEffect(() => {
+    if (!highlightedMessageIsInGroup) {
+      return;
+    }
+
+    highlightOpacity.setValue(0);
+    Animated.sequence([
+      Animated.timing(highlightOpacity, {
+        toValue: 0.2,
+        duration: 120,
+        useNativeDriver: true
+      }),
+      Animated.timing(highlightOpacity, {
+        toValue: 0,
+        duration: 520,
+        useNativeDriver: true
+      })
+    ]).start();
+  }, [highlightOpacity, highlightedMessageId, highlightedMessageIsInGroup]);
 
   if (message.kind === "system") {
     return (
@@ -66,8 +104,11 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
         />
       </Pressable>
       <View style={styles.message}>
-        {messages.map((currentMessage, index) => (
-          <TouchableRipple
+        {messages.map((currentMessage, index) => {
+          const replyTarget = getReplyToMessage?.(currentMessage);
+
+          return (
+            <TouchableRipple
             key={currentMessage.id}
             disabled={currentMessage.isDeleted || !onLongPress}
             onLongPress={() => onLongPress?.(currentMessage)}
@@ -76,6 +117,18 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
             style={styles.messageBody}
           >
             <View style={styles.messageBodyContent}>
+              {currentMessage.id === highlightedMessageId ? (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.messageHighlight,
+                    {
+                      backgroundColor: theme.colors.primary,
+                      opacity: highlightOpacity
+                    }
+                  ]}
+                />
+              ) : null}
               {index === 0 ? (
                 <View style={styles.metaRow}>
                   <Pressable
@@ -96,6 +149,32 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
                   ) : null}
                 </View>
               ) : null}
+              {currentMessage.replyToMessageId ? (
+                <Pressable
+                  onPress={() => onPressReply?.(currentMessage.replyToMessageId as string)}
+                  disabled={!onPressReply}
+                  accessibilityLabel="Open replied message"
+                  accessibilityRole="button"
+                  style={styles.replyPreview}
+                >
+                  <View style={[styles.replyIndicator, { backgroundColor: theme.colors.outline }]} />
+                  {replyTarget ? (
+                    <MemberAvatar
+                      avatarUrl={getAuthorAvatarUrl?.(replyTarget)}
+                      label={replyTarget.authorName}
+                      size={20}
+                    />
+                  ) : null}
+                  <View style={styles.replyCopy}>
+                    <Text variant="labelSmall" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
+                      {replyTarget?.authorName ?? "Original message"}
+                    </Text>
+                    <Text variant="labelSmall" numberOfLines={1} style={{ color: theme.colors.outline }}>
+                      {replyTarget?.body ?? "Message unavailable"}
+                    </Text>
+                  </View>
+                </Pressable>
+              ) : null}
               <Text
                 variant="bodyMedium"
                 style={
@@ -107,8 +186,9 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
                 {currentMessage.body}
               </Text>
             </View>
-          </TouchableRipple>
-        ))}
+            </TouchableRipple>
+          );
+        })}
       </View>
     </View>
   );
@@ -147,13 +227,37 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxs
   },
   messageBodyContent: {
+    position: "relative",
     gap: spacing.xxs
+  },
+  messageHighlight: {
+    position: "absolute",
+    top: -spacing.xxs,
+    right: -spacing.xs,
+    bottom: -spacing.xxs,
+    left: -(messageAvatarSize + spacing.sm + spacing.xs)
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "baseline",
     gap: spacing.xs,
     flexWrap: "wrap"
+  },
+  replyPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    minWidth: 0,
+    paddingVertical: spacing.xxs
+  },
+  replyIndicator: {
+    width: spacing.xxs,
+    alignSelf: "stretch",
+    borderRadius: spacing.xxs
+  },
+  replyCopy: {
+    flex: 1,
+    minWidth: 0
   },
   systemRow: {
     flexDirection: "row",

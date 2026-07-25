@@ -8,6 +8,7 @@ export interface Message {
   authorName: string;
   authorAvatarUrl?: string;
   createdAt: string;
+  replyToMessageId?: string;
   editedAt?: string;
   isDeleted?: boolean;
   isUnread?: boolean;
@@ -19,4 +20,5 @@ export interface CreateMessageInput {
   authorId: string;
   authorName: string;
   authorAvatarUrl?: string;
+  replyToMessageId?: string;
 }

@@ -15,6 +15,8 @@ interface MessageComposerProps {
 interface ComposerContext {
   id: string;
   label: string;
+  detail?: string;
+  mode: "edit" | "reply";
   errorMessage?: string;
   onDismiss(): void;
 }
@@ -110,6 +112,15 @@ export const MessageComposer = memo(function MessageComposer({
           >
             {context.errorMessage || context.label}
           </Text>
+          {context.detail && !context.errorMessage ? (
+            <Text
+              variant="bodySmall"
+              numberOfLines={1}
+              style={[styles.contextDetail, { color: theme.colors.onSurfaceVariant }]}
+            >
+              {context.detail}
+            </Text>
+          ) : null}
         </View>
       ) : null}
       <View style={styles.container}>
@@ -137,13 +148,13 @@ export const MessageComposer = memo(function MessageComposer({
             }}
             mode="flat"
             dense
-            placeholder={context ? "Edit message..." : "Message..."}
+            placeholder={context?.mode === "edit" ? "Edit message..." : "Message..."}
             value={value}
             onChangeText={onChangeText}
             disabled={disabled}
             multiline
             blurOnSubmit={false}
-            accessibilityLabel={context ? "Edit message" : "Message"}
+            accessibilityLabel={context?.mode === "edit" ? "Edit message" : "Message"}
             underlineColor="transparent"
             activeUnderlineColor="transparent"
             style={[styles.input, { height: inputHeight }]}
@@ -199,6 +210,9 @@ const styles = StyleSheet.create({
     marginRight: spacing.xs
   },
   contextLabel: {
+    flexShrink: 0
+  },
+  contextDetail: {
     flex: 1
   },
   container: {

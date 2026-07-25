@@ -63,6 +63,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const userAvatarUrl = getGoogleAvatarUrl(session) || user?.avatarUrl;
   const [profileConnection, setProfileConnection] = useState<Connection | null>(null);
   const [messageBeingEdited, setMessageBeingEdited] = useState<Message | null>(null);
+  const [messageBeingRepliedTo, setMessageBeingRepliedTo] = useState<Message | null>(null);
   const [editBody, setEditBody] = useState("");
   const [editError, setEditError] = useState("");
   const connectionAvatarUrlByAlias = useMemo(() => {
@@ -132,7 +133,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   }, [subscribeToMessages, topicId, topicIsAvailable]);
 
   const handleSendMessage = useCallback(
-    async (body: string) => {
+    async (body: string, replyToMessageId?: string) => {
       if (!topicId || !userId || !userDisplayName) {
         return;
       }
@@ -142,7 +143,8 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
         body,
         authorId: userId,
         authorName: userDisplayName,
-        authorAvatarUrl: userAvatarUrl
+        authorAvatarUrl: userAvatarUrl,
+        replyToMessageId
       });
     },
     [sendMessage, topicId, userAvatarUrl, userDisplayName, userId]
@@ -150,14 +152,26 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
 
   const handleRequestEdit = useCallback((message: Message) => {
     setEditError("");
+    setMessageBeingRepliedTo(null);
     setEditBody(message.body);
     setMessageBeingEdited(message);
+  }, []);
+
+  const handleRequestReply = useCallback((message: Message) => {
+    setEditError("");
+    setMessageBeingEdited(null);
+    setEditBody("");
+    setMessageBeingRepliedTo(message);
   }, []);
 
   const handleDismissEdit = useCallback(() => {
     setEditError("");
     setEditBody("");
     setMessageBeingEdited(null);
+  }, []);
+
+  const handleDismissReply = useCallback(() => {
+    setMessageBeingRepliedTo(null);
   }, []);
 
   const handleSaveEdit = useCallback(async (body: string) => {
@@ -174,6 +188,15 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       setEditError(error instanceof Error ? error.message : "Message could not be updated.");
     }
   }, [handleDismissEdit, messageBeingEdited, updateMessage]);
+
+  const handleSendReply = useCallback(async (body: string) => {
+    if (!messageBeingRepliedTo) {
+      return;
+    }
+
+    await handleSendMessage(body, messageBeingRepliedTo.id);
+    handleDismissReply();
+  }, [handleDismissReply, handleSendMessage, messageBeingRepliedTo]);
 
   const handlePressAuthor = useCallback((message: Message) => {
     if (!message.authorId) {
@@ -297,6 +320,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               onDeleteMessage={deleteMessage}
               onPressAuthor={handlePressAuthor}
               onRequestEdit={handleRequestEdit}
+              onRequestReply={handleRequestReply}
             />
           </View>
           {!hasDisplayName ? (
@@ -320,16 +344,19 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             </View>
           ) : null}
           <MessageComposer
-            context={
-              messageBeingEdited
-                ? {
-                    id: messageBeingEdited.id,
-                    label: "Editing message",
-                    errorMessage: editError || undefined,
-                    onDismiss: handleDismissEdit
-                  }
-                : undefined
-            }
+            context={messageBeingEdited ? {
+              id: messageBeingEdited.id,
+              label: "Editing message",
+              mode: "edit",
+              errorMessage: editError || undefined,
+              onDismiss: handleDismissEdit
+            } : messageBeingRepliedTo ? {
+              id: messageBeingRepliedTo.id,
+              label: "Replying",
+              mode: "reply",
+              detail: `${messageBeingRepliedTo.authorName}: ${messageBeingRepliedTo.body}`,
+              onDismiss: handleDismissReply
+            } : undefined}
             disabled={!hasDisplayName || (!messageBeingEdited && !draftHasLoaded)}
             onChangeText={(body) => {
               if (messageBeingEdited) {
@@ -338,7 +365,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
                 void saveDraft(topicId, body);
               }
             }}
-            onSend={messageBeingEdited ? handleSaveEdit : handleSendMessage}
+            onSend={messageBeingEdited ? handleSaveEdit : messageBeingRepliedTo ? handleSendReply : handleSendMessage}
             value={messageBeingEdited ? editBody : draft}
           />
         </KeyboardAvoidingView>

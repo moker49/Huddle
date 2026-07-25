@@ -32,6 +32,7 @@ export interface SupabaseMessageRow {
   author_name: string;
   author_avatar_url?: string | null;
   created_at: string;
+  reply_to_message_id?: string | null;
   edited_at?: string | null;
   deleted_at?: string | null;
   is_unread: boolean;
@@ -39,7 +40,7 @@ export interface SupabaseMessageRow {
 
 export interface SupabaseMessageRepository {
   listMessages(topicId: string): Promise<SupabaseMessageRow[]>;
-  createMessage(topicId: string, body: string): Promise<SupabaseMessageRow>;
+  createMessage(topicId: string, body: string, replyToMessageId?: string): Promise<SupabaseMessageRow>;
   updateMessage(messageId: string, body: string): Promise<SupabaseMessageRow>;
   deleteMessage(messageId: string): Promise<SupabaseMessageRow>;
 }
@@ -145,6 +146,7 @@ function isMessage(value: unknown): value is Message {
     typeof value.authorName === "string" &&
     typeof value.createdAt === "string"
     && (!("editedAt" in value) || typeof value.editedAt === "string")
+    && (!("replyToMessageId" in value) || typeof value.replyToMessageId === "string")
     && (!("isDeleted" in value) || typeof value.isDeleted === "boolean")
   );
 }
@@ -178,6 +180,16 @@ export class LocalMessageService implements MessageService {
       throw new Error("Message is required.");
     }
 
+    if (input.replyToMessageId) {
+      const replyTarget = (await this.loadMessages()).find(
+        (message) => message.id === input.replyToMessageId
+      );
+
+      if (!replyTarget || replyTarget.topicId !== input.topicId) {
+        throw new Error("Reply target could not be found.");
+      }
+    }
+
     const message: Message = {
       id: createId(),
       topicId: input.topicId,
@@ -186,7 +198,8 @@ export class LocalMessageService implements MessageService {
       authorId: input.authorId,
       authorName: input.authorName,
       authorAvatarUrl: input.authorAvatarUrl,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      replyToMessageId: input.replyToMessageId
     };
 
     await this.appendMessage(message);
@@ -333,11 +346,16 @@ class SupabaseMessageRepositoryClient implements SupabaseMessageRepository {
     return (data ?? []) as SupabaseMessageRow[];
   }
 
-  async createMessage(topicId: string, body: string): Promise<SupabaseMessageRow> {
+  async createMessage(
+    topicId: string,
+    body: string,
+    replyToMessageId?: string
+  ): Promise<SupabaseMessageRow> {
     const { supabase } = await import("@/services/supabaseClient");
     const { data, error } = await supabase.rpc("create_huddle_message", {
       p_huddle_id: topicId,
-      p_body: body
+      p_body: body,
+      p_reply_to_message_id: replyToMessageId ?? null
     });
     const message = Array.isArray(data) ? data[0] : null;
 
@@ -401,7 +419,11 @@ export class SupabaseMessageService implements MessageService {
       throw new Error("Message is required.");
     }
 
-    return mapSupabaseMessage(await this.repository.createMessage(input.topicId, body));
+    return mapSupabaseMessage(await this.repository.createMessage(
+      input.topicId,
+      body,
+      input.replyToMessageId
+    ));
   }
 
   async updateMessage(messageId: string, body: string): Promise<Message> {
@@ -471,6 +493,7 @@ export function mapSupabaseMessage(row: SupabaseMessageRow): Message {
     authorName: row.author_name,
     authorAvatarUrl: row.author_avatar_url ?? undefined,
     createdAt: row.created_at,
+    replyToMessageId: row.reply_to_message_id ?? undefined,
     editedAt: row.edited_at ?? undefined,
     isDeleted: Boolean(row.deleted_at),
     // Some mutation RPCs do not include the derived unread flag. Treat an

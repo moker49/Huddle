@@ -18,6 +18,7 @@ interface MessageListProps {
   getAuthorAvatarUrl?: (message: Message) => string | undefined;
   onDeleteMessage?: (messageId: string) => Promise<Message>;
   onRequestEdit?: (message: Message) => void;
+  onRequestReply?: (message: Message) => void;
   onPressAuthor?: (message: Message) => void;
 }
 
@@ -36,14 +37,28 @@ export function MessageList({
   getAuthorAvatarUrl,
   onDeleteMessage,
   onRequestEdit,
+  onRequestReply,
   onPressAuthor
 }: MessageListProps) {
   const theme = useTheme();
   const listRef = useRef<FlatList<MessageRow>>(null);
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
+  const visibleRowIdsRef = useRef(new Set<string>());
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onViewableItemsChanged = useRef(({
+    viewableItems
+  }: {
+    viewableItems: { item: unknown }[];
+  }) => {
+    visibleRowIdsRef.current = new Set(
+      viewableItems.map((viewableItem) => (viewableItem.item as MessageRow).id)
+    );
+  }).current;
   const [unreadMarkerIsPositioned, setUnreadMarkerIsPositioned] = useState(false);
   const [contextMessage, setContextMessage] = useState<Message | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const rows = getMessageRows(messages);
+  const messagesById = new Map(messages.map((message) => [message.id, message]));
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
 
@@ -75,6 +90,40 @@ export function MessageList({
   function handleDelete(message: Message) {
     void onDeleteMessage?.(message.id);
   }
+
+  function highlightMessage(messageId: string) {
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+    }
+
+    setHighlightedMessageId(messageId);
+    highlightTimerRef.current = setTimeout(() => {
+      setHighlightedMessageId(null);
+      highlightTimerRef.current = null;
+    }, 700);
+  }
+
+  function handlePressReply(messageId: string) {
+    const rowIndex = rows.findIndex((row) => row.messages?.some((message) => message.id === messageId));
+
+    if (rowIndex < 0) {
+      return;
+    }
+
+    if (visibleRowIdsRef.current.has(rows[rowIndex].id)) {
+      highlightMessage(messageId);
+      return;
+    }
+
+    listRef.current?.scrollToIndex({ index: rowIndex, viewPosition: 0.5, animated: false });
+    requestAnimationFrame(() => highlightMessage(messageId));
+  }
+
+  useEffect(() => () => {
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current);
+    }
+  }, []);
 
   const handleDismissActionSheet = useCallback(() => {
     setContextMessage(null);
@@ -130,14 +179,21 @@ export function MessageList({
           <MessageBubble
             messages={item.messages ?? []}
             avatarUrl={item.messages?.[0] ? getAuthorAvatarUrl?.(item.messages[0]) : undefined}
+            getAuthorAvatarUrl={getAuthorAvatarUrl}
+            getReplyToMessage={(message) => (
+              message.replyToMessageId ? messagesById.get(message.replyToMessageId) : undefined
+            )}
+            highlightedMessageId={highlightedMessageId}
             onLongPress={setContextMessage}
             onPressAuthor={onPressAuthor}
+            onPressReply={handlePressReply}
           />
         )
       )}
       ItemSeparatorComponent={MessageRowSeparator}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      onViewableItemsChanged={onViewableItemsChanged}
       onScrollToIndexFailed={(info) => {
         listRef.current?.scrollToOffset({
           offset: info.averageItemLength * info.index,
@@ -163,6 +219,7 @@ export function MessageList({
         onDelete={handleDelete}
         onDismiss={handleDismissActionSheet}
         onEdit={(message) => onRequestEdit?.(message)}
+        onReply={(message) => onRequestReply?.(message)}
       />
     </>
   );

@@ -25,6 +25,8 @@ function canGroupMessages(previousMessage: Message, message: Message) {
     message.kind === "user" &&
     previousMessage.authorId === message.authorId &&
     previousMessage.authorName === message.authorName &&
+    !previousMessage.replyToMessageId &&
+    !message.replyToMessageId &&
     previousMessage.isDeleted === message.isDeleted &&
     Boolean(previousMessage.editedAt) === Boolean(message.editedAt) &&
     previousMessage.isUnread === message.isUnread &&
