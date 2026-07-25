@@ -46,6 +46,14 @@ Motion should be subtle, purposeful, and consistent with Material guidance. Resp
 
 Interactive elements need accessible labels when their purpose is not clear from text. Preserve Material touch targets, contrast, focus visibility, disabled states, loading states, hover states on web, and keyboard behavior.
 
+## Overlay Back Navigation
+
+Every user-opened transient surface must close before the app navigates away when the user presses Back. This includes dialogs, modals, menus, bottom sheets, cards, and custom overlays.
+
+On Android and other native targets, use the component's `onRequestClose` support or a `BackHandler` subscription that consumes the back event and dismisses the surface. On web, add a temporary browser-history entry when the surface opens and dismiss it from `popstate`; direct close controls should remove that entry as part of dismissal. While that temporary entry is active, set browser scroll restoration to `manual` and restore the previous setting during cleanup so closing an overlay does not reposition the underlying screen.
+
+Keep the overlay mounted until its exit animation completes. Its content and available actions must remain stable throughout that animation.
+
 ## Text Input Focus
 
 Member search is a typing-first flow. When the user is typing members, focus should stay on the member text field as much as possible.
