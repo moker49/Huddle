@@ -100,7 +100,7 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
                 variant="bodyMedium"
                 style={
                   currentMessage.isDeleted
-                    ? { color: theme.colors.onSurfaceVariant, fontStyle: "italic" }
+                    ? { color: theme.colors.outline }
                     : undefined
                 }
               >
