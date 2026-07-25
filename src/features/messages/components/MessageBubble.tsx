@@ -86,11 +86,11 @@ export function MessageBubble({ messages, avatarUrl, onLongPress, onPressAuthor 
                   >
                     <Text variant="labelLarge">{message.authorName}</Text>
                   </Pressable>
-                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
                     {formatMessageTimestamp(message.createdAt)}
                   </Text>
                   {isEdited ? (
-                    <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
                       Edited
                     </Text>
                   ) : null}
