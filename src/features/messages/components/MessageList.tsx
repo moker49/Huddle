@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { Divider, Text, useTheme } from "react-native-paper";
 
@@ -75,6 +75,10 @@ export function MessageList({
   function handleDelete(message: Message) {
     void onDeleteMessage?.(message.id);
   }
+
+  const handleDismissActionSheet = useCallback(() => {
+    setContextMessage(null);
+  }, []);
 
   if (errorMessage) {
     return (
@@ -157,7 +161,7 @@ export function MessageList({
         currentUserId={currentUserId}
         message={contextMessage}
         onDelete={handleDelete}
-        onDismiss={() => setContextMessage(null)}
+        onDismiss={handleDismissActionSheet}
         onEdit={(message) => onRequestEdit?.(message)}
       />
     </>

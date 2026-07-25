@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, Modal, Pressable, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, BackHandler, Easing, Modal, Platform, Pressable, StyleSheet, View } from "react-native";
 import { List, Surface, useTheme } from "react-native-paper";
 
 import { Message } from "@/models/message";
@@ -29,15 +29,32 @@ export function MessageActionSheet({
 }: MessageActionSheetProps) {
   const theme = useTheme();
   const [isMounted, setIsMounted] = useState(Boolean(message));
+  const [presentedMessage, setPresentedMessage] = useState<Message | null>(message);
+  const isMountedRef = useRef(Boolean(message));
+  const browserHistoryEntryIsActiveRef = useRef(false);
+  const browserScrollRestorationRef = useRef<History["scrollRestoration"] | null>(null);
   const scrimOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(320)).current;
+  const activeMessage = message ?? presentedMessage;
+  const isVisible = Boolean(message);
+
+  const dismissSheet = useCallback(() => {
+    if (Platform.OS === "web" && browserHistoryEntryIsActiveRef.current) {
+      browserHistoryEntryIsActiveRef.current = false;
+      window.history.back();
+    }
+
+    onDismiss();
+  }, [onDismiss]);
 
   useEffect(() => {
     if (message) {
+      isMountedRef.current = true;
+      setPresentedMessage(message);
       setIsMounted(true);
       scrimOpacity.setValue(0);
       sheetTranslateY.setValue(320);
-      requestAnimationFrame(() => {
+      const animationFrame = requestAnimationFrame(() => {
         Animated.parallel([
           Animated.timing(scrimOpacity, {
             toValue: 1,
@@ -52,13 +69,15 @@ export function MessageActionSheet({
           })
         ]).start();
       });
+
+      return () => cancelAnimationFrame(animationFrame);
+    }
+
+    if (!isMountedRef.current) {
       return;
     }
 
-    if (!isMounted) {
-      return;
-    }
-
+    isMountedRef.current = false;
     Animated.parallel([
       Animated.timing(scrimOpacity, {
         toValue: 0,
@@ -71,15 +90,53 @@ export function MessageActionSheet({
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true
       })
-    ]).start(() => setIsMounted(false));
-  }, [isMounted, message, scrimOpacity, sheetTranslateY]);
+    ]).start(() => {
+      setIsMounted(false);
+      setPresentedMessage(null);
+    });
+  }, [message, scrimOpacity, sheetTranslateY]);
+
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+
+    if (Platform.OS === "web") {
+      const handlePopState = () => {
+        browserHistoryEntryIsActiveRef.current = false;
+        onDismiss();
+      };
+
+      browserScrollRestorationRef.current = window.history.scrollRestoration;
+      window.history.scrollRestoration = "manual";
+      window.history.pushState({ messageActionSheet: true }, "");
+      browserHistoryEntryIsActiveRef.current = true;
+      window.addEventListener("popstate", handlePopState);
+
+      return () => {
+        window.removeEventListener("popstate", handlePopState);
+
+        if (browserScrollRestorationRef.current) {
+          window.history.scrollRestoration = browserScrollRestorationRef.current;
+          browserScrollRestorationRef.current = null;
+        }
+      };
+    }
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      dismissSheet();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [dismissSheet, isVisible, onDismiss]);
 
   if (!isMounted) {
     return null;
   }
 
   const canManageMessage = Boolean(
-    message && !message.isDeleted && message.authorId === currentUserId
+    activeMessage && !activeMessage.isDeleted && activeMessage.authorId === currentUserId
   );
   const actions: readonly MessageAction[] = [
     { icon: "reply", title: "Reply" },
@@ -93,13 +150,13 @@ export function MessageActionSheet({
       transparent
       visible
       animationType="none"
-      onRequestClose={onDismiss}
+      onRequestClose={dismissSheet}
       statusBarTranslucent
     >
       <View style={styles.layer}>
         <Animated.View style={[styles.scrim, { opacity: scrimOpacity }]}>
           <Pressable
-            onPress={onDismiss}
+            onPress={dismissSheet}
             accessibilityLabel="Close message options"
             accessibilityRole="button"
             style={styles.scrimPressable}
@@ -125,11 +182,11 @@ export function MessageActionSheet({
                   )}
                   titleStyle={action.destructive ? { color: theme.colors.error } : undefined}
                   onPress={() => {
-                    if (message && action.onPress) {
-                      action.onPress(message);
+                    if (activeMessage && action.onPress) {
+                      action.onPress(activeMessage);
                     }
 
-                    onDismiss();
+                    dismissSheet();
                   }}
                   style={[
                     styles.actionItem,
