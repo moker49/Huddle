@@ -108,19 +108,19 @@ export const MessageComposer = memo(function MessageComposer({
           <Text
             variant="labelLarge"
             numberOfLines={1}
-            style={[styles.contextLabel, { color: context.errorMessage ? theme.colors.error : theme.colors.onSurfaceVariant }]}
+            style={styles.contextLabel}
           >
-            {context.errorMessage || context.label}
+            {context.errorMessage ? (
+              <Text style={{ color: theme.colors.error }}>{context.errorMessage}</Text>
+            ) : (
+              <>
+                <Text style={{ color: theme.colors.onSurfaceVariant }}>{context.label}</Text>
+                {context.detail ? (
+                  <Text style={{ color: theme.colors.onSurface }}>{context.detail}</Text>
+                ) : null}
+              </>
+            )}
           </Text>
-          {context.detail && !context.errorMessage ? (
-            <Text
-              variant="bodySmall"
-              numberOfLines={1}
-              style={[styles.contextDetail, { color: theme.colors.onSurfaceVariant }]}
-            >
-              {context.detail}
-            </Text>
-          ) : null}
         </View>
       ) : null}
       <View style={styles.container}>
@@ -210,9 +210,6 @@ const styles = StyleSheet.create({
     marginRight: spacing.xs
   },
   contextLabel: {
-    flexShrink: 0
-  },
-  contextDetail: {
     flex: 1
   },
   container: {
