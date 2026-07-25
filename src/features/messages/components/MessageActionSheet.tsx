@@ -138,7 +138,10 @@ export function MessageActionSheet({
   }
 
   const canManageMessage = Boolean(
-    activeMessage && !activeMessage.isDeleted && activeMessage.authorId === currentUserId
+    activeMessage &&
+    activeMessage.kind === "user" &&
+    !activeMessage.isDeleted &&
+    activeMessage.authorId === currentUserId
   );
   const actions: readonly MessageAction[] = [
     { icon: "reply", title: "Reply", onPress: onReply },
