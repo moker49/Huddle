@@ -109,6 +109,22 @@ test("cloud huddles retain one shared pinned message and record pin activities",
   assert.match(schema, /grant execute on function public\.set_huddle_pinned_message\(uuid, uuid\) to authenticated/i);
 });
 
+test("cloud huddle pins are private and returned with visible huddles", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+  const visibleHuddles = schema.match(/create function public\.list_visible_huddles\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const setHuddlePin = schema.match(/create or replace function public\.set_huddle_pin\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+
+  assert.match(schema, /create table if not exists public\.huddle_pins/i);
+  assert.match(schema, /primary key \(profile_id, huddle_id\)/i);
+  assert.match(visibleHuddles, /is_pinned boolean/i);
+  assert.match(visibleHuddles, /from public\.huddle_pins pin/i);
+  assert.match(visibleHuddles, /pin\.profile_id = auth\.uid\(\)/i);
+  assert.match(setHuddlePin, /if not public\.can_access_huddle\(p_huddle_id\) then/i);
+  assert.match(setHuddlePin, /insert into public\.huddle_pins/i);
+  assert.match(setHuddlePin, /delete from public\.huddle_pins/i);
+  assert.match(schema, /grant execute on function public\.set_huddle_pin\(uuid, boolean\) to authenticated/i);
+});
+
 test("cloud huddle membership retains leaves without retaining access", () => {
   const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
   const accessCheck = schema.match(/create or replace function public\.can_access_huddle\([\s\S]*?\n\$\$;/i)?.[0] ?? "";

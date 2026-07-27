@@ -8,6 +8,7 @@ export interface Topic {
   ownerPhoneNumber?: string;
   createdAt: string;
   autoArchiveAt?: string;
+  isPinned?: boolean;
   pinnedMessageId?: string;
   unreadCount?: number;
 }

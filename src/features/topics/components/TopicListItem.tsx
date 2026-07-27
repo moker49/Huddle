@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { Badge, Text, useTheme } from "react-native-paper";
+import { Badge, Icon, Text, useTheme } from "react-native-paper";
 
 import { Topic } from "@/models/topic";
 import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
@@ -69,7 +69,7 @@ export function TopicListItem({
           {memberSummary}
         </Text>
       </View>
-      {autoArchiveDate || (showUnreadCount && topic.unreadCount) ? (
+      {autoArchiveDate || (showUnreadCount && topic.unreadCount) || topic.isPinned ? (
         <View style={styles.trailing}>
           {autoArchiveDate ? (
             <Text
@@ -88,6 +88,8 @@ export function TopicListItem({
             >
               {formatUnreadCount(topic.unreadCount)}
             </Badge>
+          ) : topic.isPinned ? (
+            <Icon source="pin" size={18} color={theme.colors.onSurfaceVariant} />
           ) : null}
         </View>
       ) : null}

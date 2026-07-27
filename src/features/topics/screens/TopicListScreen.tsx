@@ -63,7 +63,7 @@ const useNativeAnimationDriver = Platform.OS !== "web";
 
 export function TopicListScreen() {
   const theme = useTheme();
-  const { errorMessage, isLoading, lastCreatedTopicId, leaveTopic, topics } = useTopics();
+  const { errorMessage, isLoading, lastCreatedTopicId, leaveTopic, setTopicPinned, topics } = useTopics();
   const {
     connections,
     errorMessage: connectionErrorMessage,
@@ -263,6 +263,10 @@ export function TopicListScreen() {
     setLeaveError("");
     setTopicToLeave(topic);
   }, []);
+
+  const handleToggleTopicPin = useCallback((topic: Topic) => {
+    void setTopicPinned(topic.id, !topic.isPinned);
+  }, [setTopicPinned]);
 
   const handleConfirmLeave = useCallback(async () => {
     if (!topicToLeave || isLeaving) {
@@ -639,6 +643,7 @@ export function TopicListScreen() {
         topic={topicForActions}
         onDismiss={handleDismissTopicActions}
         onLeave={handleRequestLeave}
+        onTogglePin={handleToggleTopicPin}
       />
     </Screen>
   );

@@ -26,6 +26,7 @@ export interface TopicService {
   leaveTopic(id: string): Promise<void>;
   rejoinTopic(id: string): Promise<void>;
   deleteTopic(id: string): Promise<void>;
+  setTopicPinned(id: string, isPinned: boolean): Promise<void>;
   setPinnedMessage(topicId: string, messageId?: string): Promise<void>;
   markTopicRead(id: string): Promise<void>;
   subscribeToTopicChanges(onChange: () => void): Promise<() => void>;
@@ -55,6 +56,7 @@ function isTopic(value: unknown): value is Topic {
     typeof value.createdAt === "string" &&
     (!("icon" in value) || typeof value.icon === "string") &&
     (!("autoArchiveAt" in value) || typeof value.autoArchiveAt === "string") &&
+    (!("isPinned" in value) || typeof value.isPinned === "boolean") &&
     (!("pinnedMessageId" in value) || typeof value.pinnedMessageId === "string")
   );
 }
@@ -89,7 +91,7 @@ export class LocalTopicService implements TopicService {
       [...visibleTopics, ...visibleInboundTopics].map((topic) => [topic.id, topic])
     );
 
-    return Array.from(topicById.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return Array.from(topicById.values()).sort(compareTopics);
   }
 
   async getTopic(id: string): Promise<Topic | null> {
@@ -100,7 +102,7 @@ export class LocalTopicService implements TopicService {
 
   async listAbandonedTopics(): Promise<Topic[]> {
     return [...(await this.loadAbandonedTopics())]
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort(compareTopics);
   }
 
   async createTopic(input: CreateTopicInput): Promise<Topic> {
@@ -184,6 +186,20 @@ export class LocalTopicService implements TopicService {
 
   async deleteTopic(id: string): Promise<void> {
     this.topics = (await this.loadTopics()).filter((topic) => topic.id !== id);
+    await this.saveTopics();
+  }
+
+  async setTopicPinned(id: string, isPinned: boolean): Promise<void> {
+    const topics = await this.loadTopics();
+    const topic = topics.find((candidateTopic) => candidateTopic.id === id);
+
+    if (!topic) {
+      throw new Error("Huddle could not be found.");
+    }
+
+    this.topics = topics.map((candidateTopic) => (
+      candidateTopic.id === id ? { ...candidateTopic, isPinned } : candidateTopic
+    ));
     await this.saveTopics();
   }
 
@@ -405,6 +421,7 @@ interface SupabaseHuddleRow {
   created_at: string;
   auto_archive_at: string | null;
   pinned_message_id: string | null;
+  is_pinned: boolean | null;
   member_ids: string[];
   unread_count: number | null;
 }
@@ -438,7 +455,7 @@ export class SupabaseTopicService implements TopicService {
 
     return ((data ?? []) as SupabaseHuddleRow[])
       .map(mapSupabaseHuddle)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort(compareTopics);
   }
 
   async listAbandonedTopics(): Promise<Topic[]> {
@@ -452,7 +469,7 @@ export class SupabaseTopicService implements TopicService {
 
     return ((data ?? []) as SupabaseHuddleRow[])
       .map(mapSupabaseHuddle)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort(compareTopics);
   }
 
   async getTopic(id: string): Promise<Topic | null> {
@@ -554,6 +571,19 @@ export class SupabaseTopicService implements TopicService {
     }
   }
 
+  async setTopicPinned(id: string, isPinned: boolean): Promise<void> {
+    this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const { error } = await supabase.rpc("set_huddle_pin", {
+      p_huddle_id: id,
+      p_is_pinned: isPinned
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
   async setPinnedMessage(topicId: string, messageId?: string): Promise<void> {
     this.requireAccountScope();
     const { supabase } = await import("@/services/supabaseClient");
@@ -602,6 +632,7 @@ export class SupabaseTopicService implements TopicService {
     const channel = supabase
       .channel("huddle-topic-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "huddles" }, onChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "huddle_pins" }, onChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "huddle_members" }, onChange)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "huddle_messages" }, onChange)
       .subscribe();
@@ -647,9 +678,15 @@ function mapSupabaseHuddle(row: SupabaseHuddleRow): Topic {
     ownerPhoneNumber: row.owner_phone_number ?? undefined,
     createdAt: row.created_at,
     autoArchiveAt: row.auto_archive_at ?? undefined,
+    isPinned: row.is_pinned === true,
     pinnedMessageId: row.pinned_message_id ?? undefined,
     unreadCount: row.unread_count ?? 0
   };
+}
+
+function compareTopics(first: Topic, second: Topic) {
+  return Number(Boolean(second.isPinned)) - Number(Boolean(first.isPinned)) ||
+    second.createdAt.localeCompare(first.createdAt);
 }
 
 function normalizeTopicIcon(icon: string | undefined) {

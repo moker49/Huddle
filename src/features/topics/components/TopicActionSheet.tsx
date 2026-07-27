@@ -9,6 +9,7 @@ interface TopicActionSheetProps {
   topic: Topic | null;
   onDismiss(): void;
   onLeave(topic: Topic): void;
+  onTogglePin(topic: Topic): void;
 }
 
 interface TopicAction {
@@ -20,7 +21,7 @@ interface TopicAction {
 
 const useNativeAnimationDriver = Platform.OS !== "web";
 
-export function TopicActionSheet({ topic, onDismiss, onLeave }: TopicActionSheetProps) {
+export function TopicActionSheet({ topic, onDismiss, onLeave, onTogglePin }: TopicActionSheetProps) {
   const theme = useTheme();
   const [isMounted, setIsMounted] = useState(Boolean(topic));
   const [presentedTopic, setPresentedTopic] = useState<Topic | null>(topic);
@@ -134,7 +135,11 @@ export function TopicActionSheet({ topic, onDismiss, onLeave }: TopicActionSheet
   }
 
   const actions: readonly TopicAction[] = [
-    { icon: "pin", title: "Pin" },
+    {
+      icon: activeTopic?.isPinned ? "pin-off" : "pin",
+      title: activeTopic?.isPinned ? "Unpin" : "Pin",
+      onPress: onTogglePin
+    },
     { icon: "exit-to-app", title: "Leave", destructive: true, onPress: onLeave }
   ];
 

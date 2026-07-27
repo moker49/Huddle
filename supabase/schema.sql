@@ -183,9 +183,17 @@ create table if not exists public.huddle_read_states (
   primary key (profile_id, huddle_id)
 );
 
+create table if not exists public.huddle_pins (
+  profile_id uuid not null references public.profiles(id) on delete cascade,
+  huddle_id uuid not null references public.huddles(id) on delete cascade,
+  pinned_at timestamptz not null default now(),
+  primary key (profile_id, huddle_id)
+);
+
 alter table public.huddles replica identity full;
 alter table public.huddle_members replica identity full;
 alter table public.huddle_messages replica identity full;
+alter table public.huddle_pins replica identity full;
 
 do $$
 begin
@@ -217,6 +225,16 @@ begin
       and tablename = 'huddle_messages'
   ) then
     alter publication supabase_realtime add table public.huddle_messages;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'huddle_pins'
+  ) then
+    alter publication supabase_realtime add table public.huddle_pins;
   end if;
 end;
 $$;
@@ -294,6 +312,7 @@ returns table (
   created_at timestamptz,
   auto_archive_at timestamptz,
   pinned_message_id uuid,
+  is_pinned boolean,
   member_ids text[],
   unread_count integer
 )
@@ -312,6 +331,12 @@ as $$
     h.created_at,
     h.auto_archive_at,
     h.pinned_message_id,
+    exists (
+      select 1
+      from public.huddle_pins pin
+      where pin.huddle_id = h.id
+        and pin.profile_id = auth.uid()
+    ),
     coalesce(
       array_agg(
         coalesce(hm.member_id::text, hm.member_tag, hm.member_phone_number)
@@ -350,6 +375,7 @@ returns table (
   created_at timestamptz,
   auto_archive_at timestamptz,
   pinned_message_id uuid,
+  is_pinned boolean,
   member_ids text[],
   unread_count integer
 )
@@ -368,6 +394,12 @@ as $$
     h.created_at,
     h.auto_archive_at,
     h.pinned_message_id,
+    exists (
+      select 1
+      from public.huddle_pins pin
+      where pin.huddle_id = h.id
+        and pin.profile_id = auth.uid()
+    ),
     coalesce(
       array_agg(
         coalesce(active_member.member_id::text, active_member.member_tag, active_member.member_phone_number)
@@ -1448,10 +1480,44 @@ $$;
 
 grant execute on function public.mark_huddle_read(uuid) to authenticated;
 
+create or replace function public.set_huddle_pin(
+  p_huddle_id uuid,
+  p_is_pinned boolean
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  if not public.can_access_huddle(p_huddle_id) then
+    raise exception 'You are not allowed to pin this huddle.';
+  end if;
+
+  if p_is_pinned then
+    insert into public.huddle_pins (profile_id, huddle_id)
+    values (auth.uid(), p_huddle_id)
+    on conflict (profile_id, huddle_id) do update
+    set pinned_at = now();
+  else
+    delete from public.huddle_pins pin
+    where pin.profile_id = auth.uid()
+      and pin.huddle_id = p_huddle_id;
+  end if;
+end;
+$$;
+
+grant execute on function public.set_huddle_pin(uuid, boolean) to authenticated;
+
 alter table public.huddles enable row level security;
 alter table public.huddle_members enable row level security;
 alter table public.huddle_messages enable row level security;
 alter table public.huddle_read_states enable row level security;
+alter table public.huddle_pins enable row level security;
 
 drop policy if exists "Members can read visible huddles" on public.huddles;
 drop policy if exists "Authenticated users can create huddles" on public.huddles;
@@ -1465,6 +1531,9 @@ drop policy if exists "Members can create user messages" on public.huddle_messag
 drop policy if exists "Users can read their huddle read state" on public.huddle_read_states;
 drop policy if exists "Users can create their huddle read state" on public.huddle_read_states;
 drop policy if exists "Users can update their huddle read state" on public.huddle_read_states;
+drop policy if exists "Users can read their huddle pins" on public.huddle_pins;
+drop policy if exists "Users can create their huddle pins" on public.huddle_pins;
+drop policy if exists "Users can remove their huddle pins" on public.huddle_pins;
 
 create policy "Members can read visible huddles"
   on public.huddles for select
@@ -1532,3 +1601,18 @@ create policy "Users can update their huddle read state"
   to authenticated
   using (profile_id = auth.uid())
   with check (profile_id = auth.uid() and public.can_access_huddle(huddle_id));
+
+create policy "Users can read their huddle pins"
+  on public.huddle_pins for select
+  to authenticated
+  using (profile_id = auth.uid());
+
+create policy "Users can create their huddle pins"
+  on public.huddle_pins for insert
+  to authenticated
+  with check (profile_id = auth.uid() and public.can_access_huddle(huddle_id));
+
+create policy "Users can remove their huddle pins"
+  on public.huddle_pins for delete
+  to authenticated
+  using (profile_id = auth.uid());
