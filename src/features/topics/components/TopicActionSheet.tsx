@@ -23,6 +23,7 @@ export function TopicActionSheet({ topic, onDismiss, onLeave }: TopicActionSheet
   const [isMounted, setIsMounted] = useState(Boolean(topic));
   const [presentedTopic, setPresentedTopic] = useState<Topic | null>(topic);
   const isMountedRef = useRef(Boolean(topic));
+  const pendingActionRef = useRef<(() => void) | null>(null);
   const browserHistoryEntryIsActiveRef = useRef(false);
   const browserScrollRestorationRef = useRef<History["scrollRestoration"] | null>(null);
   const scrimOpacity = useRef(new Animated.Value(0)).current;
@@ -85,6 +86,9 @@ export function TopicActionSheet({ topic, onDismiss, onLeave }: TopicActionSheet
     ]).start(() => {
       setIsMounted(false);
       setPresentedTopic(null);
+      const pendingAction = pendingActionRef.current;
+      pendingActionRef.current = null;
+      pendingAction?.();
     });
   }, [scrimOpacity, sheetTranslateY, topic]);
 
@@ -170,7 +174,7 @@ export function TopicActionSheet({ topic, onDismiss, onLeave }: TopicActionSheet
                   titleStyle={action.destructive ? { color: theme.colors.error } : undefined}
                   onPress={() => {
                     if (activeTopic && action.onPress) {
-                      action.onPress(activeTopic);
+                      pendingActionRef.current = () => action.onPress?.(activeTopic);
                     }
 
                     dismissSheet();
