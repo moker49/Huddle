@@ -173,6 +173,10 @@ export function MessageList({
       setShowScrollToBottom(false);
     }
 
+    if (isAtBottom) {
+      setShowScrollToBottom(false);
+    }
+
     previousScrollOffsetRef.current = scrollOffset;
     if (isAtConversationBottomRef.current !== isAtBottom) {
       isAtConversationBottomRef.current = isAtBottom;
@@ -184,7 +188,6 @@ export function MessageList({
   }
 
   function scrollToConversationBottom() {
-    setShowScrollToBottom(false);
     listRef.current?.scrollToOffset({
       offset: 0,
       animated: previousScrollOffsetRef.current <= viewportHeightRef.current * 3
