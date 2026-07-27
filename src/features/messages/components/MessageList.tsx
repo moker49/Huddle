@@ -69,7 +69,9 @@ export function MessageList({
   const onRequestMessageFocusRef = useRef(onRequestMessageFocus);
   const loadedMessageIdsRef = useRef(new Set<string>());
   const isJumpingToMessageRef = useRef(false);
+  const messageJumpTargetRef = useRef<{ id: string; requestId: number } | null>(null);
   const positionedJumpRequestIdRef = useRef(0);
+  const nextMessageJumpRequestIdRef = useRef(0);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useRef(({
@@ -79,6 +81,16 @@ export function MessageList({
   }) => {
     const rows = viewableItems.map((viewableItem) => viewableItem.item as MessageRow);
     visibleRowIdsRef.current = new Set(rows.map((row) => row.id));
+    const jumpTarget = messageJumpTargetRef.current;
+
+    if (jumpTarget && rows.some((row) => (
+      row.messages?.some((message) => message.id === jumpTarget.id)
+    ))) {
+      isJumpingToMessageRef.current = false;
+      setMessageJumpTarget(null);
+      highlightMessage(jumpTarget.id);
+    }
+
     const boundaryMessageId = olderPreloadBoundaryMessageIdRef.current;
 
     if (!isJumpingToMessageRef.current && boundaryMessageId && rows.some((row) => (
@@ -106,6 +118,7 @@ export function MessageList({
   const rows = getMessageRows(messages);
   const messagesById = new Map(messages.map((message) => [message.id, message]));
   loadedMessageIdsRef.current = new Set(messagesById.keys());
+  messageJumpTargetRef.current = messageJumpTarget;
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
   const canAcknowledgeReadState = hasLoaded && Boolean(unreadMarkerId) && unreadMarkerIsPositioned;
@@ -188,10 +201,11 @@ export function MessageList({
 
   function beginMessageJump(messageId: string) {
     isJumpingToMessageRef.current = true;
-    setMessageJumpTarget((current) => ({
+    setMessageJumpTarget({
       id: messageId,
-      requestId: (current?.requestId ?? 0) + 1
-    }));
+      requestId: nextMessageJumpRequestIdRef.current + 1
+    });
+    nextMessageJumpRequestIdRef.current += 1;
   }
 
   function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -263,11 +277,6 @@ export function MessageList({
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         listRef.current?.scrollToIndex({ index: rowIndex, viewPosition: 0.5, animated: false });
-        highlightMessage(messageJumpTarget.id);
-        requestAnimationFrame(() => {
-          isJumpingToMessageRef.current = false;
-          setMessageJumpTarget(null);
-        });
       });
     });
   }, [messageJumpTarget, rows]);
