@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View } from "react-native";
 import { Divider, Text, useTheme } from "react-native-paper";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
@@ -17,6 +17,7 @@ interface MessageListProps {
   currentUserId?: string;
   getAuthorAvatarUrl?: (message: Message) => string | undefined;
   onDeleteMessage?: (messageId: string) => Promise<Message>;
+  onReachConversationBottom?: () => void;
   messageToFocus?: { id: string; requestId: number } | null;
   onPinMessage?: (message: Message) => void;
   onRequestEdit?: (message: Message) => void;
@@ -38,6 +39,7 @@ export function MessageList({
   currentUserId,
   getAuthorAvatarUrl,
   onDeleteMessage,
+  onReachConversationBottom,
   messageToFocus,
   onPinMessage,
   onRequestEdit,
@@ -48,6 +50,8 @@ export function MessageList({
   const listRef = useRef<FlatList<MessageRow>>(null);
   const focusMessageRef = useRef<(messageId: string) => void>(() => undefined);
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
+  const isAtConversationBottomRef = useRef(true);
+  const onReachConversationBottomRef = useRef(onReachConversationBottom);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useRef(({
@@ -66,6 +70,9 @@ export function MessageList({
   const messagesById = new Map(messages.map((message) => [message.id, message]));
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
+  const canAcknowledgeReadState = hasLoaded && (!unreadMarkerId || unreadMarkerIsPositioned);
+
+  onReachConversationBottomRef.current = onReachConversationBottom;
 
   useEffect(() => {
     if (
@@ -79,6 +86,7 @@ export function MessageList({
 
     positionedUnreadMarkerIdRef.current = unreadMarkerId;
     setUnreadMarkerIsPositioned(false);
+    isAtConversationBottomRef.current = false;
 
     requestAnimationFrame(() => {
       listRef.current?.scrollToIndex({
@@ -91,6 +99,12 @@ export function MessageList({
       });
     });
   }, [hasLoaded, unreadMarkerId, unreadMarkerIndex]);
+
+  useEffect(() => {
+    if (canAcknowledgeReadState && isAtConversationBottomRef.current) {
+      onReachConversationBottomRef.current?.();
+    }
+  }, [canAcknowledgeReadState, messages.length]);
 
   function handleDelete(message: Message) {
     void onDeleteMessage?.(message.id);
@@ -124,6 +138,21 @@ export function MessageList({
     requestAnimationFrame(() => {
       requestAnimationFrame(() => highlightMessage(messageId));
     });
+  }
+
+  function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
+    // In an inverted FlatList, offset zero is the visual bottom of the conversation.
+    const isAtBottom = event.nativeEvent.contentOffset.y <= spacing.sm;
+
+    if (isAtConversationBottomRef.current === isAtBottom) {
+      return;
+    }
+
+    isAtConversationBottomRef.current = isAtBottom;
+
+    if (isAtBottom && canAcknowledgeReadState) {
+      onReachConversationBottomRef.current?.();
+    }
   }
 
   focusMessageRef.current = handlePressReply;
@@ -208,6 +237,8 @@ export function MessageList({
       ItemSeparatorComponent={MessageRowSeparator}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      onScroll={handleScroll}
+      scrollEventThrottle={16}
       onViewableItemsChanged={onViewableItemsChanged}
       onScrollToIndexFailed={(info) => {
         listRef.current?.scrollToOffset({

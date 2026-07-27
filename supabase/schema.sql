@@ -1341,6 +1341,7 @@ begin
     body,
     kind,
     activity_type,
+    author_id,
     author_name
   )
   values (
@@ -1348,6 +1349,7 @@ begin
     case when p_message_id is null then 'Message unpinned' else 'Message pinned' end,
     'system',
     case when p_message_id is null then 'message_unpinned' else 'message_pinned' end,
+    auth.uid(),
     'System'
   );
 end;

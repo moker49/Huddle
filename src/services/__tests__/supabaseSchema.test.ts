@@ -100,6 +100,8 @@ test("cloud huddles retain one shared pinned message and record pin activities",
   assert.match(visibleHuddles, /h\.pinned_message_id/i);
   assert.match(pinMessage, /message\.huddle_id = p_huddle_id/i);
   assert.match(pinMessage, /set pinned_message_id = p_message_id/i);
+  assert.match(pinMessage, /author_id,[\s\S]*?author_name/i);
+  assert.match(pinMessage, /auth\.uid\(\),[\s\S]*?'System'/i);
   assert.match(pinMessage, /'Message pinned'/i);
   assert.match(pinMessage, /'Message unpinned'/i);
   assert.match(schema, /'message_pinned'/i);

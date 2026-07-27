@@ -99,12 +99,8 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       return;
     }
 
-    void loadMessages(topicId).then((didLoadMessages) => {
-      if (didLoadMessages) {
-        void markTopicRead(topicId);
-      }
-    });
-  }, [loadMessages, markTopicRead, topicId, topicIsAvailable]);
+    void loadMessages(topicId);
+  }, [loadMessages, topicId, topicIsAvailable]);
 
   useEffect(() => {
     if (!topicId || !topicIsAvailable) {
@@ -213,6 +209,12 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       void setPinnedMessage(topicId);
     }
   }, [setPinnedMessage, topicId]);
+
+  const handleReachConversationBottom = useCallback(() => {
+    if (topicId) {
+      void markTopicRead(topicId);
+    }
+  }, [markTopicRead, topicId]);
 
   const pinnedMessage = topic?.pinnedMessageId
     ? messages.find((message) => message.id === topic.pinnedMessageId)
@@ -365,6 +367,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               currentUserId={userId}
               getAuthorAvatarUrl={getAuthorAvatarUrl}
               onDeleteMessage={deleteMessage}
+              onReachConversationBottom={handleReachConversationBottom}
               messageToFocus={messageToFocus}
               onPinMessage={handlePinMessage}
               onPressAuthor={handlePressAuthor}
