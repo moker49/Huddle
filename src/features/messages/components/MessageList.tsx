@@ -19,7 +19,7 @@ interface MessageListProps {
   onDeleteMessage?: (messageId: string) => Promise<Message>;
   olderPreloadBoundaryMessageId?: string | null;
   onReachOlderPreloadBoundary?: () => void;
-  onReachConversationBottom?: () => void;
+  onReachConversationBottom?: (unreadMarkerId: string) => void;
   messageToFocus?: { id: string; requestId: number } | null;
   onPinMessage?: (message: Message) => void;
   onRequestEdit?: (message: Message) => void;
@@ -58,6 +58,7 @@ export function MessageList({
   const previousScrollOffsetRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const onReachConversationBottomRef = useRef(onReachConversationBottom);
+  const acknowledgedUnreadMarkerIdRef = useRef<string | null>(null);
   const olderPreloadBoundaryMessageIdRef = useRef(olderPreloadBoundaryMessageId);
   const onReachOlderPreloadBoundaryRef = useRef(onReachOlderPreloadBoundary);
   const visibleRowIdsRef = useRef(new Set<string>());
@@ -85,7 +86,7 @@ export function MessageList({
   const messagesById = new Map(messages.map((message) => [message.id, message]));
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
-  const canAcknowledgeReadState = hasLoaded && (!unreadMarkerId || unreadMarkerIsPositioned);
+  const canAcknowledgeReadState = hasLoaded && Boolean(unreadMarkerId) && unreadMarkerIsPositioned;
 
   onReachConversationBottomRef.current = onReachConversationBottom;
   olderPreloadBoundaryMessageIdRef.current = olderPreloadBoundaryMessageId;
@@ -118,10 +119,16 @@ export function MessageList({
   }, [hasLoaded, unreadMarkerId, unreadMarkerIndex]);
 
   useEffect(() => {
-    if (canAcknowledgeReadState && isAtConversationBottomRef.current) {
-      onReachConversationBottomRef.current?.();
+    if (
+      canAcknowledgeReadState &&
+      unreadMarkerId &&
+      isAtConversationBottomRef.current &&
+      acknowledgedUnreadMarkerIdRef.current !== unreadMarkerId
+    ) {
+      acknowledgedUnreadMarkerIdRef.current = unreadMarkerId;
+      onReachConversationBottomRef.current?.(unreadMarkerId);
     }
-  }, [canAcknowledgeReadState, messages.length]);
+  }, [canAcknowledgeReadState, unreadMarkerId]);
 
   function handleDelete(message: Message) {
     void onDeleteMessage?.(message.id);
@@ -181,8 +188,14 @@ export function MessageList({
     if (isAtConversationBottomRef.current !== isAtBottom) {
       isAtConversationBottomRef.current = isAtBottom;
 
-      if (isAtBottom && canAcknowledgeReadState) {
-        onReachConversationBottomRef.current?.();
+      if (
+        isAtBottom &&
+        canAcknowledgeReadState &&
+        unreadMarkerId &&
+        acknowledgedUnreadMarkerIdRef.current !== unreadMarkerId
+      ) {
+        acknowledgedUnreadMarkerIdRef.current = unreadMarkerId;
+        onReachConversationBottomRef.current?.(unreadMarkerId);
       }
     }
   }

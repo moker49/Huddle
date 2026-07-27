@@ -45,6 +45,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     hasLoadedMessages,
     loadDraft,
     loadMessages,
+    markMessagesRead,
     preloadOlderMessages,
     saveDraft,
     sendMessage,
@@ -213,11 +214,13 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     }
   }, [setPinnedMessage, topicId]);
 
-  const handleReachConversationBottom = useCallback(() => {
+  const handleReachConversationBottom = useCallback((_unreadMarkerId: string) => {
     if (topicId) {
-      void markTopicRead(topicId);
+      void markTopicRead(topicId).then(() => {
+        markMessagesRead(topicId);
+      });
     }
-  }, [markTopicRead, topicId]);
+  }, [markMessagesRead, markTopicRead, topicId]);
 
   const handleReachOlderPreloadBoundary = useCallback(() => {
     if (topicId) {

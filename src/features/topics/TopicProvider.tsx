@@ -174,9 +174,11 @@ export function TopicProvider({ children, service = topicService }: TopicProvide
   const markTopicRead = useCallback(
     async (id: string) => {
       await service.markTopicRead(id);
-      await loadTopics();
+      setTopics((current) => current.map((topic) => (
+        topic.id === id ? { ...topic, unreadCount: 0 } : topic
+      )));
     },
-    [loadTopics, service]
+    [service]
   );
 
   const value = useMemo<TopicContextValue>(

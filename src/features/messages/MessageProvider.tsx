@@ -30,6 +30,7 @@ interface MessageContextValue {
   loadDraft(topicId: string): Promise<void>;
   saveDraft(topicId: string, body: string): Promise<void>;
   clearDraft(topicId: string): Promise<void>;
+  markMessagesRead(topicId: string): void;
   clearLoadedMessages(): void;
   hasLoadedDraft(topicId: string): boolean;
   hasLoadedMessages(topicId: string): boolean;
@@ -281,6 +282,15 @@ export function MessageProvider({ children, service = messageService }: MessageP
       loadDraft,
       saveDraft,
       clearDraft,
+      markMessagesRead(topicId) {
+        setMessagesByTopicId((current) => ({
+          ...current,
+          [topicId]: (current[topicId] ?? []).map((message) => ({
+            ...message,
+            isUnread: false
+          }))
+        }));
+      },
       clearLoadedMessages() {
         setMessagesByTopicId({});
         setHistoryByTopicId({});
