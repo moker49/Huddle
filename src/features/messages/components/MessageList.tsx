@@ -17,6 +17,8 @@ interface MessageListProps {
   currentUserId?: string;
   getAuthorAvatarUrl?: (message: Message) => string | undefined;
   onDeleteMessage?: (messageId: string) => Promise<Message>;
+  messageToFocus?: { id: string; requestId: number } | null;
+  onPinMessage?: (message: Message) => void;
   onRequestEdit?: (message: Message) => void;
   onRequestReply?: (message: Message) => void;
   onPressAuthor?: (message: Message) => void;
@@ -36,12 +38,15 @@ export function MessageList({
   currentUserId,
   getAuthorAvatarUrl,
   onDeleteMessage,
+  messageToFocus,
+  onPinMessage,
   onRequestEdit,
   onRequestReply,
   onPressAuthor
 }: MessageListProps) {
   const theme = useTheme();
   const listRef = useRef<FlatList<MessageRow>>(null);
+  const focusMessageRef = useRef<(messageId: string) => void>(() => undefined);
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,6 +125,14 @@ export function MessageList({
       requestAnimationFrame(() => highlightMessage(messageId));
     });
   }
+
+  focusMessageRef.current = handlePressReply;
+
+  useEffect(() => {
+    if (messageToFocus) {
+      focusMessageRef.current(messageToFocus.id);
+    }
+  }, [messageToFocus]);
 
   useEffect(() => () => {
     if (highlightTimerRef.current) {
@@ -221,6 +234,7 @@ export function MessageList({
         onDelete={handleDelete}
         onDismiss={handleDismissActionSheet}
         onEdit={(message) => onRequestEdit?.(message)}
+        onPin={onPinMessage}
         onReply={(message) => onRequestReply?.(message)}
       />
     </>

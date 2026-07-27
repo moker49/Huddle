@@ -26,6 +26,7 @@ export interface TopicService {
   leaveTopic(id: string): Promise<void>;
   rejoinTopic(id: string): Promise<void>;
   deleteTopic(id: string): Promise<void>;
+  setPinnedMessage(topicId: string, messageId?: string): Promise<void>;
   markTopicRead(id: string): Promise<void>;
   subscribeToTopicChanges(onChange: () => void): Promise<() => void>;
   resetLocalData(): Promise<void>;
@@ -53,7 +54,8 @@ function isTopic(value: unknown): value is Topic {
     (!("ownerPhoneNumber" in value) || typeof value.ownerPhoneNumber === "string") &&
     typeof value.createdAt === "string" &&
     (!("icon" in value) || typeof value.icon === "string") &&
-    (!("autoArchiveAt" in value) || typeof value.autoArchiveAt === "string")
+    (!("autoArchiveAt" in value) || typeof value.autoArchiveAt === "string") &&
+    (!("pinnedMessageId" in value) || typeof value.pinnedMessageId === "string")
   );
 }
 
@@ -183,6 +185,38 @@ export class LocalTopicService implements TopicService {
   async deleteTopic(id: string): Promise<void> {
     this.topics = (await this.loadTopics()).filter((topic) => topic.id !== id);
     await this.saveTopics();
+  }
+
+  async setPinnedMessage(topicId: string, messageId?: string): Promise<void> {
+    const topics = await this.loadTopics();
+    const topic = topics.find((candidateTopic) => candidateTopic.id === topicId);
+
+    if (!topic) {
+      throw new Error("Huddle could not be found.");
+    }
+
+    if (topic.pinnedMessageId === messageId) {
+      return;
+    }
+
+    if (messageId) {
+      const message = (await this.messages.listMessages(topicId)).find((candidate) => candidate.id === messageId);
+
+      if (!message) {
+        throw new Error("Message could not be found in this huddle.");
+      }
+    }
+
+    const nextTopic = { ...topic, pinnedMessageId: messageId };
+    this.topics = topics.map((candidateTopic) => (
+      candidateTopic.id === topicId ? nextTopic : candidateTopic
+    ));
+    await this.saveTopics();
+    await this.messages.createActivity({
+      topicId,
+      body: messageId ? "Message pinned" : "Message unpinned",
+      activityType: messageId ? "message_pinned" : "message_unpinned"
+    });
   }
 
   async leaveTopic(id: string): Promise<void> {
@@ -370,6 +404,7 @@ interface SupabaseHuddleRow {
   owner_phone_number: string | null;
   created_at: string;
   auto_archive_at: string | null;
+  pinned_message_id: string | null;
   member_ids: string[];
   unread_count: number | null;
 }
@@ -519,6 +554,19 @@ export class SupabaseTopicService implements TopicService {
     }
   }
 
+  async setPinnedMessage(topicId: string, messageId?: string): Promise<void> {
+    this.requireAccountScope();
+    const { supabase } = await import("@/services/supabaseClient");
+    const { error } = await supabase.rpc("set_huddle_pinned_message", {
+      p_huddle_id: topicId,
+      p_message_id: messageId ?? null
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
   async leaveTopic(id: string): Promise<void> {
     this.requireAccountScope();
     const { supabase } = await import("@/services/supabaseClient");
@@ -599,6 +647,7 @@ function mapSupabaseHuddle(row: SupabaseHuddleRow): Topic {
     ownerPhoneNumber: row.owner_phone_number ?? undefined,
     createdAt: row.created_at,
     autoArchiveAt: row.auto_archive_at ?? undefined,
+    pinnedMessageId: row.pinned_message_id ?? undefined,
     unreadCount: row.unread_count ?? 0
   };
 }

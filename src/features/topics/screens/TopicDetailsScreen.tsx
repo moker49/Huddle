@@ -6,7 +6,7 @@ import {
   StyleSheet,
   View
 } from "react-native";
-import { ActivityIndicator, Appbar, Button, Text, useTheme } from "react-native-paper";
+import { ActivityIndicator, Appbar, Button, Icon, Text, TouchableRipple, useTheme } from "react-native-paper";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppTopBar } from "@/components/AppTopBar";
@@ -14,6 +14,7 @@ import { MemberProfileCard } from "@/features/connections/components/MemberProfi
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { MessageComposer } from "@/features/messages/components/MessageComposer";
+import { MessageActionSheet } from "@/features/messages/components/MessageActionSheet";
 import { MessageList } from "@/features/messages/components/MessageList";
 import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
 import { useMessages } from "@/features/messages/MessageProvider";
@@ -32,7 +33,7 @@ interface TopicDetailsScreenProps {
 
 export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const theme = useTheme();
-  const { getTopic, isLoading: topicsAreLoading, markTopicRead, topics } = useTopics();
+  const { getTopic, isLoading: topicsAreLoading, markTopicRead, setPinnedMessage, topics } = useTopics();
   const { connections } = useConnections();
   const {
     getError,
@@ -64,6 +65,8 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const [profileConnection, setProfileConnection] = useState<Connection | null>(null);
   const [messageBeingEdited, setMessageBeingEdited] = useState<Message | null>(null);
   const [messageBeingRepliedTo, setMessageBeingRepliedTo] = useState<Message | null>(null);
+  const [pinnedMessageForActions, setPinnedMessageForActions] = useState<Message | null>(null);
+  const [messageToFocus, setMessageToFocus] = useState<{ id: string; requestId: number } | null>(null);
   const [editBody, setEditBody] = useState("");
   const [editError, setEditError] = useState("");
   const connectionAvatarUrlByAlias = useMemo(() => {
@@ -198,6 +201,22 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     handleDismissReply();
   }, [handleDismissReply, handleSendMessage, messageBeingRepliedTo]);
 
+  const handlePinMessage = useCallback((message: Message) => {
+    if (topicId) {
+      void setPinnedMessage(topicId, message.id);
+    }
+  }, [setPinnedMessage, topicId]);
+
+  const handleUnpinMessage = useCallback(() => {
+    if (topicId) {
+      void setPinnedMessage(topicId);
+    }
+  }, [setPinnedMessage, topicId]);
+
+  const pinnedMessage = topic?.pinnedMessageId
+    ? messages.find((message) => message.id === topic.pinnedMessageId)
+    : undefined;
+
   const handlePressAuthor = useCallback((message: Message) => {
     if (!message.authorId) {
       return;
@@ -310,6 +329,32 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           style={styles.keyboardArea}
         >
           <View style={styles.messageArea}>
+            {pinnedMessage ? (
+              <TouchableRipple
+                onLongPress={() => setPinnedMessageForActions(pinnedMessage)}
+                onPress={() => setMessageToFocus((current) => ({
+                  id: pinnedMessage.id,
+                  requestId: (current?.requestId ?? 0) + 1
+                }))}
+                accessibilityLabel="Pinned message"
+                accessibilityHint="Hold for pin options"
+                style={[styles.pinnedMessage, { backgroundColor: theme.colors.elevation.level1 }]}
+              >
+                <View style={styles.pinnedMessageContent}>
+                  <Icon source="pin" size={20} color={theme.colors.primary} />
+                  <View style={styles.pinnedMessageText}>
+                    <Text variant="labelSmall" style={{ color: theme.colors.primary }}>
+                      Pinned message
+                    </Text>
+                    <Text numberOfLines={1} variant="bodyMedium" style={{ color: theme.colors.onSurface }}>
+                      {pinnedMessage.kind === "system"
+                        ? pinnedMessage.body
+                        : `${pinnedMessage.authorName}: ${pinnedMessage.body}`}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableRipple>
+            ) : null}
             <MessageList
               key={topic.id}
               messages={messages}
@@ -318,6 +363,8 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               currentUserId={userId}
               getAuthorAvatarUrl={getAuthorAvatarUrl}
               onDeleteMessage={deleteMessage}
+              messageToFocus={messageToFocus}
+              onPinMessage={handlePinMessage}
               onPressAuthor={handlePressAuthor}
               onRequestEdit={handleRequestEdit}
               onRequestReply={handleRequestReply}
@@ -379,6 +426,16 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
         sharedTopics={sharedTopics}
         visible={Boolean(profileConnection)}
       />
+      <MessageActionSheet
+        currentUserId={userId}
+        message={pinnedMessageForActions}
+        onDelete={() => undefined}
+        onDismiss={() => setPinnedMessageForActions(null)}
+        onEdit={() => undefined}
+        onReply={() => undefined}
+        onUnpin={handleUnpinMessage}
+        variant="pinned"
+      />
     </SafeAreaView>
   );
 }
@@ -415,6 +472,24 @@ const styles = StyleSheet.create({
   messageArea: {
     flex: 1,
     minHeight: 0
+  },
+  pinnedMessage: {
+    marginBottom: spacing.xs,
+    borderRadius: spacing.xs,
+    overflow: "hidden"
+  },
+  pinnedMessageContent: {
+    minHeight: layout.minTouchTarget,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs
+  },
+  pinnedMessageText: {
+    flex: 1,
+    minWidth: 0,
+    gap: spacing.xxs
   },
   keyboardArea: {
     flex: 1

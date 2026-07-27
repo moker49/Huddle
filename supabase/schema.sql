@@ -142,7 +142,7 @@ create table if not exists public.huddle_messages (
   kind text not null check (kind in ('user', 'system')),
   activity_type text check (
     activity_type is null
-    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_rejoined', 'member_removed', 'title_updated')
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_rejoined', 'member_removed', 'message_pinned', 'message_unpinned', 'title_updated')
   ),
   author_id uuid references public.profiles(id) on delete set null,
   author_name text not null,
@@ -161,13 +161,16 @@ alter table public.huddle_messages
   add column if not exists deleted_at timestamptz,
   add column if not exists reply_to_message_id uuid references public.huddle_messages(id) on delete set null;
 
+alter table public.huddles
+  add column if not exists pinned_message_id uuid references public.huddle_messages(id) on delete set null;
+
 alter table public.huddle_messages
   drop constraint if exists huddle_messages_activity_type_check;
 
 alter table public.huddle_messages
   add constraint huddle_messages_activity_type_check check (
     activity_type is null
-    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_rejoined', 'member_removed', 'title_updated')
+    or activity_type in ('auto_archive_updated', 'huddle_created', 'icon_updated', 'member_added', 'member_left', 'member_rejoined', 'member_removed', 'message_pinned', 'message_unpinned', 'title_updated')
   );
 
 create index if not exists huddle_messages_huddle_created_key
@@ -290,6 +293,7 @@ returns table (
   owner_phone_number text,
   created_at timestamptz,
   auto_archive_at timestamptz,
+  pinned_message_id uuid,
   member_ids text[],
   unread_count integer
 )
@@ -307,6 +311,7 @@ as $$
     owner_profile.phone_number,
     h.created_at,
     h.auto_archive_at,
+    h.pinned_message_id,
     coalesce(
       array_agg(
         coalesce(hm.member_id::text, hm.member_tag, hm.member_phone_number)
@@ -344,6 +349,7 @@ returns table (
   owner_phone_number text,
   created_at timestamptz,
   auto_archive_at timestamptz,
+  pinned_message_id uuid,
   member_ids text[],
   unread_count integer
 )
@@ -361,6 +367,7 @@ as $$
     owner_profile.phone_number,
     h.created_at,
     h.auto_archive_at,
+    h.pinned_message_id,
     coalesce(
       array_agg(
         coalesce(active_member.member_id::text, active_member.member_tag, active_member.member_phone_number)
@@ -1282,6 +1289,71 @@ end;
 $$;
 
 grant execute on function public.delete_huddle_message(uuid) to authenticated;
+
+create or replace function public.set_huddle_pinned_message(
+  p_huddle_id uuid,
+  p_message_id uuid default null
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  existing_huddle public.huddles;
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  if not public.can_access_huddle(p_huddle_id) then
+    raise exception 'You are not allowed to update this huddle.';
+  end if;
+
+  select *
+  into existing_huddle
+  from public.huddles as huddle
+  where huddle.id = p_huddle_id;
+
+  if not found then
+    raise exception 'Huddle could not be found.';
+  end if;
+
+  if p_message_id is not null and not exists (
+    select 1
+    from public.huddle_messages as message
+    where message.id = p_message_id
+      and message.huddle_id = p_huddle_id
+  ) then
+    raise exception 'Message could not be found in this huddle.';
+  end if;
+
+  if existing_huddle.pinned_message_id is not distinct from p_message_id then
+    return;
+  end if;
+
+  update public.huddles as huddle
+  set pinned_message_id = p_message_id, updated_at = now()
+  where huddle.id = p_huddle_id;
+
+  insert into public.huddle_messages (
+    huddle_id,
+    body,
+    kind,
+    activity_type,
+    author_name
+  )
+  values (
+    p_huddle_id,
+    case when p_message_id is null then 'Message unpinned' else 'Message pinned' end,
+    'system',
+    case when p_message_id is null then 'message_unpinned' else 'message_pinned' end,
+    'System'
+  );
+end;
+$$;
+
+grant execute on function public.set_huddle_pinned_message(uuid, uuid) to authenticated;
 
 -- Adding return columns changes the function's PostgreSQL row type.
 drop function if exists public.list_huddle_messages(uuid);

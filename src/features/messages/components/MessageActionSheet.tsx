@@ -11,7 +11,10 @@ interface MessageActionSheetProps {
   onDelete: (message: Message) => void;
   onDismiss: () => void;
   onEdit: (message: Message) => void;
+  onPin?: (message: Message) => void;
   onReply: (message: Message) => void;
+  onUnpin?: (message: Message) => void;
+  variant?: "message" | "pinned";
 }
 
 interface MessageAction {
@@ -29,7 +32,10 @@ export function MessageActionSheet({
   onDelete,
   onDismiss,
   onEdit,
-  onReply
+  onPin,
+  onReply,
+  onUnpin,
+  variant = "message"
 }: MessageActionSheetProps) {
   const theme = useTheme();
   const [isMounted, setIsMounted] = useState(Boolean(message));
@@ -145,12 +151,14 @@ export function MessageActionSheet({
     !activeMessage.isDeleted &&
     activeMessage.authorId === currentUserId
   );
-  const actions: readonly MessageAction[] = [
-    { icon: "reply", title: "Reply", onPress: onReply },
-    ...(canManageMessage ? [{ icon: "pencil", title: "Edit", onPress: onEdit }] : []),
-    { icon: "pin", title: "Pin" },
-    ...(canManageMessage ? [{ icon: "delete", title: "Delete", destructive: true, onPress: onDelete }] : [])
-  ];
+  const actions: readonly MessageAction[] = variant === "pinned"
+    ? [{ icon: "pin-off", title: "Unpin", onPress: onUnpin }]
+    : [
+      { icon: "reply", title: "Reply", onPress: onReply },
+      ...(canManageMessage ? [{ icon: "pencil", title: "Edit", onPress: onEdit }] : []),
+      ...(onPin ? [{ icon: "pin", title: "Pin", onPress: onPin }] : []),
+      ...(canManageMessage ? [{ icon: "delete", title: "Delete", destructive: true, onPress: onDelete }] : [])
+    ];
 
   return (
     <Modal

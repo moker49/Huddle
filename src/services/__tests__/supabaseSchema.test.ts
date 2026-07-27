@@ -90,6 +90,23 @@ test("cloud messages persist replies within the same huddle", () => {
   assert.match(schema, /grant execute on function public\.create_huddle_message\(uuid, text, uuid\) to authenticated/i);
 });
 
+test("cloud huddles retain one shared pinned message and record pin activities", () => {
+  const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
+  const pinMessage = schema.match(/create or replace function public\.set_huddle_pinned_message\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const visibleHuddles = schema.match(/create function public\.list_visible_huddles\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+
+  assert.match(schema, /add column if not exists pinned_message_id uuid references public\.huddle_messages/i);
+  assert.match(visibleHuddles, /pinned_message_id uuid/i);
+  assert.match(visibleHuddles, /h\.pinned_message_id/i);
+  assert.match(pinMessage, /message\.huddle_id = p_huddle_id/i);
+  assert.match(pinMessage, /set pinned_message_id = p_message_id/i);
+  assert.match(pinMessage, /'Message pinned'/i);
+  assert.match(pinMessage, /'Message unpinned'/i);
+  assert.match(schema, /'message_pinned'/i);
+  assert.match(schema, /'message_unpinned'/i);
+  assert.match(schema, /grant execute on function public\.set_huddle_pinned_message\(uuid, uuid\) to authenticated/i);
+});
+
 test("cloud huddle membership retains leaves without retaining access", () => {
   const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
   const accessCheck = schema.match(/create or replace function public\.can_access_huddle\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
