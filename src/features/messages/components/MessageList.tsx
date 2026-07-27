@@ -115,6 +115,7 @@ export function MessageList({
   const [contextMessage, setContextMessage] = useState<Message | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [messageJumpTarget, setMessageJumpTarget] = useState<{ id: string; requestId: number } | null>(null);
+  const [listInstanceKey, setListInstanceKey] = useState(0);
   const rows = getMessageRows(messages);
   const messagesById = new Map(messages.map((message) => [message.id, message]));
   loadedMessageIdsRef.current = new Set(messagesById.keys());
@@ -201,11 +202,13 @@ export function MessageList({
 
   function beginMessageJump(messageId: string) {
     isJumpingToMessageRef.current = true;
+    const requestId = nextMessageJumpRequestIdRef.current + 1;
     setMessageJumpTarget({
       id: messageId,
-      requestId: nextMessageJumpRequestIdRef.current + 1
+      requestId
     });
-    nextMessageJumpRequestIdRef.current += 1;
+    setListInstanceKey(requestId);
+    nextMessageJumpRequestIdRef.current = requestId;
   }
 
   function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -317,10 +320,12 @@ export function MessageList({
   return (
     <>
       <FlatList
+      key={listInstanceKey}
       ref={listRef}
       data={rows}
       inverted
       disableVirtualization={Boolean(messageJumpTarget)}
+      initialNumToRender={messageJumpTarget ? rows.length : Math.min(rows.length, 100)}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
         item.type === "date-divider" ? (
@@ -361,6 +366,17 @@ export function MessageList({
       scrollEventThrottle={16}
       onViewableItemsChanged={onViewableItemsChanged}
       onScrollToIndexFailed={(info) => {
+        if (messageJumpTarget) {
+          requestAnimationFrame(() => {
+            listRef.current?.scrollToIndex({
+              index: info.index,
+              viewPosition: 0.5,
+              animated: false
+            });
+          });
+          return;
+        }
+
         listRef.current?.scrollToOffset({
           offset: info.averageItemLength * info.index,
           animated: false
