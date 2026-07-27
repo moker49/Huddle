@@ -20,7 +20,7 @@ import {
 
 interface MessageContextValue {
   getMessages(topicId: string): Message[];
-  loadMessages(topicId: string): Promise<boolean>;
+  loadMessages(topicId: string, options?: MessageLoadOptions): Promise<boolean>;
   preloadOlderMessages(topicId: string): Promise<void>;
   ensureMessageSegmentLoaded(topicId: string, messageId: string): Promise<void>;
   subscribeToMessages(topicId: string): Promise<() => void>;
@@ -45,6 +45,10 @@ interface MessageHistoryState {
   olderPreloadBoundaryId: string | null;
 }
 
+interface MessageLoadOptions {
+  priorityMessageIds?: string[];
+}
+
 const MessageContext = createContext<MessageContextValue | null>(null);
 
 interface MessageProviderProps extends PropsWithChildren {
@@ -57,6 +61,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
   const [historyByTopicId, setHistoryByTopicId] = useState<Record<string, MessageHistoryState>>({});
   const olderLoadInFlightTopicIds = useRef(new Set<string>());
   const targetSegmentInFlightMessageIds = useRef(new Set<string>());
+  const initialLoadPromises = useRef(new Map<string, Promise<boolean>>());
   const [loadedTopicIds, setLoadedTopicIds] = useState<Record<string, boolean>>({});
   const [errorsByTopicId, setErrorsByTopicId] = useState<Record<string, string | null>>({});
   const [draftsByTopicId, setDraftsByTopicId] = useState<Record<string, string>>({});
@@ -127,37 +132,70 @@ export function MessageProvider({ children, service = messageService }: MessageP
   }, [service]);
 
   const loadMessages = useCallback(
-    async (topicId: string) => {
-      try {
-        const page = await service.listMessagePage(topicId, { limit: messagePageSize });
-        const oldestCursor = getOldestCursor(page.messages);
-
-        setMessagesByTopicId((current) => ({ ...current, [topicId]: page.messages }));
-        setHistoryByTopicId((current) => ({
-          ...current,
-          [topicId]: {
-            oldestCursor,
-            hasOlderMessages: page.hasOlderMessages,
-            olderPreloadBoundaryId: null
-          }
-        }));
-        setLoadedTopicIds((current) => ({ ...current, [topicId]: true }));
-        setErrorsByTopicId((current) => ({ ...current, [topicId]: null }));
-
-        if (oldestCursor) {
-          void preloadOlderPage(topicId, oldestCursor, page.hasOlderMessages);
-        }
-
-        return true;
-      } catch {
-        setErrorsByTopicId((current) => ({
-          ...current,
-          [topicId]: "Messages could not be loaded."
-        }));
-        return false;
+    (topicId: string, options: MessageLoadOptions = {}) => {
+      if (loadedTopicIds[topicId]) {
+        return Promise.resolve(true);
       }
+
+      const inFlightLoad = initialLoadPromises.current.get(topicId);
+
+      if (inFlightLoad) {
+        return inFlightLoad;
+      }
+
+      const load = (async () => {
+        try {
+          const page = await service.listMessagePage(topicId, { limit: messagePageSize });
+          const priorityMessageIds = new Set([
+            ...(options.priorityMessageIds ?? []),
+            ...page.messages.flatMap((message) => (
+              message.replyToMessageId ? [message.replyToMessageId] : []
+            ))
+          ]);
+          page.messages.forEach((message) => priorityMessageIds.delete(message.id));
+          const prioritySegments = await Promise.all(
+            Array.from(priorityMessageIds).map((messageId) => (
+              service.listMessageSegment(topicId, messageId, messagePageSize)
+            ))
+          );
+          const initialMessages = prioritySegments.reduce(
+            (currentMessages, segment) => mergeMessages(currentMessages, segment),
+            page.messages
+          );
+          const oldestCursor = getOldestCursor(page.messages);
+
+          setMessagesByTopicId((current) => ({ ...current, [topicId]: initialMessages }));
+          setHistoryByTopicId((current) => ({
+            ...current,
+            [topicId]: {
+              oldestCursor,
+              hasOlderMessages: page.hasOlderMessages,
+              olderPreloadBoundaryId: null
+            }
+          }));
+          setLoadedTopicIds((current) => ({ ...current, [topicId]: true }));
+          setErrorsByTopicId((current) => ({ ...current, [topicId]: null }));
+
+          if (oldestCursor) {
+            void preloadOlderPage(topicId, oldestCursor, page.hasOlderMessages);
+          }
+
+          return true;
+        } catch {
+          setErrorsByTopicId((current) => ({
+            ...current,
+            [topicId]: "Messages could not be loaded."
+          }));
+          return false;
+        } finally {
+          initialLoadPromises.current.delete(topicId);
+        }
+      })();
+
+      initialLoadPromises.current.set(topicId, load);
+      return load;
     },
-    [preloadOlderPage, service]
+    [loadedTopicIds, preloadOlderPage, service]
   );
 
   const preloadOlderMessages = useCallback(async (topicId: string) => {

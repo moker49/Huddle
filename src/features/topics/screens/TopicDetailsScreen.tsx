@@ -104,8 +104,10 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       return;
     }
 
-    void loadMessages(topicId);
-  }, [loadMessages, topicId, topicIsAvailable]);
+    void loadMessages(topicId, {
+      priorityMessageIds: topic?.pinnedMessageId ? [topic.pinnedMessageId] : []
+    });
+  }, [loadMessages, topic?.pinnedMessageId, topicId, topicIsAvailable]);
 
   useEffect(() => {
     if (!topicId || !messagesHaveLoaded || !topic?.pinnedMessageId) {
@@ -375,7 +377,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
           style={styles.keyboardArea}
         >
           <View style={styles.messageArea}>
-            {pinnedMessage ? (
+            {messagesHaveLoaded && pinnedMessage ? (
               <TouchableRipple
                 onLongPress={() => setPinnedMessageForActions(pinnedMessage)}
                 delayLongPress={messageContextMenuHoldDelay}
