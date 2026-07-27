@@ -17,6 +17,8 @@ interface MessageListProps {
   currentUserId?: string;
   getAuthorAvatarUrl?: (message: Message) => string | undefined;
   onDeleteMessage?: (messageId: string) => Promise<Message>;
+  olderPreloadBoundaryMessageId?: string | null;
+  onReachOlderPreloadBoundary?: () => void;
   onReachConversationBottom?: () => void;
   messageToFocus?: { id: string; requestId: number } | null;
   onPinMessage?: (message: Message) => void;
@@ -39,6 +41,8 @@ export function MessageList({
   currentUserId,
   getAuthorAvatarUrl,
   onDeleteMessage,
+  olderPreloadBoundaryMessageId,
+  onReachOlderPreloadBoundary,
   onReachConversationBottom,
   messageToFocus,
   onPinMessage,
@@ -54,6 +58,8 @@ export function MessageList({
   const previousScrollOffsetRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const onReachConversationBottomRef = useRef(onReachConversationBottom);
+  const olderPreloadBoundaryMessageIdRef = useRef(olderPreloadBoundaryMessageId);
+  const onReachOlderPreloadBoundaryRef = useRef(onReachOlderPreloadBoundary);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useRef(({
@@ -61,9 +67,15 @@ export function MessageList({
   }: {
     viewableItems: { item: unknown }[];
   }) => {
-    visibleRowIdsRef.current = new Set(
-      viewableItems.map((viewableItem) => (viewableItem.item as MessageRow).id)
-    );
+    const rows = viewableItems.map((viewableItem) => viewableItem.item as MessageRow);
+    visibleRowIdsRef.current = new Set(rows.map((row) => row.id));
+    const boundaryMessageId = olderPreloadBoundaryMessageIdRef.current;
+
+    if (boundaryMessageId && rows.some((row) => (
+      row.messages?.some((message) => message.id === boundaryMessageId)
+    ))) {
+      onReachOlderPreloadBoundaryRef.current?.();
+    }
   }).current;
   const [unreadMarkerIsPositioned, setUnreadMarkerIsPositioned] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -76,6 +88,8 @@ export function MessageList({
   const canAcknowledgeReadState = hasLoaded && (!unreadMarkerId || unreadMarkerIsPositioned);
 
   onReachConversationBottomRef.current = onReachConversationBottom;
+  olderPreloadBoundaryMessageIdRef.current = olderPreloadBoundaryMessageId;
+  onReachOlderPreloadBoundaryRef.current = onReachOlderPreloadBoundary;
 
   useEffect(() => {
     if (

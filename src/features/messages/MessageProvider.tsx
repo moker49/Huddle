@@ -5,16 +5,23 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 
 import { CreateMessageInput, Message } from "@/models/message";
 import { useAuth } from "@/features/auth/AuthProvider";
-import { MessageService, messageService } from "@/services/messageService";
+import {
+  MessageCursor,
+  MessageService,
+  messagePageSize,
+  messageService
+} from "@/services/messageService";
 
 interface MessageContextValue {
   getMessages(topicId: string): Message[];
   loadMessages(topicId: string): Promise<boolean>;
+  preloadOlderMessages(topicId: string): Promise<void>;
   subscribeToMessages(topicId: string): Promise<() => void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
   updateMessage(messageId: string, body: string): Promise<Message>;
@@ -27,6 +34,13 @@ interface MessageContextValue {
   hasLoadedDraft(topicId: string): boolean;
   hasLoadedMessages(topicId: string): boolean;
   getError(topicId: string): string | null;
+  getOlderPreloadBoundary(topicId: string): string | null;
+}
+
+interface MessageHistoryState {
+  oldestCursor?: MessageCursor;
+  hasOlderMessages: boolean;
+  olderPreloadBoundaryId: string | null;
 }
 
 const MessageContext = createContext<MessageContextValue | null>(null);
@@ -38,6 +52,8 @@ interface MessageProviderProps extends PropsWithChildren {
 export function MessageProvider({ children, service = messageService }: MessageProviderProps) {
   const { session } = useAuth();
   const [messagesByTopicId, setMessagesByTopicId] = useState<Record<string, Message[]>>({});
+  const [historyByTopicId, setHistoryByTopicId] = useState<Record<string, MessageHistoryState>>({});
+  const olderLoadInFlightTopicIds = useRef(new Set<string>());
   const [loadedTopicIds, setLoadedTopicIds] = useState<Record<string, boolean>>({});
   const [errorsByTopicId, setErrorsByTopicId] = useState<Record<string, string | null>>({});
   const [draftsByTopicId, setDraftsByTopicId] = useState<Record<string, string>>({});
@@ -76,13 +92,60 @@ export function MessageProvider({ children, service = messageService }: MessageP
     [service]
   );
 
+  const preloadOlderPage = useCallback(async (
+    topicId: string,
+    before: MessageCursor,
+    hasOlderMessages: boolean
+  ) => {
+    if (!hasOlderMessages || olderLoadInFlightTopicIds.current.has(topicId)) {
+      return;
+    }
+
+    olderLoadInFlightTopicIds.current.add(topicId);
+
+    try {
+      const page = await service.listMessagePage(topicId, { before, limit: messagePageSize });
+
+      setMessagesByTopicId((current) => ({
+        ...current,
+        [topicId]: mergeMessages(current[topicId] ?? [], page.messages)
+      }));
+      setHistoryByTopicId((current) => ({
+        ...current,
+        [topicId]: {
+          oldestCursor: getOldestCursor(page.messages) ?? before,
+          hasOlderMessages: page.hasOlderMessages,
+          // Crossing into this preloaded page should begin preloading the page before it.
+          olderPreloadBoundaryId: page.messages[0]?.id ?? null
+        }
+      }));
+    } finally {
+      olderLoadInFlightTopicIds.current.delete(topicId);
+    }
+  }, [service]);
+
   const loadMessages = useCallback(
     async (topicId: string) => {
       try {
-        const messages = await service.listMessages(topicId);
-        setMessagesByTopicId((current) => ({ ...current, [topicId]: messages }));
+        const page = await service.listMessagePage(topicId, { limit: messagePageSize });
+        const oldestCursor = getOldestCursor(page.messages);
+
+        setMessagesByTopicId((current) => ({ ...current, [topicId]: page.messages }));
+        setHistoryByTopicId((current) => ({
+          ...current,
+          [topicId]: {
+            oldestCursor,
+            hasOlderMessages: page.hasOlderMessages,
+            olderPreloadBoundaryId: null
+          }
+        }));
         setLoadedTopicIds((current) => ({ ...current, [topicId]: true }));
         setErrorsByTopicId((current) => ({ ...current, [topicId]: null }));
+
+        if (oldestCursor) {
+          void preloadOlderPage(topicId, oldestCursor, page.hasOlderMessages);
+        }
+
         return true;
       } catch {
         setErrorsByTopicId((current) => ({
@@ -92,8 +155,28 @@ export function MessageProvider({ children, service = messageService }: MessageP
         return false;
       }
     },
-    [service]
+    [preloadOlderPage, service]
   );
+
+  const preloadOlderMessages = useCallback(async (topicId: string) => {
+    const history = historyByTopicId[topicId];
+
+    if (history?.oldestCursor) {
+      await preloadOlderPage(topicId, history.oldestCursor, history.hasOlderMessages);
+    }
+  }, [historyByTopicId, preloadOlderPage]);
+
+  const refreshNewestMessages = useCallback(async (topicId: string) => {
+    try {
+      const page = await service.listMessagePage(topicId, { limit: messagePageSize });
+      setMessagesByTopicId((current) => ({
+        ...current,
+        [topicId]: mergeMessages(current[topicId] ?? [], page.messages)
+      }));
+    } catch {
+      // Realtime refresh failures should not replace already visible history.
+    }
+  }, [service]);
 
   const sendMessage = useCallback(
     async (input: CreateMessageInput) => {
@@ -176,9 +259,9 @@ export function MessageProvider({ children, service = messageService }: MessageP
 
   const subscribeToMessages = useCallback(
     async (topicId: string) => service.subscribeToMessages(topicId, () => {
-      void loadMessages(topicId);
+      void refreshNewestMessages(topicId);
     }),
-    [loadMessages, service]
+    [refreshNewestMessages, service]
   );
 
   const value = useMemo<MessageContextValue>(
@@ -187,6 +270,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
         return messagesByTopicId[topicId] ?? [];
       },
       loadMessages,
+      preloadOlderMessages,
       subscribeToMessages,
       sendMessage,
       updateMessage,
@@ -199,6 +283,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       clearDraft,
       clearLoadedMessages() {
         setMessagesByTopicId({});
+        setHistoryByTopicId({});
         setLoadedTopicIds({});
         setErrorsByTopicId({});
       },
@@ -210,6 +295,9 @@ export function MessageProvider({ children, service = messageService }: MessageP
       },
       getError(topicId) {
         return errorsByTopicId[topicId] ?? null;
+      },
+      getOlderPreloadBoundary(topicId) {
+        return historyByTopicId[topicId]?.olderPreloadBoundaryId ?? null;
       }
     }),
     [
@@ -218,9 +306,11 @@ export function MessageProvider({ children, service = messageService }: MessageP
       clearDraft,
       loadDraft,
       loadMessages,
+      preloadOlderMessages,
       loadedDraftTopicIds,
       loadedTopicIds,
       messagesByTopicId,
+      historyByTopicId,
       saveDraft,
       sendMessage,
       subscribeToMessages,
@@ -240,4 +330,19 @@ export function useMessages() {
   }
 
   return context;
+}
+
+function getOldestCursor(messages: Message[]): MessageCursor | undefined {
+  const oldestMessage = messages[0];
+
+  return oldestMessage ? { createdAt: oldestMessage.createdAt, id: oldestMessage.id } : undefined;
+}
+
+function mergeMessages(currentMessages: Message[], nextMessages: Message[]) {
+  const messagesById = new Map(currentMessages.map((message) => [message.id, message]));
+
+  nextMessages.forEach((message) => messagesById.set(message.id, message));
+
+  return Array.from(messagesById.values())
+    .sort((first, second) => first.createdAt.localeCompare(second.createdAt) || first.id.localeCompare(second.id));
 }

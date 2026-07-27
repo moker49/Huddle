@@ -179,7 +179,13 @@ test("cloud message lists expose the private unread boundary before marking a hu
   assert.match(messageList, /is_unread boolean/i);
   assert.match(messageList, /message\.created_at > coalesce\(read_state\.last_read_at/i);
   assert.match(messageList, /message\.author_id is distinct from auth\.uid\(\)/i);
-  assert.match(schema, /grant execute on function public\.list_huddle_messages\(uuid\) to authenticated/i);
+  assert.match(
+    schema,
+    /grant execute on function public\.list_huddle_messages\(uuid, timestamptz, uuid, integer\) to authenticated/i
+  );
+  assert.match(messageList, /p_before_created_at timestamptz default null/i);
+  assert.match(messageList, /p_before_id uuid default null/i);
+  assert.match(messageList, /p_limit integer default 100/i);
 });
 
 test("cloud profiles and message rows expose Google avatar URLs", () => {

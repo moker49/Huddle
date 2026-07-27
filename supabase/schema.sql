@@ -1391,8 +1391,14 @@ grant execute on function public.set_huddle_pinned_message(uuid, uuid) to authen
 
 -- Adding return columns changes the function's PostgreSQL row type.
 drop function if exists public.list_huddle_messages(uuid);
+drop function if exists public.list_huddle_messages(uuid, timestamptz, uuid, integer);
 
-create or replace function public.list_huddle_messages(p_huddle_id uuid)
+create or replace function public.list_huddle_messages(
+  p_huddle_id uuid,
+  p_before_created_at timestamptz default null,
+  p_before_id uuid default null,
+  p_limit integer default 100
+)
 returns table (
   id uuid,
   huddle_id uuid,
@@ -1422,6 +1428,18 @@ begin
   end if;
 
   return query
+  with selected_messages as (
+    select *
+    from public.huddle_messages message
+    where message.huddle_id = p_huddle_id
+      and (
+        p_before_created_at is null
+        or message.created_at < p_before_created_at
+        or (message.created_at = p_before_created_at and message.id < p_before_id)
+      )
+    order by message.created_at desc, message.id desc
+    limit greatest(p_limit, 1)
+  )
   select
     message.id,
     message.huddle_id,
@@ -1439,18 +1457,17 @@ begin
       message.created_at > coalesce(read_state.last_read_at, '-infinity'::timestamptz)
       and message.author_id is distinct from auth.uid()
     )
-  from public.huddle_messages message
+  from selected_messages message
   left join public.profiles author_profile on author_profile.id = message.author_id
   left join public.huddle_read_states read_state on (
     read_state.huddle_id = message.huddle_id
     and read_state.profile_id = auth.uid()
   )
-  where message.huddle_id = p_huddle_id
   order by message.created_at, message.id;
 end;
 $$;
 
-grant execute on function public.list_huddle_messages(uuid) to authenticated;
+grant execute on function public.list_huddle_messages(uuid, timestamptz, uuid, integer) to authenticated;
 
 create or replace function public.mark_huddle_read(p_huddle_id uuid)
 returns void

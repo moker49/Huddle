@@ -38,12 +38,14 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const { connections } = useConnections();
   const {
     getError,
+    getOlderPreloadBoundary,
     getDraft,
     getMessages,
     hasLoadedDraft,
     hasLoadedMessages,
     loadDraft,
     loadMessages,
+    preloadOlderMessages,
     saveDraft,
     sendMessage,
     deleteMessage,
@@ -59,6 +61,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const draftHasLoaded = topicId ? hasLoadedDraft(topicId) : false;
   const messagesHaveLoaded = topicId ? hasLoadedMessages(topicId) : false;
   const messageError = topicId ? getError(topicId) : null;
+  const olderPreloadBoundaryMessageId = topicId ? getOlderPreloadBoundary(topicId) : null;
   const hasDisplayName = Boolean(user?.displayName);
   const userId = user?.id;
   const userDisplayName = user?.displayName;
@@ -216,6 +219,12 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     }
   }, [markTopicRead, topicId]);
 
+  const handleReachOlderPreloadBoundary = useCallback(() => {
+    if (topicId) {
+      void preloadOlderMessages(topicId);
+    }
+  }, [preloadOlderMessages, topicId]);
+
   const pinnedMessage = topic?.pinnedMessageId
     ? messages.find((message) => message.id === topic.pinnedMessageId)
     : undefined;
@@ -367,6 +376,8 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               currentUserId={userId}
               getAuthorAvatarUrl={getAuthorAvatarUrl}
               onDeleteMessage={deleteMessage}
+              olderPreloadBoundaryMessageId={olderPreloadBoundaryMessageId}
+              onReachOlderPreloadBoundary={handleReachOlderPreloadBoundary}
               onReachConversationBottom={handleReachConversationBottom}
               messageToFocus={messageToFocus}
               onPinMessage={handlePinMessage}

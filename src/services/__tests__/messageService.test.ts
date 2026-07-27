@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { JsonStorage } from "@/services/localJsonStorage";
 import {
   LocalMessageService,
+  messagePageSize,
   SupabaseMessageRepository,
   SupabaseMessageRow,
   SupabaseMessageService
@@ -73,6 +74,32 @@ test("messages from one huddle do not appear in another huddle", async () => {
 
   assert.deepEqual(topicOneMessages.map((message) => message.body), ["topic one"]);
   assert.deepEqual(topicTwoMessages.map((message) => message.body), ["topic two"]);
+});
+
+test("message pages return the newest 100 messages and report older history", async () => {
+  const messages = new LocalMessageService(new MemoryJsonStorage());
+
+  for (let index = 0; index < messagePageSize + 1; index += 1) {
+    await messages.createMessage({
+      topicId: "topic-1",
+      body: `Message ${index}`,
+      authorId: "user-1",
+      authorName: "Efren"
+    });
+  }
+
+  const newestPage = await messages.listMessagePage("topic-1");
+  const olderPage = await messages.listMessagePage("topic-1", {
+    before: {
+      id: newestPage.messages[0].id,
+      createdAt: newestPage.messages[0].createdAt
+    }
+  });
+
+  assert.equal(newestPage.messages.length, messagePageSize);
+  assert.equal(newestPage.hasOlderMessages, true);
+  assert.equal(olderPage.messages.length, 1);
+  assert.equal(olderPage.hasOlderMessages, false);
 });
 
 test("replies retain their source message and reject sources from another huddle", async () => {
@@ -242,6 +269,32 @@ test("cloud message mutations map edited and deleted state", async () => {
   assert.equal(deleted.isDeleted, true);
 });
 
+test("cloud message pages retain the newest 100 rows and expose older history", async () => {
+  const rows = Array.from({ length: 101 }, (_, index) =>
+    messageRow({
+      id: `message-${String(index).padStart(3, "0")}`,
+      huddle_id: "topic-1",
+      created_at: `2026-07-21T12:${String(index).padStart(2, "0")}:00.000Z`
+    })
+  );
+  const messages = new SupabaseMessageService(new MemorySupabaseMessageRepository(rows));
+
+  const newestPage = await messages.listMessagePage("topic-1");
+  const olderPage = await messages.listMessagePage("topic-1", {
+    before: {
+      id: newestPage.messages[0].id,
+      createdAt: newestPage.messages[0].createdAt
+    }
+  });
+
+  assert.equal(newestPage.messages.length, messagePageSize);
+  assert.equal(newestPage.messages[0].id, "message-001");
+  assert.equal(newestPage.hasOlderMessages, true);
+  assert.equal(olderPage.messages.length, 1);
+  assert.equal(olderPage.messages[0].id, "message-000");
+  assert.equal(olderPage.hasOlderMessages, false);
+});
+
 test("local message subscriptions are safe no-ops", async () => {
   const messages = new LocalMessageService(new MemoryJsonStorage());
   const unsubscribe = await messages.subscribeToMessages("topic-1", () => {
@@ -260,6 +313,20 @@ class MemorySupabaseMessageRepository implements SupabaseMessageRepository {
 
   async listMessages(_topicId: string): Promise<SupabaseMessageRow[]> {
     return this.rows;
+  }
+
+  async listMessagePage(
+    topicId: string,
+    { before, limit }: { before?: { createdAt: string; id: string }; limit: number }
+  ): Promise<SupabaseMessageRow[]> {
+    const messages = this.rows
+      .filter((message) => message.huddle_id === topicId)
+      .sort((first, second) => first.created_at.localeCompare(second.created_at) || first.id.localeCompare(second.id));
+    const endIndex = before
+      ? messages.findIndex((message) => message.id === before.id)
+      : messages.length;
+
+    return messages.slice(Math.max(0, endIndex < 0 ? messages.length - limit - 1 : endIndex - limit - 1), endIndex < 0 ? messages.length : endIndex);
   }
 
   async createMessage(

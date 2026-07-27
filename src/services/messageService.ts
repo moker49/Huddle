@@ -5,6 +5,7 @@ import { createId } from "@/utils/createId";
 export interface MessageService {
   setAccountScope(accountId: string | null): void;
   listMessages(topicId: string): Promise<Message[]>;
+  listMessagePage(topicId: string, options?: MessagePageOptions): Promise<MessagePage>;
   createMessage(input: CreateMessageInput): Promise<Message>;
   updateMessage(messageId: string, body: string): Promise<Message>;
   deleteMessage(messageId: string): Promise<Message>;
@@ -14,6 +15,21 @@ export interface MessageService {
   clearDraft(topicId: string): Promise<void>;
   subscribeToMessages(topicId: string, onChange: () => void): Promise<() => void>;
   resetLocalData(): Promise<void>;
+}
+
+export interface MessageCursor {
+  createdAt: string;
+  id: string;
+}
+
+export interface MessagePageOptions {
+  before?: MessageCursor;
+  limit?: number;
+}
+
+export interface MessagePage {
+  messages: Message[];
+  hasOlderMessages: boolean;
 }
 
 export interface CreateActivityInput {
@@ -40,12 +56,14 @@ export interface SupabaseMessageRow {
 
 export interface SupabaseMessageRepository {
   listMessages(topicId: string): Promise<SupabaseMessageRow[]>;
+  listMessagePage(topicId: string, options: MessagePageOptions & { limit: number }): Promise<SupabaseMessageRow[]>;
   createMessage(topicId: string, body: string, replyToMessageId?: string): Promise<SupabaseMessageRow>;
   updateMessage(messageId: string, body: string): Promise<SupabaseMessageRow>;
   deleteMessage(messageId: string): Promise<SupabaseMessageRow>;
 }
 
 const initialMessages: Message[] = [];
+export const messagePageSize = 100;
 
 const messageStorageKey = "huddle:messages:v2";
 const draftStorageKeyPrefix = "huddle:message-drafts:v1";
@@ -171,6 +189,21 @@ export class LocalMessageService implements MessageService {
     return messages
       .filter((message) => message.topicId === topicId)
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  async listMessagePage(topicId: string, options: MessagePageOptions = {}): Promise<MessagePage> {
+    const limit = options.limit ?? messagePageSize;
+    const messages = await this.listMessages(topicId);
+    const beforeIndex = options.before
+      ? messages.findIndex((message) => message.id === options.before?.id)
+      : messages.length;
+    const endIndex = beforeIndex < 0 ? messages.length : beforeIndex;
+    const startIndex = Math.max(0, endIndex - limit);
+
+    return {
+      messages: messages.slice(startIndex, endIndex),
+      hasOlderMessages: startIndex > 0
+    };
   }
 
   async createMessage(input: CreateMessageInput): Promise<Message> {
@@ -346,6 +379,25 @@ class SupabaseMessageRepositoryClient implements SupabaseMessageRepository {
     return (data ?? []) as SupabaseMessageRow[];
   }
 
+  async listMessagePage(
+    topicId: string,
+    { before, limit }: MessagePageOptions & { limit: number }
+  ): Promise<SupabaseMessageRow[]> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error } = await supabase.rpc("list_huddle_messages", {
+      p_huddle_id: topicId,
+      p_before_created_at: before?.createdAt ?? null,
+      p_before_id: before?.id ?? null,
+      p_limit: limit + 1
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []) as SupabaseMessageRow[];
+  }
+
   async createMessage(
     topicId: string,
     body: string,
@@ -410,6 +462,21 @@ export class SupabaseMessageService implements MessageService {
 
   async listMessages(topicId: string): Promise<Message[]> {
     return (await this.repository.listMessages(topicId)).map(mapSupabaseMessage);
+  }
+
+  async listMessagePage(topicId: string, options: MessagePageOptions = {}): Promise<MessagePage> {
+    const limit = options.limit ?? messagePageSize;
+    const rows = await this.repository.listMessagePage(topicId, {
+      before: options.before,
+      limit
+    });
+    const messages = rows.map(mapSupabaseMessage);
+    const hasOlderMessages = messages.length > limit;
+
+    return {
+      messages: hasOlderMessages ? messages.slice(1) : messages,
+      hasOlderMessages
+    };
   }
 
   async createMessage(input: CreateMessageInput): Promise<Message> {
