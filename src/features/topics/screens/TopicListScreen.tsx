@@ -14,8 +14,6 @@ import {
 import {
   ActivityIndicator,
   Appbar,
-  Button,
-  Dialog,
   Icon,
   IconButton,
   Portal,
@@ -28,6 +26,7 @@ import { MemberAvatar } from "@/components/MemberAvatar";
 import { MemberRail } from "@/features/connections/components/MemberRail";
 import { useConnections } from "@/features/connections/ConnectionProvider";
 import { TopicActionSheet } from "@/features/topics/components/TopicActionSheet";
+import { LeaveHuddleDialog } from "@/features/topics/components/LeaveHuddleDialog";
 import { TopicListItem } from "@/features/topics/components/TopicListItem";
 import { getNextTopicArchiveTime, isTopicArchived } from "@/features/topics/topicArchive";
 import { useTopics } from "@/features/topics/TopicProvider";
@@ -627,32 +626,13 @@ export function TopicListScreen() {
             </Animated.View>
           </View>
         ) : null}
-        <Dialog
-          visible={Boolean(topicToLeave)}
-          onDismiss={() => {
-            if (!isLeaving) {
-              dismissLeaveDialog();
-            }
-          }}
-        >
-          <Dialog.Title>Leave huddle?</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              You will lose access to this huddle and its message history.
-            </Text>
-            {leaveError ? (
-              <Text variant="bodySmall" style={{ color: theme.colors.error }}>
-                {leaveError}
-              </Text>
-            ) : null}
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={dismissLeaveDialog} disabled={isLeaving}>Cancel</Button>
-            <Button onPress={handleConfirmLeave} loading={isLeaving} disabled={isLeaving}>
-              Leave
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
+        <LeaveHuddleDialog
+          topic={topicToLeave}
+          errorMessage={leaveError}
+          isLeaving={isLeaving}
+          onDismiss={dismissLeaveDialog}
+          onLeave={handleConfirmLeave}
+        />
       </Portal>
       <TopicActionSheet
         topic={topicForActions}
