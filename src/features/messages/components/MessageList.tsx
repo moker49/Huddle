@@ -51,6 +51,7 @@ export function MessageList({
   const focusMessageRef = useRef<(messageId: string) => void>(() => undefined);
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
   const isAtConversationBottomRef = useRef(true);
+  const previousScrollOffsetRef = useRef(0);
   const onReachConversationBottomRef = useRef(onReachConversationBottom);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -147,10 +148,16 @@ export function MessageList({
     const scrollOffset = contentOffset.y;
     const isAtBottom = scrollOffset <= spacing.sm;
     const isAtLeastOneViewportAway = scrollOffset > layoutMeasurement.height;
+    const isScrollingAwayFromBottom = scrollOffset > previousScrollOffsetRef.current + 1;
+    const isScrollingTowardBottom = scrollOffset < previousScrollOffsetRef.current - 1;
 
-    setShowScrollToBottom((isVisible) => (
-      isVisible === isAtLeastOneViewportAway ? isVisible : isAtLeastOneViewportAway
-    ));
+    if (isScrollingTowardBottom && isAtLeastOneViewportAway) {
+      setShowScrollToBottom(true);
+    } else if (isScrollingAwayFromBottom) {
+      setShowScrollToBottom(false);
+    }
+
+    previousScrollOffsetRef.current = scrollOffset;
     if (isAtConversationBottomRef.current !== isAtBottom) {
       isAtConversationBottomRef.current = isAtBottom;
 
