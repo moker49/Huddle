@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View } from "react-native";
-import { Divider, Text, useTheme } from "react-native-paper";
+import { Divider, FAB, Text, useTheme } from "react-native-paper";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
 import { MessageActionSheet } from "@/features/messages/components/MessageActionSheet";
@@ -64,6 +64,7 @@ export function MessageList({
     );
   }).current;
   const [unreadMarkerIsPositioned, setUnreadMarkerIsPositioned] = useState(false);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [contextMessage, setContextMessage] = useState<Message | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const rows = getMessageRows(messages);
@@ -142,17 +143,25 @@ export function MessageList({
 
   function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
     // In an inverted FlatList, offset zero is the visual bottom of the conversation.
-    const isAtBottom = event.nativeEvent.contentOffset.y <= spacing.sm;
+    const { contentOffset, layoutMeasurement } = event.nativeEvent;
+    const scrollOffset = contentOffset.y;
+    const isAtBottom = scrollOffset <= spacing.sm;
+    const isAtLeastOneViewportAway = scrollOffset > layoutMeasurement.height;
 
-    if (isAtConversationBottomRef.current === isAtBottom) {
-      return;
+    setShowScrollToBottom((isVisible) => (
+      isVisible === isAtLeastOneViewportAway ? isVisible : isAtLeastOneViewportAway
+    ));
+    if (isAtConversationBottomRef.current !== isAtBottom) {
+      isAtConversationBottomRef.current = isAtBottom;
+
+      if (isAtBottom && canAcknowledgeReadState) {
+        onReachConversationBottomRef.current?.();
+      }
     }
+  }
 
-    isAtConversationBottomRef.current = isAtBottom;
-
-    if (isAtBottom && canAcknowledgeReadState) {
-      onReachConversationBottomRef.current?.();
-    }
+  function scrollToConversationBottom() {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
   }
 
   focusMessageRef.current = handlePressReply;
@@ -259,6 +268,18 @@ export function MessageList({
       ]}
         contentContainerStyle={styles.listContent}
       />
+      {showScrollToBottom ? (
+        <View style={[styles.scrollToBottomLayer, { pointerEvents: "box-none" }]}>
+          <FAB
+            icon="arrow-down"
+            size="small"
+            variant="primary"
+            mode="elevated"
+            onPress={scrollToConversationBottom}
+            accessibilityLabel="Scroll to newest messages"
+          />
+        </View>
+      ) : null}
       <MessageActionSheet
         currentUserId={currentUserId}
         message={contextMessage}
@@ -330,6 +351,13 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: spacing.md
+  },
+  scrollToBottomLayer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: spacing.md,
+    alignItems: "center"
   },
   unreadMarker: {
     flexDirection: "row",
