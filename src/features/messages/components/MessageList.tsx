@@ -68,6 +68,8 @@ export function MessageList({
   const onViewableReplySourceIdsRef = useRef(onViewableReplySourceIds);
   const onRequestMessageFocusRef = useRef(onRequestMessageFocus);
   const loadedMessageIdsRef = useRef(new Set<string>());
+  const isJumpingToMessageRef = useRef(false);
+  const jumpReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useRef(({
@@ -79,7 +81,7 @@ export function MessageList({
     visibleRowIdsRef.current = new Set(rows.map((row) => row.id));
     const boundaryMessageId = olderPreloadBoundaryMessageIdRef.current;
 
-    if (boundaryMessageId && rows.some((row) => (
+    if (!isJumpingToMessageRef.current && boundaryMessageId && rows.some((row) => (
       row.messages?.some((message) => message.id === boundaryMessageId)
     ))) {
       onReachOlderPreloadBoundaryRef.current?.();
@@ -92,7 +94,7 @@ export function MessageList({
       }
     }));
 
-    if (missingReplySourceIds.size > 0) {
+    if (!isJumpingToMessageRef.current && missingReplySourceIds.size > 0) {
       onViewableReplySourceIdsRef.current?.(Array.from(missingReplySourceIds));
     }
   }).current;
@@ -175,6 +177,8 @@ export function MessageList({
       return;
     }
 
+    beginMessageJump();
+
     if (visibleRowIdsRef.current.has(rows[rowIndex].id)) {
       highlightMessage(messageId);
       return;
@@ -184,6 +188,20 @@ export function MessageList({
     requestAnimationFrame(() => {
       requestAnimationFrame(() => highlightMessage(messageId));
     });
+  }
+
+  function beginMessageJump() {
+    isJumpingToMessageRef.current = true;
+
+    if (jumpReleaseTimerRef.current) {
+      clearTimeout(jumpReleaseTimerRef.current);
+    }
+
+    // scrollToIndex may retry after a virtualized layout measurement; keep that retry out of user-scroll logic.
+    jumpReleaseTimerRef.current = setTimeout(() => {
+      isJumpingToMessageRef.current = false;
+      jumpReleaseTimerRef.current = null;
+    }, 350);
   }
 
   function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -240,6 +258,10 @@ export function MessageList({
   useEffect(() => () => {
     if (highlightTimerRef.current) {
       clearTimeout(highlightTimerRef.current);
+    }
+
+    if (jumpReleaseTimerRef.current) {
+      clearTimeout(jumpReleaseTimerRef.current);
     }
   }, []);
 
