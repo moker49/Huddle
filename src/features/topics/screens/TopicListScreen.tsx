@@ -59,6 +59,7 @@ const webInputFocusReset = Platform.OS === "web"
   ? ({ outlineStyle: "none" } as object)
   : undefined;
 const drawerWidth = 304;
+const useNativeAnimationDriver = Platform.OS !== "web";
 
 export function TopicListScreen() {
   const theme = useTheme();
@@ -298,7 +299,7 @@ export function TopicListScreen() {
         toValue: 1,
         duration: 220,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true
+        useNativeDriver: useNativeAnimationDriver
       }).start();
     });
   }
@@ -308,7 +309,7 @@ export function TopicListScreen() {
       toValue: 0,
       duration: 180,
       easing: Easing.in(Easing.cubic),
-      useNativeDriver: true
+      useNativeDriver: useNativeAnimationDriver
     }).start(({ finished }) => {
       if (finished) {
         setDrawerIsMounted(false);
@@ -519,7 +520,7 @@ export function TopicListScreen() {
           </ScrollView>
         )}
         {!isLoading && !errorMessage && shouldShowNetworkCta ? (
-          <View pointerEvents="box-none" style={styles.networkCtaLayer}>
+          <View style={[styles.networkCtaLayer, { pointerEvents: "box-none" }]}>
             <Pressable
               onPress={() => router.push({
                 pathname: "/profile",

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { Icon, Text, useTheme } from "react-native-paper";
 
 interface HuddleFabProps {
@@ -13,6 +13,9 @@ interface HuddleFabProps {
 
 const fabSize = 56;
 const iconSize = 24;
+const fabElevationStyle = Platform.OS === "web"
+  ? ({ boxShadow: "0px 3px 6px rgba(0, 0, 0, 0.24)" } as object)
+  : { elevation: 3 };
 
 export function HuddleFab({
   disabled = false,
@@ -41,6 +44,7 @@ export function HuddleFab({
       style={({ pressed }) => [
         styles.fab,
         extended ? styles.extendedFab : styles.iconFab,
+        fabElevationStyle,
         {
           backgroundColor,
           opacity: disabled ? 0.38 : 1
@@ -50,9 +54,9 @@ export function HuddleFab({
       {({ pressed, hovered }) => (
         <>
           <View
-            pointerEvents="none"
             style={[
               styles.stateLayer,
+              { pointerEvents: "none" },
               (pressed || hovered) && !disabled
                 ? { backgroundColor: foregroundColor, opacity: pressed ? 0.12 : 0.08 }
                 : undefined
@@ -77,7 +81,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    elevation: 3,
     overflow: "hidden"
   },
   iconFab: {

@@ -21,6 +21,8 @@ interface MessageAction {
   onPress?: (message: Message) => void;
 }
 
+const useNativeAnimationDriver = Platform.OS !== "web";
+
 export function MessageActionSheet({
   currentUserId,
   message,
@@ -61,13 +63,13 @@ export function MessageActionSheet({
           Animated.timing(scrimOpacity, {
             toValue: 1,
             duration: 120,
-            useNativeDriver: true
+            useNativeDriver: useNativeAnimationDriver
           }),
           Animated.timing(sheetTranslateY, {
             toValue: 0,
             duration: 220,
             easing: Easing.out(Easing.cubic),
-            useNativeDriver: true
+            useNativeDriver: useNativeAnimationDriver
           })
         ]).start();
       });
@@ -84,13 +86,13 @@ export function MessageActionSheet({
       Animated.timing(scrimOpacity, {
         toValue: 0,
         duration: 100,
-        useNativeDriver: true
+        useNativeDriver: useNativeAnimationDriver
       }),
       Animated.timing(sheetTranslateY, {
         toValue: 320,
         duration: 180,
         easing: Easing.in(Easing.cubic),
-        useNativeDriver: true
+        useNativeDriver: useNativeAnimationDriver
       })
     ]).start(() => {
       setIsMounted(false);

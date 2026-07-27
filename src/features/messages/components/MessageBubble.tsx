@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Animated, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Text, TouchableRipple, useTheme } from "react-native-paper";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
@@ -8,6 +8,7 @@ import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 
 const messageAvatarSize = layout.appBarActionSize;
+const useNativeAnimationDriver = Platform.OS !== "web";
 
 interface MessageBubbleProps {
   messages: Message[];
@@ -48,12 +49,12 @@ export function MessageBubble({
       Animated.timing(highlightOpacity, {
         toValue: 0.2,
         duration: 120,
-        useNativeDriver: true
+        useNativeDriver: useNativeAnimationDriver
       }),
       Animated.timing(highlightOpacity, {
         toValue: 0,
         duration: 520,
-        useNativeDriver: true
+        useNativeDriver: useNativeAnimationDriver
       })
     ]).start();
   }, [highlightOpacity, highlightedMessageId, highlightedMessageIsInGroup]);
@@ -70,9 +71,9 @@ export function MessageBubble({
         <View style={styles.systemRowContent}>
           {message.id === highlightedMessageId ? (
             <Animated.View
-              pointerEvents="none"
               style={[
                 styles.systemHighlight,
+                { pointerEvents: "none" },
                 {
                   backgroundColor: theme.colors.primary,
                   opacity: highlightOpacity
@@ -140,9 +141,9 @@ export function MessageBubble({
             <View style={styles.messageBodyContent}>
               {currentMessage.id === highlightedMessageId ? (
                 <Animated.View
-                  pointerEvents="none"
                   style={[
                     styles.messageHighlight,
+                    { pointerEvents: "none" },
                     {
                       backgroundColor: theme.colors.primary,
                       opacity: highlightOpacity
