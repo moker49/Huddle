@@ -52,6 +52,7 @@ export function MessageList({
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
   const isAtConversationBottomRef = useRef(true);
   const previousScrollOffsetRef = useRef(0);
+  const viewportHeightRef = useRef(0);
   const onReachConversationBottomRef = useRef(onReachConversationBottom);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -146,6 +147,7 @@ export function MessageList({
     // In an inverted FlatList, offset zero is the visual bottom of the conversation.
     const { contentOffset, layoutMeasurement } = event.nativeEvent;
     const scrollOffset = contentOffset.y;
+    viewportHeightRef.current = layoutMeasurement.height;
     const isAtBottom = scrollOffset <= spacing.sm;
     const isAtLeastOneViewportAway = scrollOffset > layoutMeasurement.height;
     const isScrollingAwayFromBottom = scrollOffset > previousScrollOffsetRef.current + 1;
@@ -168,7 +170,11 @@ export function MessageList({
   }
 
   function scrollToConversationBottom() {
-    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setShowScrollToBottom(false);
+    listRef.current?.scrollToOffset({
+      offset: 0,
+      animated: previousScrollOffsetRef.current <= viewportHeightRef.current * 3
+    });
   }
 
   focusMessageRef.current = handlePressReply;
@@ -278,7 +284,7 @@ export function MessageList({
       {showScrollToBottom ? (
         <View style={[styles.scrollToBottomLayer, { pointerEvents: "box-none" }]}>
           <FAB
-            icon="arrow-down"
+            icon="chevron-down"
             size="small"
             variant="primary"
             mode="elevated"
