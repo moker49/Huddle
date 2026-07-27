@@ -16,6 +16,7 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { MessageComposer } from "@/features/messages/components/MessageComposer";
 import { MessageActionSheet } from "@/features/messages/components/MessageActionSheet";
 import { MessageList } from "@/features/messages/components/MessageList";
+import { messageContextMenuHoldDelay } from "@/features/messages/messageContextMenu";
 import { HuddleIcon } from "@/features/topics/components/HuddleIcon";
 import { useMessages } from "@/features/messages/MessageProvider";
 import { useTopics } from "@/features/topics/TopicProvider";
@@ -332,6 +333,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             {pinnedMessage ? (
               <TouchableRipple
                 onLongPress={() => setPinnedMessageForActions(pinnedMessage)}
+                delayLongPress={messageContextMenuHoldDelay}
                 onPress={() => setMessageToFocus((current) => ({
                   id: pinnedMessage.id,
                   requestId: (current?.requestId ?? 0) + 1

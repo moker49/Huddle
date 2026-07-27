@@ -4,6 +4,7 @@ import { Text, TouchableRipple, useTheme } from "react-native-paper";
 
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { formatMessageTimestamp } from "@/features/messages/messageDates";
+import { messageContextMenuHoldDelay } from "@/features/messages/messageContextMenu";
 import { Message } from "@/models/message";
 import { layout, spacing } from "@/theme/tokens";
 
@@ -64,7 +65,7 @@ export function MessageBubble({
       <TouchableRipple
         disabled={!onLongPress}
         onLongPress={() => onLongPress?.(message)}
-        delayLongPress={180}
+        delayLongPress={messageContextMenuHoldDelay}
         accessibilityHint="Hold for message options"
         style={styles.systemRow}
       >
@@ -134,7 +135,7 @@ export function MessageBubble({
             key={currentMessage.id}
             disabled={currentMessage.isDeleted || !onLongPress}
             onLongPress={() => onLongPress?.(currentMessage)}
-            delayLongPress={180}
+            delayLongPress={messageContextMenuHoldDelay}
             accessibilityHint="Hold for message options"
             style={styles.messageBody}
           >
