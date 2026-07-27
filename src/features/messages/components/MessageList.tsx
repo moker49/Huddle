@@ -19,6 +19,8 @@ interface MessageListProps {
   onDeleteMessage?: (messageId: string) => Promise<Message>;
   olderPreloadBoundaryMessageId?: string | null;
   onReachOlderPreloadBoundary?: () => void;
+  onViewableReplySourceIds?: (messageIds: string[]) => void;
+  onRequestMessageFocus?: (messageId: string) => void;
   onReachConversationBottom?: (unreadMarkerId: string) => void;
   messageToFocus?: { id: string; requestId: number } | null;
   onPinMessage?: (message: Message) => void;
@@ -43,6 +45,8 @@ export function MessageList({
   onDeleteMessage,
   olderPreloadBoundaryMessageId,
   onReachOlderPreloadBoundary,
+  onViewableReplySourceIds,
+  onRequestMessageFocus,
   onReachConversationBottom,
   messageToFocus,
   onPinMessage,
@@ -61,6 +65,9 @@ export function MessageList({
   const acknowledgedUnreadMarkerIdRef = useRef<string | null>(null);
   const olderPreloadBoundaryMessageIdRef = useRef(olderPreloadBoundaryMessageId);
   const onReachOlderPreloadBoundaryRef = useRef(onReachOlderPreloadBoundary);
+  const onViewableReplySourceIdsRef = useRef(onViewableReplySourceIds);
+  const onRequestMessageFocusRef = useRef(onRequestMessageFocus);
+  const loadedMessageIdsRef = useRef(new Set<string>());
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useRef(({
@@ -77,6 +84,17 @@ export function MessageList({
     ))) {
       onReachOlderPreloadBoundaryRef.current?.();
     }
+
+    const missingReplySourceIds = new Set<string>();
+    rows.forEach((row) => row.messages?.forEach((message) => {
+      if (message.replyToMessageId && !loadedMessageIdsRef.current.has(message.replyToMessageId)) {
+        missingReplySourceIds.add(message.replyToMessageId);
+      }
+    }));
+
+    if (missingReplySourceIds.size > 0) {
+      onViewableReplySourceIdsRef.current?.(Array.from(missingReplySourceIds));
+    }
   }).current;
   const [unreadMarkerIsPositioned, setUnreadMarkerIsPositioned] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -84,6 +102,7 @@ export function MessageList({
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const rows = getMessageRows(messages);
   const messagesById = new Map(messages.map((message) => [message.id, message]));
+  loadedMessageIdsRef.current = new Set(messagesById.keys());
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
   const canAcknowledgeReadState = hasLoaded && Boolean(unreadMarkerId) && unreadMarkerIsPositioned;
@@ -91,6 +110,8 @@ export function MessageList({
   onReachConversationBottomRef.current = onReachConversationBottom;
   olderPreloadBoundaryMessageIdRef.current = olderPreloadBoundaryMessageId;
   onReachOlderPreloadBoundaryRef.current = onReachOlderPreloadBoundary;
+  onViewableReplySourceIdsRef.current = onViewableReplySourceIds;
+  onRequestMessageFocusRef.current = onRequestMessageFocus;
 
   useEffect(() => {
     if (
@@ -150,6 +171,7 @@ export function MessageList({
     const rowIndex = rows.findIndex((row) => row.messages?.some((message) => message.id === messageId));
 
     if (rowIndex < 0) {
+      onRequestMessageFocusRef.current?.(messageId);
       return;
     }
 

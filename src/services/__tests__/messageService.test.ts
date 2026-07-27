@@ -295,6 +295,23 @@ test("cloud message pages retain the newest 100 rows and expose older history", 
   assert.equal(olderPage.hasOlderMessages, false);
 });
 
+test("targeted cloud message segments use the same newest-first 100-message boundaries", async () => {
+  const rows = Array.from({ length: 250 }, (_, index) =>
+    messageRow({
+      id: `message-${String(index).padStart(3, "0")}`,
+      huddle_id: "topic-1",
+      created_at: new Date(Date.UTC(2026, 6, 21, 12, 0, index)).toISOString()
+    })
+  );
+  const messages = new SupabaseMessageService(new MemorySupabaseMessageRepository(rows));
+
+  const segment = await messages.listMessageSegment("topic-1", "message-050");
+
+  assert.equal(segment.length, messagePageSize);
+  assert.equal(segment[0].id, "message-050");
+  assert.equal(segment.at(-1)?.id, "message-149");
+});
+
 test("local message subscriptions are safe no-ops", async () => {
   const messages = new LocalMessageService(new MemoryJsonStorage());
   const unsubscribe = await messages.subscribeToMessages("topic-1", () => {
@@ -327,6 +344,27 @@ class MemorySupabaseMessageRepository implements SupabaseMessageRepository {
       : messages.length;
 
     return messages.slice(Math.max(0, endIndex < 0 ? messages.length - limit - 1 : endIndex - limit - 1), endIndex < 0 ? messages.length : endIndex);
+  }
+
+  async listMessageSegment(
+    topicId: string,
+    messageId: string,
+    limit: number
+  ): Promise<SupabaseMessageRow[]> {
+    const messages = this.rows
+      .filter((message) => message.huddle_id === topicId)
+      .sort((first, second) => first.created_at.localeCompare(second.created_at) || first.id.localeCompare(second.id));
+    const messageIndex = messages.findIndex((message) => message.id === messageId);
+
+    if (messageIndex < 0) {
+      return [];
+    }
+
+    const segmentOffsetFromNewest = Math.floor((messages.length - 1 - messageIndex) / limit);
+    const endIndex = messages.length - segmentOffsetFromNewest * limit;
+    const startIndex = Math.max(0, endIndex - limit);
+
+    return messages.slice(startIndex, endIndex);
   }
 
   async createMessage(

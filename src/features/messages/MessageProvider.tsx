@@ -22,6 +22,7 @@ interface MessageContextValue {
   getMessages(topicId: string): Message[];
   loadMessages(topicId: string): Promise<boolean>;
   preloadOlderMessages(topicId: string): Promise<void>;
+  ensureMessageSegmentLoaded(topicId: string, messageId: string): Promise<void>;
   subscribeToMessages(topicId: string): Promise<() => void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
   updateMessage(messageId: string, body: string): Promise<Message>;
@@ -55,6 +56,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
   const [messagesByTopicId, setMessagesByTopicId] = useState<Record<string, Message[]>>({});
   const [historyByTopicId, setHistoryByTopicId] = useState<Record<string, MessageHistoryState>>({});
   const olderLoadInFlightTopicIds = useRef(new Set<string>());
+  const targetSegmentInFlightMessageIds = useRef(new Set<string>());
   const [loadedTopicIds, setLoadedTopicIds] = useState<Record<string, boolean>>({});
   const [errorsByTopicId, setErrorsByTopicId] = useState<Record<string, string | null>>({});
   const [draftsByTopicId, setDraftsByTopicId] = useState<Record<string, string>>({});
@@ -116,8 +118,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
         [topicId]: {
           oldestCursor: getOldestCursor(page.messages) ?? before,
           hasOlderMessages: page.hasOlderMessages,
-          // Crossing into this preloaded page should begin preloading the page before it.
-          olderPreloadBoundaryId: page.messages[0]?.id ?? null
+          olderPreloadBoundaryId: getOlderPreloadBoundaryId(page.messages)
         }
       }));
     } finally {
@@ -166,6 +167,30 @@ export function MessageProvider({ children, service = messageService }: MessageP
       await preloadOlderPage(topicId, history.oldestCursor, history.hasOlderMessages);
     }
   }, [historyByTopicId, preloadOlderPage]);
+
+  const ensureMessageSegmentLoaded = useCallback(async (topicId: string, messageId: string) => {
+    if (
+      messagesByTopicId[topicId]?.some((message) => message.id === messageId) ||
+      targetSegmentInFlightMessageIds.current.has(messageId)
+    ) {
+      return;
+    }
+
+    targetSegmentInFlightMessageIds.current.add(messageId);
+
+    try {
+      const messages = await service.listMessageSegment(topicId, messageId, messagePageSize);
+
+      if (messages.length > 0) {
+        setMessagesByTopicId((current) => ({
+          ...current,
+          [topicId]: mergeMessages(current[topicId] ?? [], messages)
+        }));
+      }
+    } finally {
+      targetSegmentInFlightMessageIds.current.delete(messageId);
+    }
+  }, [messagesByTopicId, service]);
 
   const refreshNewestMessages = useCallback(async (topicId: string) => {
     try {
@@ -272,6 +297,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       },
       loadMessages,
       preloadOlderMessages,
+      ensureMessageSegmentLoaded,
       subscribeToMessages,
       sendMessage,
       updateMessage,
@@ -317,6 +343,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       loadDraft,
       loadMessages,
       preloadOlderMessages,
+      ensureMessageSegmentLoaded,
       loadedDraftTopicIds,
       loadedTopicIds,
       messagesByTopicId,
@@ -355,4 +382,13 @@ function mergeMessages(currentMessages: Message[], nextMessages: Message[]) {
 
   return Array.from(messagesById.values())
     .sort((first, second) => first.createdAt.localeCompare(second.createdAt) || first.id.localeCompare(second.id));
+}
+
+function getOlderPreloadBoundaryId(messages: Message[]) {
+  if (messages.length === 0) {
+    return null;
+  }
+
+  // Start the following preload after entering the newest quarter of this older segment.
+  return messages[Math.floor(messages.length * 0.75)]?.id ?? messages.at(-1)?.id ?? null;
 }

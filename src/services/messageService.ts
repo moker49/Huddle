@@ -6,6 +6,7 @@ export interface MessageService {
   setAccountScope(accountId: string | null): void;
   listMessages(topicId: string): Promise<Message[]>;
   listMessagePage(topicId: string, options?: MessagePageOptions): Promise<MessagePage>;
+  listMessageSegment(topicId: string, messageId: string, limit?: number): Promise<Message[]>;
   createMessage(input: CreateMessageInput): Promise<Message>;
   updateMessage(messageId: string, body: string): Promise<Message>;
   deleteMessage(messageId: string): Promise<Message>;
@@ -57,6 +58,7 @@ export interface SupabaseMessageRow {
 export interface SupabaseMessageRepository {
   listMessages(topicId: string): Promise<SupabaseMessageRow[]>;
   listMessagePage(topicId: string, options: MessagePageOptions & { limit: number }): Promise<SupabaseMessageRow[]>;
+  listMessageSegment(topicId: string, messageId: string, limit: number): Promise<SupabaseMessageRow[]>;
   createMessage(topicId: string, body: string, replyToMessageId?: string): Promise<SupabaseMessageRow>;
   updateMessage(messageId: string, body: string): Promise<SupabaseMessageRow>;
   deleteMessage(messageId: string): Promise<SupabaseMessageRow>;
@@ -204,6 +206,21 @@ export class LocalMessageService implements MessageService {
       messages: messages.slice(startIndex, endIndex),
       hasOlderMessages: startIndex > 0
     };
+  }
+
+  async listMessageSegment(topicId: string, messageId: string, limit = messagePageSize): Promise<Message[]> {
+    const messages = await this.listMessages(topicId);
+    const messageIndex = messages.findIndex((message) => message.id === messageId);
+
+    if (messageIndex < 0) {
+      return [];
+    }
+
+    const segmentOffsetFromNewest = Math.floor((messages.length - 1 - messageIndex) / limit);
+    const endIndex = messages.length - segmentOffsetFromNewest * limit;
+    const startIndex = Math.max(0, endIndex - limit);
+
+    return messages.slice(startIndex, endIndex);
   }
 
   async createMessage(input: CreateMessageInput): Promise<Message> {
@@ -398,6 +415,25 @@ class SupabaseMessageRepositoryClient implements SupabaseMessageRepository {
     return (data ?? []) as SupabaseMessageRow[];
   }
 
+  async listMessageSegment(
+    topicId: string,
+    messageId: string,
+    limit: number
+  ): Promise<SupabaseMessageRow[]> {
+    const { supabase } = await import("@/services/supabaseClient");
+    const { data, error } = await supabase.rpc("list_huddle_message_segment", {
+      p_huddle_id: topicId,
+      p_message_id: messageId,
+      p_limit: limit
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []) as SupabaseMessageRow[];
+  }
+
   async createMessage(
     topicId: string,
     body: string,
@@ -477,6 +513,10 @@ export class SupabaseMessageService implements MessageService {
       messages: hasOlderMessages ? messages.slice(1) : messages,
       hasOlderMessages
     };
+  }
+
+  async listMessageSegment(topicId: string, messageId: string, limit = messagePageSize): Promise<Message[]> {
+    return (await this.repository.listMessageSegment(topicId, messageId, limit)).map(mapSupabaseMessage);
   }
 
   async createMessage(input: CreateMessageInput): Promise<Message> {

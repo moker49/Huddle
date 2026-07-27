@@ -46,6 +46,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     loadDraft,
     loadMessages,
     markMessagesRead,
+    ensureMessageSegmentLoaded,
     preloadOlderMessages,
     saveDraft,
     sendMessage,
@@ -105,6 +106,14 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
 
     void loadMessages(topicId);
   }, [loadMessages, topicId, topicIsAvailable]);
+
+  useEffect(() => {
+    if (!topicId || !messagesHaveLoaded || !topic?.pinnedMessageId) {
+      return;
+    }
+
+    void ensureMessageSegmentLoaded(topicId, topic.pinnedMessageId);
+  }, [ensureMessageSegmentLoaded, messagesHaveLoaded, topic?.pinnedMessageId, topicId]);
 
   useEffect(() => {
     if (!topicId || !topicIsAvailable) {
@@ -227,6 +236,28 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       void preloadOlderMessages(topicId);
     }
   }, [preloadOlderMessages, topicId]);
+
+  const handleViewableReplySourceIds = useCallback((messageIds: string[]) => {
+    if (!topicId) {
+      return;
+    }
+
+    messageIds.forEach((messageId) => {
+      void ensureMessageSegmentLoaded(topicId, messageId);
+    });
+  }, [ensureMessageSegmentLoaded, topicId]);
+
+  const handleRequestMessageFocus = useCallback(async (messageId: string) => {
+    if (!topicId) {
+      return;
+    }
+
+    await ensureMessageSegmentLoaded(topicId, messageId);
+    setMessageToFocus((current) => ({
+      id: messageId,
+      requestId: (current?.requestId ?? 0) + 1
+    }));
+  }, [ensureMessageSegmentLoaded, topicId]);
 
   const pinnedMessage = topic?.pinnedMessageId
     ? messages.find((message) => message.id === topic.pinnedMessageId)
@@ -381,6 +412,8 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               onDeleteMessage={deleteMessage}
               olderPreloadBoundaryMessageId={olderPreloadBoundaryMessageId}
               onReachOlderPreloadBoundary={handleReachOlderPreloadBoundary}
+              onViewableReplySourceIds={handleViewableReplySourceIds}
+              onRequestMessageFocus={handleRequestMessageFocus}
               onReachConversationBottom={handleReachConversationBottom}
               messageToFocus={messageToFocus}
               onPinMessage={handlePinMessage}

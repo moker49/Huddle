@@ -1389,6 +1389,90 @@ $$;
 
 grant execute on function public.set_huddle_pinned_message(uuid, uuid) to authenticated;
 
+create or replace function public.list_huddle_message_segment(
+  p_huddle_id uuid,
+  p_message_id uuid,
+  p_limit integer default 100
+)
+returns table (
+  id uuid,
+  huddle_id uuid,
+  body text,
+  kind text,
+  activity_type text,
+  author_id uuid,
+  author_name text,
+  author_avatar_url text,
+  created_at timestamptz,
+  reply_to_message_id uuid,
+  edited_at timestamptz,
+  deleted_at timestamptz,
+  is_unread boolean
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'An authenticated account is required.';
+  end if;
+
+  if not public.can_access_huddle(p_huddle_id) then
+    raise exception 'You are not allowed to read this huddle.';
+  end if;
+
+  return query
+  with ranked_messages as (
+    select
+      message.*,
+      row_number() over (order by message.created_at desc, message.id desc) - 1 as segment_offset
+    from public.huddle_messages message
+    where message.huddle_id = p_huddle_id
+  ),
+  target_segment as (
+    select
+      (message.segment_offset / greatest(p_limit, 1)) * greatest(p_limit, 1) as start_offset
+    from ranked_messages message
+    where message.id = p_message_id
+  ),
+  selected_messages as (
+    select message.*
+    from ranked_messages message
+    join target_segment segment on (
+      message.segment_offset >= segment.start_offset
+      and message.segment_offset < segment.start_offset + greatest(p_limit, 1)
+    )
+  )
+  select
+    message.id,
+    message.huddle_id,
+    message.body,
+    message.kind,
+    message.activity_type,
+    message.author_id,
+    message.author_name,
+    nullif(author_profile.avatar_url, ''),
+    message.created_at,
+    message.reply_to_message_id,
+    message.edited_at,
+    message.deleted_at,
+    (
+      message.created_at > coalesce(read_state.last_read_at, '-infinity'::timestamptz)
+      and message.author_id is distinct from auth.uid()
+    )
+  from selected_messages message
+  left join public.profiles author_profile on author_profile.id = message.author_id
+  left join public.huddle_read_states read_state on (
+    read_state.huddle_id = message.huddle_id
+    and read_state.profile_id = auth.uid()
+  )
+  order by message.created_at, message.id;
+end;
+$$;
+
+grant execute on function public.list_huddle_message_segment(uuid, uuid, integer) to authenticated;
+
 -- Adding return columns changes the function's PostgreSQL row type.
 drop function if exists public.list_huddle_messages(uuid);
 drop function if exists public.list_huddle_messages(uuid, timestamptz, uuid, integer);
