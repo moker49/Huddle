@@ -69,7 +69,7 @@ export function MessageList({
   const onRequestMessageFocusRef = useRef(onRequestMessageFocus);
   const loadedMessageIdsRef = useRef(new Set<string>());
   const isJumpingToMessageRef = useRef(false);
-  const jumpReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const positionedJumpRequestIdRef = useRef(0);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useRef(({
@@ -102,6 +102,7 @@ export function MessageList({
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [contextMessage, setContextMessage] = useState<Message | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [messageJumpTarget, setMessageJumpTarget] = useState<{ id: string; requestId: number } | null>(null);
   const rows = getMessageRows(messages);
   const messagesById = new Map(messages.map((message) => [message.id, message]));
   loadedMessageIdsRef.current = new Set(messagesById.keys());
@@ -177,31 +178,20 @@ export function MessageList({
       return;
     }
 
-    beginMessageJump();
-
     if (visibleRowIdsRef.current.has(rows[rowIndex].id)) {
       highlightMessage(messageId);
       return;
     }
 
-    listRef.current?.scrollToIndex({ index: rowIndex, viewPosition: 0.5, animated: false });
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => highlightMessage(messageId));
-    });
+    beginMessageJump(messageId);
   }
 
-  function beginMessageJump() {
+  function beginMessageJump(messageId: string) {
     isJumpingToMessageRef.current = true;
-
-    if (jumpReleaseTimerRef.current) {
-      clearTimeout(jumpReleaseTimerRef.current);
-    }
-
-    // scrollToIndex may retry after a virtualized layout measurement; keep that retry out of user-scroll logic.
-    jumpReleaseTimerRef.current = setTimeout(() => {
-      isJumpingToMessageRef.current = false;
-      jumpReleaseTimerRef.current = null;
-    }, 350);
+    setMessageJumpTarget((current) => ({
+      id: messageId,
+      requestId: (current?.requestId ?? 0) + 1
+    }));
   }
 
   function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
@@ -255,14 +245,38 @@ export function MessageList({
     }
   }, [messageToFocus]);
 
+  useEffect(() => {
+    if (!messageJumpTarget || positionedJumpRequestIdRef.current === messageJumpTarget.requestId) {
+      return;
+    }
+
+    const rowIndex = rows.findIndex((row) => (
+      row.messages?.some((message) => message.id === messageJumpTarget.id)
+    ));
+
+    if (rowIndex < 0) {
+      return;
+    }
+
+    positionedJumpRequestIdRef.current = messageJumpTarget.requestId;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToIndex({ index: rowIndex, viewPosition: 0.5, animated: false });
+        highlightMessage(messageJumpTarget.id);
+        requestAnimationFrame(() => {
+          isJumpingToMessageRef.current = false;
+          setMessageJumpTarget(null);
+        });
+      });
+    });
+  }, [messageJumpTarget, rows]);
+
   useEffect(() => () => {
     if (highlightTimerRef.current) {
       clearTimeout(highlightTimerRef.current);
     }
 
-    if (jumpReleaseTimerRef.current) {
-      clearTimeout(jumpReleaseTimerRef.current);
-    }
   }, []);
 
   const handleDismissActionSheet = useCallback(() => {
@@ -297,6 +311,7 @@ export function MessageList({
       ref={listRef}
       data={rows}
       inverted
+      disableVirtualization={Boolean(messageJumpTarget)}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
         item.type === "date-divider" ? (
