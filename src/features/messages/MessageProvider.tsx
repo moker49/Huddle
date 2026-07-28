@@ -21,6 +21,8 @@ import {
 interface MessageContextValue {
   getMessages(topicId: string): Message[];
   getCachedMessages(topicId: string): Message[];
+  getMessageViewportAnchor(topicId: string): string | undefined;
+  setMessageViewportAnchor(topicId: string, messageId?: string): void;
   loadMessages(topicId: string, options?: MessageLoadOptions): Promise<boolean>;
   preloadOlderMessages(topicId: string): Promise<void>;
   preloadNewerMessages(topicId: string): Promise<void>;
@@ -77,6 +79,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
   const newerLoadInFlightTopicIds = useRef(new Set<string>());
   const targetSegmentInFlightMessageIds = useRef(new Set<string>());
   const activeWindowGenerationByTopicId = useRef<Record<string, number>>({});
+  const messageViewportAnchorsByTopicId = useRef<Record<string, string>>({});
   const initialLoadPromises = useRef(new Map<string, Promise<boolean>>());
   const [loadedTopicIds, setLoadedTopicIds] = useState<Record<string, boolean>>({});
   const [errorsByTopicId, setErrorsByTopicId] = useState<Record<string, string | null>>({});
@@ -519,6 +522,16 @@ export function MessageProvider({ children, service = messageService }: MessageP
       getCachedMessages(topicId) {
         return messagesByTopicId[topicId] ?? [];
       },
+      getMessageViewportAnchor(topicId) {
+        return messageViewportAnchorsByTopicId.current[topicId];
+      },
+      setMessageViewportAnchor(topicId, messageId) {
+        if (messageId) {
+          messageViewportAnchorsByTopicId.current[topicId] = messageId;
+        } else {
+          delete messageViewportAnchorsByTopicId.current[topicId];
+        }
+      },
       loadMessages,
       preloadOlderMessages,
       preloadNewerMessages,
@@ -551,6 +564,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       },
       clearLoadedMessages() {
         activeWindowGenerationByTopicId.current = {};
+        messageViewportAnchorsByTopicId.current = {};
         setMessagesByTopicId({});
         setVisibleMessagesByTopicId({});
         setHistoryByTopicId({});

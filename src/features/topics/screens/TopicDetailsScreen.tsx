@@ -39,6 +39,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const {
     getError,
     getCachedMessages,
+    getMessageViewportAnchor,
     getOlderPreloadBoundary,
     getNewerPreloadBoundary,
     getDraft,
@@ -52,6 +53,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     preloadOlderMessages,
     preloadNewerMessages,
     saveDraft,
+    setMessageViewportAnchor,
     sendMessage,
     deleteMessage,
     subscribeToMessages,
@@ -63,6 +65,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const topicIsAvailable = Boolean(topic);
   const messages = topicId ? getMessages(topicId) : [];
   const cachedMessages = topicId ? getCachedMessages(topicId) : [];
+  const messageViewportAnchor = topicId ? getMessageViewportAnchor(topicId) : undefined;
   const draft = topicId ? getDraft(topicId) : "";
   const draftHasLoaded = topicId ? hasLoadedDraft(topicId) : false;
   const messagesHaveLoaded = topicId ? hasLoadedMessages(topicId) : false;
@@ -413,6 +416,12 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               messages={messages}
               hasLoaded={messagesHaveLoaded}
               errorMessage={messageError}
+              initialAnchorMessageId={messageViewportAnchor}
+              onVisibleMessageChange={(messageId) => {
+                if (topicId) {
+                  setMessageViewportAnchor(topicId, messageId);
+                }
+              }}
               currentUserId={userId}
               getAuthorAvatarUrl={getAuthorAvatarUrl}
               onDeleteMessage={deleteMessage}

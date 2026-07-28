@@ -15,6 +15,8 @@ interface MessageListProps {
   messages: Message[];
   hasLoaded: boolean;
   errorMessage: string | null;
+  initialAnchorMessageId?: string;
+  onVisibleMessageChange?: (messageId?: string) => void;
   currentUserId?: string;
   getAuthorAvatarUrl?: (message: Message) => string | undefined;
   onDeleteMessage?: (messageId: string) => Promise<Message>;
@@ -43,6 +45,8 @@ export function MessageList({
   messages,
   hasLoaded,
   errorMessage,
+  initialAnchorMessageId,
+  onVisibleMessageChange,
   currentUserId,
   getAuthorAvatarUrl,
   onDeleteMessage,
@@ -62,6 +66,7 @@ export function MessageList({
   const theme = useTheme();
   const listRef = useRef<FlashListRef<MessageRow>>(null);
   const focusMessageRef = useRef<(messageId: string) => void>(() => undefined);
+  const positionedInitialAnchorMessageIdRef = useRef<string | undefined>(undefined);
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
   const isAtConversationBottomRef = useRef(true);
   const previousScrollOffsetRef = useRef(0);
@@ -74,6 +79,7 @@ export function MessageList({
   const onReachNewerPreloadBoundaryRef = useRef(onReachNewerPreloadBoundary);
   const onViewableReplySourceIdsRef = useRef(onViewableReplySourceIds);
   const onRequestMessageFocusRef = useRef(onRequestMessageFocus);
+  const onVisibleMessageChangeRef = useRef(onVisibleMessageChange);
   const loadedMessageIdsRef = useRef(new Set<string>());
   const newestMessageRef = useRef<Message | undefined>(undefined);
   const visibleRowIdsRef = useRef(new Set<string>());
@@ -85,6 +91,11 @@ export function MessageList({
   }) => {
     const rows = viewableItems.map((viewableItem) => viewableItem.item);
     visibleRowIdsRef.current = new Set(rows.map((row) => row.id));
+    const firstVisibleMessage = rows.find((row) => row.type === "message")?.messages?.[0];
+
+    if (!isAtConversationBottomRef.current && firstVisibleMessage) {
+      onVisibleMessageChangeRef.current?.(firstVisibleMessage.id);
+    }
 
     const boundaryMessageId = olderPreloadBoundaryMessageIdRef.current;
 
@@ -115,6 +126,7 @@ export function MessageList({
   }).current;
   const [unreadMarkerIsPositioned, setUnreadMarkerIsPositioned] = useState(false);
   const [isListReady, setIsListReady] = useState(false);
+  const [initialAnchorIsPositioned, setInitialAnchorIsPositioned] = useState(!initialAnchorMessageId);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [contextMessage, setContextMessage] = useState<Message | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
@@ -136,6 +148,7 @@ export function MessageList({
   onReachNewerPreloadBoundaryRef.current = onReachNewerPreloadBoundary;
   onViewableReplySourceIdsRef.current = onViewableReplySourceIds;
   onRequestMessageFocusRef.current = onRequestMessageFocus;
+  onVisibleMessageChangeRef.current = onVisibleMessageChange;
 
   useEffect(() => {
     if (
@@ -170,6 +183,43 @@ export function MessageList({
       });
     });
   }, [hasLoaded, isListReady, unreadMarkerId, unreadMarkerIndex]);
+
+  useEffect(() => {
+    if (
+      !isListReady ||
+      !initialAnchorMessageId ||
+      positionedInitialAnchorMessageIdRef.current === initialAnchorMessageId
+    ) {
+      return;
+    }
+
+    const rowIndex = rows.findIndex((row) => (
+      row.messages?.some((message) => message.id === initialAnchorMessageId)
+    ));
+
+    if (rowIndex < 0) {
+      setInitialAnchorIsPositioned(true);
+      return;
+    }
+
+    const list = listRef.current;
+
+    if (!list) {
+      return;
+    }
+
+    positionedInitialAnchorMessageIdRef.current = initialAnchorMessageId;
+    setInitialAnchorIsPositioned(false);
+    isAtConversationBottomRef.current = false;
+
+    void list.scrollToIndex({
+      index: rowIndex,
+      viewPosition: 0.5,
+      animated: false
+    }).finally(() => {
+      requestAnimationFrame(() => setInitialAnchorIsPositioned(true));
+    });
+  }, [initialAnchorMessageId, isListReady, rows]);
 
   useEffect(() => {
     const previousNewestMessage = newestMessageRef.current;
@@ -294,6 +344,10 @@ export function MessageList({
     if (isAtConversationBottomRef.current !== isAtBottom) {
       isAtConversationBottomRef.current = isAtBottom;
 
+      if (isAtBottom) {
+        onVisibleMessageChangeRef.current?.();
+      }
+
       if (
         isAtBottom &&
         canAcknowledgeReadState &&
@@ -307,9 +361,8 @@ export function MessageList({
   }
 
   function scrollToConversationBottom() {
-    listRef.current?.scrollToEnd({
-      animated: previousScrollOffsetRef.current <= viewportHeightRef.current * 3
-    });
+    setShowScrollToBottom(false);
+    listRef.current?.scrollToEnd({ animated: false });
   }
 
   focusMessageRef.current = handlePressReply;
@@ -406,7 +459,8 @@ export function MessageList({
       onLoad={() => setIsListReady(true)}
       style={StyleSheet.flatten([
         styles.list,
-        unreadMarkerId && !unreadMarkerIsPositioned ? styles.hiddenList : undefined
+        unreadMarkerId && !unreadMarkerIsPositioned ? styles.hiddenList : undefined,
+        initialAnchorMessageId && !initialAnchorIsPositioned ? styles.hiddenList : undefined
       ])}
         contentContainerStyle={styles.listContent}
       />
