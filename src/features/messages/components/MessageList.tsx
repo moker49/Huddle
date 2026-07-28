@@ -13,6 +13,7 @@ import { spacing } from "@/theme/tokens";
 
 interface MessageListProps {
   messages: Message[];
+  cachedMessages?: Message[];
   hasLoaded: boolean;
   errorMessage: string | null;
   initialAnchorMessageId?: string;
@@ -27,6 +28,7 @@ interface MessageListProps {
   onViewableReplySourceIds?: (messageIds: string[]) => void;
   onRequestMessageFocus?: (messageId: string) => void;
   onReachConversationBottom?: (unreadMarkerId: string) => void;
+  onRequestConversationBottom?: () => Promise<void>;
   messageToFocus?: { id: string; requestId: number } | null;
   onPinMessage?: (message: Message) => void;
   onRequestEdit?: (message: Message) => void;
@@ -43,6 +45,7 @@ interface MessageRow {
 
 export function MessageList({
   messages,
+  cachedMessages = messages,
   hasLoaded,
   errorMessage,
   initialAnchorMessageId,
@@ -57,6 +60,7 @@ export function MessageList({
   onViewableReplySourceIds,
   onRequestMessageFocus,
   onReachConversationBottom,
+  onRequestConversationBottom,
   messageToFocus,
   onPinMessage,
   onRequestEdit,
@@ -131,11 +135,11 @@ export function MessageList({
   const [contextMessage, setContextMessage] = useState<Message | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const rows = useMemo(() => getMessageRows(messages), [messages]);
-  const messagesById = useMemo(
-    () => new Map(messages.map((message) => [message.id, message])),
-    [messages]
+  const cachedMessagesById = useMemo(
+    () => new Map(cachedMessages.map((message) => [message.id, message])),
+    [cachedMessages]
   );
-  loadedMessageIdsRef.current = new Set(messagesById.keys());
+  loadedMessageIdsRef.current = new Set(cachedMessagesById.keys());
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
   const initialAnchorRowIndex = initialAnchorMessageId
@@ -345,9 +349,14 @@ export function MessageList({
     }
   }
 
-  function scrollToConversationBottom() {
+  async function scrollToConversationBottom() {
     setShowScrollToBottom(false);
-    listRef.current?.scrollToEnd({ animated: false });
+    await onRequestConversationBottom?.();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd({ animated: false });
+      });
+    });
   }
 
   focusMessageRef.current = handlePressReply;
@@ -392,7 +401,7 @@ export function MessageList({
         avatarUrl={item.messages?.[0] ? getAuthorAvatarUrl?.(item.messages[0]) : undefined}
         getAuthorAvatarUrl={getAuthorAvatarUrl}
         getReplyToMessage={(message) => (
-          message.replyToMessageId ? messagesById.get(message.replyToMessageId) : undefined
+          message.replyToMessageId ? cachedMessagesById.get(message.replyToMessageId) : undefined
         )}
         highlightedMessageId={highlightedMessageId}
         onLongPress={setContextMessage}
@@ -400,7 +409,7 @@ export function MessageList({
         onPressReply={handlePressReply}
       />
     )
-  ), [getAuthorAvatarUrl, handlePressReply, highlightedMessageId, messagesById, onPressAuthor, theme.colors]);
+  ), [cachedMessagesById, getAuthorAvatarUrl, handlePressReply, highlightedMessageId, onPressAuthor, theme.colors]);
 
   if (errorMessage) {
     return (

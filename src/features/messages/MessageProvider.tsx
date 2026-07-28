@@ -26,6 +26,7 @@ interface MessageContextValue {
   loadMessages(topicId: string, options?: MessageLoadOptions): Promise<boolean>;
   preloadOlderMessages(topicId: string): Promise<void>;
   preloadNewerMessages(topicId: string): Promise<void>;
+  showNewestMessages(topicId: string): Promise<void>;
   ensureMessageSegmentLoaded(
     topicId: string,
     messageId: string,
@@ -329,6 +330,29 @@ export function MessageProvider({ children, service = messageService }: MessageP
     }
   }, [historyByTopicId, messagesByTopicId, service, visibleMessagesByTopicId]);
 
+  const showNewestMessages = useCallback(async (topicId: string) => {
+    const page = await service.listMessagePage(topicId, { limit: messagePageSize });
+
+    activeWindowGenerationByTopicId.current[topicId] = (
+      activeWindowGenerationByTopicId.current[topicId] ?? 0
+    ) + 1;
+    setMessagesByTopicId((current) => ({
+      ...current,
+      [topicId]: mergeMessages(current[topicId] ?? [], page.messages)
+    }));
+    setVisibleMessagesByTopicId((current) => ({ ...current, [topicId]: page.messages }));
+    setHistoryByTopicId((current) => ({
+      ...current,
+      [topicId]: {
+        oldestCursor: getOldestCursor(page.messages),
+        hasOlderMessages: page.hasOlderMessages,
+        olderPreloadBoundaryId: getOlderPreloadBoundaryId(page.messages),
+        hasNewerMessages: false,
+        newerPreloadBoundaryId: null
+      }
+    }));
+  }, [service]);
+
   const ensureMessageSegmentLoaded = useCallback(async (
     topicId: string,
     messageId: string,
@@ -535,6 +559,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       loadMessages,
       preloadOlderMessages,
       preloadNewerMessages,
+      showNewestMessages,
       ensureMessageSegmentLoaded,
       subscribeToMessages,
       sendMessage,
@@ -595,6 +620,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       loadMessages,
       preloadOlderMessages,
       preloadNewerMessages,
+      showNewestMessages,
       ensureMessageSegmentLoaded,
       loadedDraftTopicIds,
       loadedTopicIds,

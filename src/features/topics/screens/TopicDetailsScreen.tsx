@@ -52,6 +52,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     ensureMessageSegmentLoaded,
     preloadOlderMessages,
     preloadNewerMessages,
+    showNewestMessages,
     saveDraft,
     setMessageViewportAnchor,
     sendMessage,
@@ -247,6 +248,12 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     }
   }, [preloadOlderMessages, topicId]);
 
+  const handleRequestConversationBottom = useCallback(async () => {
+    if (topicId && newerPreloadBoundaryMessageId) {
+      await showNewestMessages(topicId);
+    }
+  }, [newerPreloadBoundaryMessageId, showNewestMessages, topicId]);
+
   const handleViewableReplySourceIds = useCallback((messageIds: string[]) => {
     if (!topicId) {
       return;
@@ -414,6 +421,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
             <MessageList
               key={topic.id}
               messages={messages}
+              cachedMessages={cachedMessages}
               hasLoaded={messagesHaveLoaded}
               errorMessage={messageError}
               initialAnchorMessageId={messageViewportAnchor}
@@ -436,6 +444,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               onViewableReplySourceIds={handleViewableReplySourceIds}
               onRequestMessageFocus={handleRequestMessageFocus}
               onReachConversationBottom={handleReachConversationBottom}
+              onRequestConversationBottom={handleRequestConversationBottom}
               messageToFocus={messageToFocus}
               onPinMessage={handlePinMessage}
               onPressAuthor={handlePressAuthor}
