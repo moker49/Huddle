@@ -178,7 +178,7 @@ export function MessageBubble({
                   disabled={!onPressReply}
                   accessibilityLabel="Open replied message"
                   accessibilityRole="button"
-                  style={styles.replyPreview}
+                  style={[styles.replyPreview, { backgroundColor: theme.colors.elevation.level1 }]}
                 >
                   <View style={[styles.replyIndicator, { backgroundColor: theme.colors.outline }]} />
                   {replyTarget && !replyIsActivity ? (
