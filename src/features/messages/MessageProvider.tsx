@@ -359,7 +359,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
             [topicId]: {
               oldestCursor: getOldestCursor(messages),
               hasOlderMessages: messages.length >= messagePageSize,
-              olderPreloadBoundaryId: getOlderPreloadBoundaryId(messages),
+              olderPreloadBoundaryId: getFocusedOlderPreloadBoundaryId(messages),
               hasNewerMessages: true,
               newerPreloadBoundaryId: getNewerPreloadBoundaryId(messages)
             }
@@ -647,4 +647,13 @@ function getNewerPreloadBoundaryId(messages: Message[]) {
 
   // Start the following preload after entering the newest quarter of this active window.
   return messages[Math.floor(messages.length * 0.75)]?.id ?? messages.at(-1)?.id ?? null;
+}
+
+function getFocusedOlderPreloadBoundaryId(messages: Message[]) {
+  if (messages.length === 0) {
+    return null;
+  }
+
+  // A jumped-to window begins in its middle, so preload older history near its older edge.
+  return messages[Math.floor(messages.length * 0.25)]?.id ?? messages[0]?.id ?? null;
 }
