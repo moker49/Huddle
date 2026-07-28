@@ -36,6 +36,8 @@ interface MessageRow {
   messages?: Message[];
 }
 
+const messageJumpInitialRenderCount = 100;
+
 export function MessageList({
   messages,
   hasLoaded,
@@ -69,7 +71,7 @@ export function MessageList({
   const onRequestMessageFocusRef = useRef(onRequestMessageFocus);
   const loadedMessageIdsRef = useRef(new Set<string>());
   const isJumpingToMessageRef = useRef(false);
-  const messageJumpTargetRef = useRef<{ id: string; requestId: number } | null>(null);
+  const messageJumpTargetRef = useRef<{ id: string; requestId: number; rowIndex: number } | null>(null);
   const positionedJumpRequestIdRef = useRef(0);
   const nextMessageJumpRequestIdRef = useRef(0);
   const visibleRowIdsRef = useRef(new Set<string>());
@@ -114,7 +116,11 @@ export function MessageList({
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [contextMessage, setContextMessage] = useState<Message | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const [messageJumpTarget, setMessageJumpTarget] = useState<{ id: string; requestId: number } | null>(null);
+  const [messageJumpTarget, setMessageJumpTarget] = useState<{
+    id: string;
+    requestId: number;
+    rowIndex: number;
+  } | null>(null);
   const [listInstanceKey, setListInstanceKey] = useState(0);
   const rows = getMessageRows(messages);
   const messagesById = new Map(messages.map((message) => [message.id, message]));
@@ -197,15 +203,16 @@ export function MessageList({
       return;
     }
 
-    beginMessageJump(messageId);
+    beginMessageJump(messageId, rowIndex);
   }
 
-  function beginMessageJump(messageId: string) {
+  function beginMessageJump(messageId: string, rowIndex: number) {
     isJumpingToMessageRef.current = true;
     const requestId = nextMessageJumpRequestIdRef.current + 1;
     setMessageJumpTarget({
       id: messageId,
-      requestId
+      requestId,
+      rowIndex
     });
     setListInstanceKey(requestId);
     nextMessageJumpRequestIdRef.current = requestId;
@@ -324,8 +331,8 @@ export function MessageList({
       ref={listRef}
       data={rows}
       inverted
-      disableVirtualization={Boolean(messageJumpTarget)}
-      initialNumToRender={messageJumpTarget ? rows.length : Math.min(rows.length, 100)}
+      initialNumToRender={Math.min(rows.length, messageJumpInitialRenderCount)}
+      initialScrollIndex={messageJumpTarget?.rowIndex}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
         item.type === "date-divider" ? (
