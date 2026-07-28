@@ -20,6 +20,7 @@
     "@expo/log-box": "57.0.0",
     "@expo/metro-runtime": "57.0.3",
     "@expo/vector-icons": "^15.0.3",
+    "@shopify/flash-list": "2.0.2",
     "@supabase/supabase-js": "^2.110.7",
     "expo": "57.0.4",
     "expo-auth-session": "~57.0.4",

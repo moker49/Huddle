@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View } from "react-native";
 import { Divider, FAB, Text, useTheme } from "react-native-paper";
+import { FlashList, FlashListRef, ListRenderItemInfo, ViewToken } from "@shopify/flash-list";
 
 import { EmptyMessageState } from "@/features/messages/components/EmptyMessageState";
 import { MessageActionSheet } from "@/features/messages/components/MessageActionSheet";
@@ -55,7 +56,7 @@ export function MessageList({
   onPressAuthor
 }: MessageListProps) {
   const theme = useTheme();
-  const listRef = useRef<FlatList<MessageRow>>(null);
+  const listRef = useRef<FlashListRef<MessageRow>>(null);
   const focusMessageRef = useRef<(messageId: string) => void>(() => undefined);
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
   const isAtConversationBottomRef = useRef(true);
@@ -68,32 +69,19 @@ export function MessageList({
   const onViewableReplySourceIdsRef = useRef(onViewableReplySourceIds);
   const onRequestMessageFocusRef = useRef(onRequestMessageFocus);
   const loadedMessageIdsRef = useRef(new Set<string>());
-  const isJumpingToMessageRef = useRef(false);
-  const messageJumpTargetRef = useRef<{ id: string; requestId: number } | null>(null);
-  const positionedJumpRequestIdRef = useRef(0);
-  const nextMessageJumpRequestIdRef = useRef(0);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useRef(({
     viewableItems
   }: {
-    viewableItems: { item: unknown }[];
+    viewableItems: ViewToken<MessageRow>[];
   }) => {
-    const rows = viewableItems.map((viewableItem) => viewableItem.item as MessageRow);
+    const rows = viewableItems.map((viewableItem) => viewableItem.item);
     visibleRowIdsRef.current = new Set(rows.map((row) => row.id));
-    const jumpTarget = messageJumpTargetRef.current;
-
-    if (jumpTarget && rows.some((row) => (
-      row.messages?.some((message) => message.id === jumpTarget.id)
-    ))) {
-      isJumpingToMessageRef.current = false;
-      setMessageJumpTarget(null);
-      highlightMessage(jumpTarget.id);
-    }
 
     const boundaryMessageId = olderPreloadBoundaryMessageIdRef.current;
 
-    if (!isJumpingToMessageRef.current && boundaryMessageId && rows.some((row) => (
+    if (boundaryMessageId && rows.some((row) => (
       row.messages?.some((message) => message.id === boundaryMessageId)
     ))) {
       onReachOlderPreloadBoundaryRef.current?.();
@@ -106,20 +94,21 @@ export function MessageList({
       }
     }));
 
-    if (!isJumpingToMessageRef.current && missingReplySourceIds.size > 0) {
+    if (missingReplySourceIds.size > 0) {
       onViewableReplySourceIdsRef.current?.(Array.from(missingReplySourceIds));
     }
   }).current;
   const [unreadMarkerIsPositioned, setUnreadMarkerIsPositioned] = useState(false);
+  const [isListReady, setIsListReady] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [contextMessage, setContextMessage] = useState<Message | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-  const [messageJumpTarget, setMessageJumpTarget] = useState<{ id: string; requestId: number } | null>(null);
-  const [listInstanceKey, setListInstanceKey] = useState(0);
-  const rows = getMessageRows(messages);
-  const messagesById = new Map(messages.map((message) => [message.id, message]));
+  const rows = useMemo(() => getMessageRows(messages), [messages]);
+  const messagesById = useMemo(
+    () => new Map(messages.map((message) => [message.id, message])),
+    [messages]
+  );
   loadedMessageIdsRef.current = new Set(messagesById.keys());
-  messageJumpTargetRef.current = messageJumpTarget;
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
   const canAcknowledgeReadState = hasLoaded && Boolean(unreadMarkerId) && unreadMarkerIsPositioned;
@@ -133,6 +122,7 @@ export function MessageList({
   useEffect(() => {
     if (
       !hasLoaded ||
+      !isListReady ||
       !unreadMarkerId ||
       unreadMarkerIndex < 0 ||
       positionedUnreadMarkerIdRef.current === unreadMarkerId
@@ -145,16 +135,23 @@ export function MessageList({
     isAtConversationBottomRef.current = false;
 
     requestAnimationFrame(() => {
-      listRef.current?.scrollToIndex({
+      const list = listRef.current;
+
+      if (!list) {
+        return;
+      }
+
+      void list.scrollToIndex({
         index: unreadMarkerIndex,
         viewPosition: 0.5,
         animated: false
-      });
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => setUnreadMarkerIsPositioned(true));
+      }).finally(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => setUnreadMarkerIsPositioned(true));
+        });
       });
     });
-  }, [hasLoaded, unreadMarkerId, unreadMarkerIndex]);
+  }, [hasLoaded, isListReady, unreadMarkerId, unreadMarkerIndex]);
 
   useEffect(() => {
     if (
@@ -172,7 +169,7 @@ export function MessageList({
     void onDeleteMessage?.(message.id);
   }
 
-  function highlightMessage(messageId: string) {
+  const highlightMessage = useCallback((messageId: string) => {
     if (highlightTimerRef.current) {
       clearTimeout(highlightTimerRef.current);
     }
@@ -182,9 +179,9 @@ export function MessageList({
       setHighlightedMessageId(null);
       highlightTimerRef.current = null;
     }, 700);
-  }
+  }, []);
 
-  function handlePressReply(messageId: string) {
+  const handlePressReply = useCallback((messageId: string) => {
     const rowIndex = rows.findIndex((row) => row.messages?.some((message) => message.id === messageId));
 
     if (rowIndex < 0) {
@@ -197,29 +194,29 @@ export function MessageList({
       return;
     }
 
-    beginMessageJump(messageId);
-  }
+    const list = listRef.current;
 
-  function beginMessageJump(messageId: string) {
-    isJumpingToMessageRef.current = true;
-    const requestId = nextMessageJumpRequestIdRef.current + 1;
-    setMessageJumpTarget({
-      id: messageId,
-      requestId
-    });
-    setListInstanceKey(requestId);
-    nextMessageJumpRequestIdRef.current = requestId;
-  }
+    if (!list) {
+      return;
+    }
+
+    void list.scrollToIndex({
+      index: rowIndex,
+      viewPosition: 0.5,
+      animated: false
+    }).then(() => {
+      requestAnimationFrame(() => highlightMessage(messageId));
+    }).catch(() => undefined);
+  }, [highlightMessage, rows]);
 
   function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>) {
-    // In an inverted FlatList, offset zero is the visual bottom of the conversation.
-    const { contentOffset, layoutMeasurement } = event.nativeEvent;
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const scrollOffset = contentOffset.y;
     viewportHeightRef.current = layoutMeasurement.height;
-    const isAtBottom = scrollOffset <= spacing.sm;
-    const isAtLeastOneViewportAway = scrollOffset > layoutMeasurement.height;
-    const isScrollingAwayFromBottom = scrollOffset > previousScrollOffsetRef.current + 1;
-    const isScrollingTowardBottom = scrollOffset < previousScrollOffsetRef.current - 1;
+    const isAtBottom = scrollOffset + layoutMeasurement.height >= contentSize.height - spacing.sm;
+    const isAtLeastOneViewportAway = contentSize.height - (scrollOffset + layoutMeasurement.height) > layoutMeasurement.height;
+    const isScrollingAwayFromBottom = scrollOffset < previousScrollOffsetRef.current - 1;
+    const isScrollingTowardBottom = scrollOffset > previousScrollOffsetRef.current + 1;
 
     if (isScrollingTowardBottom && isAtLeastOneViewportAway) {
       setShowScrollToBottom(true);
@@ -248,8 +245,7 @@ export function MessageList({
   }
 
   function scrollToConversationBottom() {
-    listRef.current?.scrollToOffset({
-      offset: 0,
+    listRef.current?.scrollToEnd({
       animated: previousScrollOffsetRef.current <= viewportHeightRef.current * 3
     });
   }
@@ -262,28 +258,6 @@ export function MessageList({
     }
   }, [messageToFocus]);
 
-  useEffect(() => {
-    if (!messageJumpTarget || positionedJumpRequestIdRef.current === messageJumpTarget.requestId) {
-      return;
-    }
-
-    const rowIndex = rows.findIndex((row) => (
-      row.messages?.some((message) => message.id === messageJumpTarget.id)
-    ));
-
-    if (rowIndex < 0) {
-      return;
-    }
-
-    positionedJumpRequestIdRef.current = messageJumpTarget.requestId;
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToIndex({ index: rowIndex, viewPosition: 0.5, animated: false });
-      });
-    });
-  }, [messageJumpTarget, rows]);
-
   useEffect(() => () => {
     if (highlightTimerRef.current) {
       clearTimeout(highlightTimerRef.current);
@@ -294,6 +268,39 @@ export function MessageList({
   const handleDismissActionSheet = useCallback(() => {
     setContextMessage(null);
   }, []);
+
+  const renderMessageRow = useCallback(({ item }: ListRenderItemInfo<MessageRow>) => (
+    item.type === "date-divider" ? (
+      <View accessibilityRole="header" style={styles.dateDivider}>
+        <Divider style={styles.dateDividerLine} />
+        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+          {item.label}
+        </Text>
+        <Divider style={styles.dateDividerLine} />
+      </View>
+    ) : item.type === "unread-marker" ? (
+      <View accessibilityLabel="Unread messages begin here" style={styles.unreadMarker}>
+        <Divider style={styles.unreadDivider} />
+        <Text variant="labelSmall" style={{ color: theme.colors.primary }}>
+          Unread
+        </Text>
+        <Divider style={styles.unreadDivider} />
+      </View>
+    ) : (
+      <MessageBubble
+        messages={item.messages ?? []}
+        avatarUrl={item.messages?.[0] ? getAuthorAvatarUrl?.(item.messages[0]) : undefined}
+        getAuthorAvatarUrl={getAuthorAvatarUrl}
+        getReplyToMessage={(message) => (
+          message.replyToMessageId ? messagesById.get(message.replyToMessageId) : undefined
+        )}
+        highlightedMessageId={highlightedMessageId}
+        onLongPress={setContextMessage}
+        onPressAuthor={onPressAuthor}
+        onPressReply={handlePressReply}
+      />
+    )
+  ), [getAuthorAvatarUrl, handlePressReply, highlightedMessageId, messagesById, onPressAuthor, theme.colors]);
 
   if (errorMessage) {
     return (
@@ -319,80 +326,27 @@ export function MessageList({
 
   return (
     <>
-      <FlatList
-      key={listInstanceKey}
+      <FlashList
       ref={listRef}
       data={rows}
-      inverted
-      disableVirtualization={Boolean(messageJumpTarget)}
-      initialNumToRender={messageJumpTarget ? rows.length : Math.min(rows.length, 100)}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        item.type === "date-divider" ? (
-          <View accessibilityRole="header" style={styles.dateDivider}>
-            <Divider style={styles.dateDividerLine} />
-            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {item.label}
-            </Text>
-            <Divider style={styles.dateDividerLine} />
-          </View>
-        ) : item.type === "unread-marker" ? (
-          <View accessibilityLabel="Unread messages begin here" style={styles.unreadMarker}>
-            <Divider style={styles.unreadDivider} />
-            <Text variant="labelSmall" style={{ color: theme.colors.primary }}>
-              Unread
-            </Text>
-            <Divider style={styles.unreadDivider} />
-          </View>
-        ) : (
-          <MessageBubble
-            messages={item.messages ?? []}
-            avatarUrl={item.messages?.[0] ? getAuthorAvatarUrl?.(item.messages[0]) : undefined}
-            getAuthorAvatarUrl={getAuthorAvatarUrl}
-            getReplyToMessage={(message) => (
-              message.replyToMessageId ? messagesById.get(message.replyToMessageId) : undefined
-            )}
-            highlightedMessageId={highlightedMessageId}
-            onLongPress={setContextMessage}
-            onPressAuthor={onPressAuthor}
-            onPressReply={handlePressReply}
-          />
-        )
-      )}
+      getItemType={(item) => item.type}
+      renderItem={renderMessageRow}
+      maintainVisibleContentPosition={{
+        startRenderingFromBottom: true,
+        autoscrollToBottomThreshold: 0.1
+      }}
       ItemSeparatorComponent={MessageRowSeparator}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
       onScroll={handleScroll}
       scrollEventThrottle={16}
       onViewableItemsChanged={onViewableItemsChanged}
-      onScrollToIndexFailed={(info) => {
-        if (messageJumpTarget) {
-          requestAnimationFrame(() => {
-            listRef.current?.scrollToIndex({
-              index: info.index,
-              viewPosition: 0.5,
-              animated: false
-            });
-          });
-          return;
-        }
-
-        listRef.current?.scrollToOffset({
-          offset: info.averageItemLength * info.index,
-          animated: false
-        });
-        requestAnimationFrame(() => {
-          listRef.current?.scrollToIndex({
-            index: info.index,
-            viewPosition: 0.5,
-            animated: false
-          });
-        });
-      }}
-      style={[
+      onLoad={() => setIsListReady(true)}
+      style={StyleSheet.flatten([
         styles.list,
         unreadMarkerId && !unreadMarkerIsPositioned ? styles.hiddenList : undefined
-      ]}
+      ])}
         contentContainerStyle={styles.listContent}
       />
       {showScrollToBottom ? (
@@ -447,7 +401,7 @@ function getMessageRows(messages: Message[]) {
     rows.push({ id: firstMessage.id, type: "message", messages: messageGroup.messages });
   });
 
-  return rows.reverse();
+  return rows;
 }
 
 function MessageRowSeparator() {
