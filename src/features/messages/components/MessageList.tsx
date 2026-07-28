@@ -69,6 +69,7 @@ export function MessageList({
   const onViewableReplySourceIdsRef = useRef(onViewableReplySourceIds);
   const onRequestMessageFocusRef = useRef(onRequestMessageFocus);
   const loadedMessageIdsRef = useRef(new Set<string>());
+  const newestMessageIdRef = useRef<string | undefined>(undefined);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useRef(({
@@ -111,6 +112,7 @@ export function MessageList({
   loadedMessageIdsRef.current = new Set(messagesById.keys());
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
+  const newestMessage = messages.at(-1);
   const canAcknowledgeReadState = hasLoaded && Boolean(unreadMarkerId) && unreadMarkerIsPositioned;
 
   onReachConversationBottomRef.current = onReachConversationBottom;
@@ -152,6 +154,25 @@ export function MessageList({
       });
     });
   }, [hasLoaded, isListReady, unreadMarkerId, unreadMarkerIndex]);
+
+  useEffect(() => {
+    const previousNewestMessageId = newestMessageIdRef.current;
+    newestMessageIdRef.current = newestMessage?.id;
+
+    if (
+      !isListReady ||
+      !previousNewestMessageId ||
+      previousNewestMessageId === newestMessage?.id ||
+      newestMessage?.kind !== "user" ||
+      !isAtConversationBottomRef.current
+    ) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+    });
+  }, [isListReady, newestMessage]);
 
   useEffect(() => {
     if (
@@ -333,8 +354,7 @@ export function MessageList({
       getItemType={(item) => item.type}
       renderItem={renderMessageRow}
       maintainVisibleContentPosition={{
-        startRenderingFromBottom: true,
-        autoscrollToBottomThreshold: 0.1
+        startRenderingFromBottom: true
       }}
       ItemSeparatorComponent={MessageRowSeparator}
       keyboardShouldPersistTaps="handled"
