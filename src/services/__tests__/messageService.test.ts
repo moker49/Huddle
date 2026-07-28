@@ -306,10 +306,16 @@ test("targeted cloud message segments use the same newest-first 100-message boun
   const messages = new SupabaseMessageService(new MemorySupabaseMessageRepository(rows));
 
   const segment = await messages.listMessageSegment("topic-1", "message-050");
+  const newerSegment = await messages.listMessageSegment("topic-1", "message-050", messagePageSize, -1);
+  const olderSegment = await messages.listMessageSegment("topic-1", "message-050", messagePageSize, 1);
 
   assert.equal(segment.length, messagePageSize);
   assert.equal(segment[0].id, "message-050");
   assert.equal(segment.at(-1)?.id, "message-149");
+  assert.equal(newerSegment[0].id, "message-150");
+  assert.equal(newerSegment.at(-1)?.id, "message-249");
+  assert.equal(olderSegment[0].id, "message-000");
+  assert.equal(olderSegment.at(-1)?.id, "message-049");
 });
 
 test("local message subscriptions are safe no-ops", async () => {
@@ -349,7 +355,8 @@ class MemorySupabaseMessageRepository implements SupabaseMessageRepository {
   async listMessageSegment(
     topicId: string,
     messageId: string,
-    limit: number
+    limit: number,
+    relativeSegment: number
   ): Promise<SupabaseMessageRow[]> {
     const messages = this.rows
       .filter((message) => message.huddle_id === topicId)
@@ -360,8 +367,17 @@ class MemorySupabaseMessageRepository implements SupabaseMessageRepository {
       return [];
     }
 
-    const segmentOffsetFromNewest = Math.floor((messages.length - 1 - messageIndex) / limit);
+    const segmentOffsetFromNewest = Math.floor((messages.length - 1 - messageIndex) / limit) + relativeSegment;
+
+    if (segmentOffsetFromNewest < 0) {
+      return [];
+    }
+
     const endIndex = messages.length - segmentOffsetFromNewest * limit;
+
+    if (endIndex <= 0) {
+      return [];
+    }
     const startIndex = Math.max(0, endIndex - limit);
 
     return messages.slice(startIndex, endIndex);

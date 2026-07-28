@@ -1389,10 +1389,14 @@ $$;
 
 grant execute on function public.set_huddle_pinned_message(uuid, uuid) to authenticated;
 
+drop function if exists public.list_huddle_message_segment(uuid, uuid, integer);
+drop function if exists public.list_huddle_message_segment(uuid, uuid, integer, integer);
+
 create or replace function public.list_huddle_message_segment(
   p_huddle_id uuid,
   p_message_id uuid,
-  p_limit integer default 100
+  p_limit integer default 100,
+  p_segment_delta integer default 0
 )
 returns table (
   id uuid,
@@ -1432,9 +1436,12 @@ begin
   ),
   target_segment as (
     select
-      (message.segment_offset / greatest(p_limit, 1)) * greatest(p_limit, 1) as start_offset
+      (
+        (message.segment_offset / greatest(p_limit, 1)) + p_segment_delta
+      ) * greatest(p_limit, 1) as start_offset
     from ranked_messages message
     where message.id = p_message_id
+      and (message.segment_offset / greatest(p_limit, 1)) + p_segment_delta >= 0
   ),
   selected_messages as (
     select message.*
@@ -1471,7 +1478,7 @@ begin
 end;
 $$;
 
-grant execute on function public.list_huddle_message_segment(uuid, uuid, integer) to authenticated;
+grant execute on function public.list_huddle_message_segment(uuid, uuid, integer, integer) to authenticated;
 
 -- Adding return columns changes the function's PostgreSQL row type.
 drop function if exists public.list_huddle_messages(uuid);

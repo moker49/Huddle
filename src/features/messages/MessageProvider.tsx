@@ -131,6 +131,19 @@ export function MessageProvider({ children, service = messageService }: MessageP
     }
   }, [service]);
 
+  const loadMessageSegmentWindow = useCallback(async (topicId: string, messageId: string) => {
+    const segments = await Promise.all(
+      [-1, 0, 1].map((relativeSegment) => (
+        service.listMessageSegment(topicId, messageId, messagePageSize, relativeSegment)
+      ))
+    );
+
+    return segments.reduce(
+      (messages, segment) => mergeMessages(messages, segment),
+      [] as Message[]
+    );
+  }, [service]);
+
   const loadMessages = useCallback(
     (topicId: string, options: MessageLoadOptions = {}) => {
       if (loadedTopicIds[topicId]) {
@@ -154,9 +167,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
           ]);
           page.messages.forEach((message) => priorityMessageIds.delete(message.id));
           const prioritySegments = await Promise.all(
-            Array.from(priorityMessageIds).map((messageId) => (
-              service.listMessageSegment(topicId, messageId, messagePageSize)
-            ))
+            Array.from(priorityMessageIds).map((messageId) => loadMessageSegmentWindow(topicId, messageId))
           );
           const initialMessages = prioritySegments.reduce(
             (currentMessages, segment) => mergeMessages(currentMessages, segment),
@@ -195,7 +206,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       initialLoadPromises.current.set(topicId, load);
       return load;
     },
-    [loadedTopicIds, preloadOlderPage, service]
+    [loadedTopicIds, loadMessageSegmentWindow, preloadOlderPage, service]
   );
 
   const preloadOlderMessages = useCallback(async (topicId: string) => {
@@ -217,7 +228,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
     targetSegmentInFlightMessageIds.current.add(messageId);
 
     try {
-      const messages = await service.listMessageSegment(topicId, messageId, messagePageSize);
+      const messages = await loadMessageSegmentWindow(topicId, messageId);
 
       if (messages.length > 0) {
         setMessagesByTopicId((current) => ({
@@ -228,7 +239,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
     } finally {
       targetSegmentInFlightMessageIds.current.delete(messageId);
     }
-  }, [messagesByTopicId, service]);
+  }, [loadMessageSegmentWindow, messagesByTopicId]);
 
   const refreshNewestMessages = useCallback(async (topicId: string) => {
     try {

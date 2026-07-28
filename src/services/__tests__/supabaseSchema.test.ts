@@ -193,10 +193,11 @@ test("cloud message segments align targeted loads with newest-first history page
   const messageSegment = schema.match(/create or replace function public\.list_huddle_message_segment\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
 
   assert.match(messageSegment, /p_message_id uuid/i);
+  assert.match(messageSegment, /p_segment_delta integer default 0/i);
   assert.match(messageSegment, /row_number\(\) over \(order by message\.created_at desc, message\.id desc\)/i);
   assert.match(messageSegment, /message\.segment_offset \/ greatest\(p_limit, 1\)/i);
   assert.match(messageSegment, /public\.can_access_huddle\(p_huddle_id\)/i);
-  assert.match(schema, /grant execute on function public\.list_huddle_message_segment\(uuid, uuid, integer\) to authenticated/i);
+  assert.match(schema, /grant execute on function public\.list_huddle_message_segment\(uuid, uuid, integer, integer\) to authenticated/i);
 });
 
 test("cloud profiles and message rows expose Google avatar URLs", () => {
