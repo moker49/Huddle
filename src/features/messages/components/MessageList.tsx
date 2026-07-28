@@ -138,6 +138,9 @@ export function MessageList({
   loadedMessageIdsRef.current = new Set(messagesById.keys());
   const unreadMarkerIndex = rows.findIndex((row) => row.type === "unread-marker");
   const unreadMarkerId = unreadMarkerIndex >= 0 ? rows[unreadMarkerIndex].id : null;
+  const initialAnchorRowIndex = initialAnchorMessageId
+    ? rows.findIndex((row) => row.messages?.some((message) => message.id === initialAnchorMessageId))
+    : -1;
   const newestMessage = messages.at(-1);
   const canAcknowledgeReadState = hasLoaded && Boolean(unreadMarkerId) && unreadMarkerIsPositioned;
 
@@ -193,33 +196,15 @@ export function MessageList({
       return;
     }
 
-    const rowIndex = rows.findIndex((row) => (
-      row.messages?.some((message) => message.id === initialAnchorMessageId)
-    ));
-
-    if (rowIndex < 0) {
+    if (initialAnchorRowIndex < 0) {
       setInitialAnchorIsPositioned(true);
       return;
     }
 
-    const list = listRef.current;
-
-    if (!list) {
-      return;
-    }
-
     positionedInitialAnchorMessageIdRef.current = initialAnchorMessageId;
-    setInitialAnchorIsPositioned(false);
     isAtConversationBottomRef.current = false;
-
-    void list.scrollToIndex({
-      index: rowIndex,
-      viewPosition: 0.5,
-      animated: false
-    }).finally(() => {
-      requestAnimationFrame(() => setInitialAnchorIsPositioned(true));
-    });
-  }, [initialAnchorMessageId, isListReady, rows]);
+    requestAnimationFrame(() => setInitialAnchorIsPositioned(true));
+  }, [initialAnchorMessageId, initialAnchorRowIndex, isListReady]);
 
   useEffect(() => {
     const previousNewestMessage = newestMessageRef.current;
@@ -444,11 +429,12 @@ export function MessageList({
       <FlashList
       ref={listRef}
       data={rows}
+      initialScrollIndex={initialAnchorRowIndex >= 0 ? initialAnchorRowIndex : undefined}
       keyExtractor={(item) => item.id}
       getItemType={(item) => item.type}
       renderItem={renderMessageRow}
       maintainVisibleContentPosition={{
-        startRenderingFromBottom: true
+        startRenderingFromBottom: initialAnchorRowIndex < 0
       }}
       ItemSeparatorComponent={MessageRowSeparator}
       keyboardShouldPersistTaps="handled"
