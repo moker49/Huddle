@@ -20,9 +20,15 @@ import {
 
 interface MessageContextValue {
   getMessages(topicId: string): Message[];
+  getCachedMessages(topicId: string): Message[];
   loadMessages(topicId: string, options?: MessageLoadOptions): Promise<boolean>;
   preloadOlderMessages(topicId: string): Promise<void>;
-  ensureMessageSegmentLoaded(topicId: string, messageId: string): Promise<void>;
+  preloadNewerMessages(topicId: string): Promise<void>;
+  ensureMessageSegmentLoaded(
+    topicId: string,
+    messageId: string,
+    options?: MessageSegmentLoadOptions
+  ): Promise<void>;
   subscribeToMessages(topicId: string): Promise<() => void>;
   sendMessage(input: CreateMessageInput): Promise<Message>;
   updateMessage(messageId: string, body: string): Promise<Message>;
@@ -37,20 +43,26 @@ interface MessageContextValue {
   hasLoadedMessages(topicId: string): boolean;
   getError(topicId: string): string | null;
   getOlderPreloadBoundary(topicId: string): string | null;
+  getNewerPreloadBoundary(topicId: string): string | null;
 }
 
 interface MessageHistoryState {
   oldestCursor?: MessageCursor;
   hasOlderMessages: boolean;
   olderPreloadBoundaryId: string | null;
+  hasNewerMessages: boolean;
+  newerPreloadBoundaryId: string | null;
 }
 
 interface MessageLoadOptions {
   priorityMessageIds?: string[];
 }
 
+interface MessageSegmentLoadOptions {
+  activate?: boolean;
+}
+
 const MessageContext = createContext<MessageContextValue | null>(null);
-const messageBridgePageLimit = 3;
 
 interface MessageProviderProps extends PropsWithChildren {
   service?: MessageService;
@@ -59,9 +71,12 @@ interface MessageProviderProps extends PropsWithChildren {
 export function MessageProvider({ children, service = messageService }: MessageProviderProps) {
   const { session } = useAuth();
   const [messagesByTopicId, setMessagesByTopicId] = useState<Record<string, Message[]>>({});
+  const [visibleMessagesByTopicId, setVisibleMessagesByTopicId] = useState<Record<string, Message[]>>({});
   const [historyByTopicId, setHistoryByTopicId] = useState<Record<string, MessageHistoryState>>({});
   const olderLoadInFlightTopicIds = useRef(new Set<string>());
+  const newerLoadInFlightTopicIds = useRef(new Set<string>());
   const targetSegmentInFlightMessageIds = useRef(new Set<string>());
+  const activeWindowGenerationByTopicId = useRef<Record<string, number>>({});
   const initialLoadPromises = useRef(new Map<string, Promise<boolean>>());
   const [loadedTopicIds, setLoadedTopicIds] = useState<Record<string, boolean>>({});
   const [errorsByTopicId, setErrorsByTopicId] = useState<Record<string, string | null>>({});
@@ -111,11 +126,20 @@ export function MessageProvider({ children, service = messageService }: MessageP
     }
 
     olderLoadInFlightTopicIds.current.add(topicId);
+    const activeWindowGeneration = activeWindowGenerationByTopicId.current[topicId] ?? 0;
 
     try {
       const page = await service.listMessagePage(topicId, { before, limit: messagePageSize });
 
+      if (activeWindowGenerationByTopicId.current[topicId] !== activeWindowGeneration) {
+        return;
+      }
+
       setMessagesByTopicId((current) => ({
+        ...current,
+        [topicId]: mergeMessages(current[topicId] ?? [], page.messages)
+      }));
+      setVisibleMessagesByTopicId((current) => ({
         ...current,
         [topicId]: mergeMessages(current[topicId] ?? [], page.messages)
       }));
@@ -124,7 +148,9 @@ export function MessageProvider({ children, service = messageService }: MessageP
         [topicId]: {
           oldestCursor: getOldestCursor(page.messages) ?? before,
           hasOlderMessages: page.hasOlderMessages,
-          olderPreloadBoundaryId: getOlderPreloadBoundaryId(page.messages)
+          olderPreloadBoundaryId: getOlderPreloadBoundaryId(page.messages),
+          hasNewerMessages: current[topicId]?.hasNewerMessages ?? false,
+          newerPreloadBoundaryId: current[topicId]?.newerPreloadBoundaryId ?? null
         }
       }));
     } finally {
@@ -143,49 +169,6 @@ export function MessageProvider({ children, service = messageService }: MessageP
       (messages, segment) => mergeMessages(messages, segment),
       [] as Message[]
     );
-  }, [service]);
-
-  const loadMessageBridge = useCallback(async (
-    topicId: string,
-    targetMessages: Message[],
-    newestHistoryCursor?: MessageCursor
-  ) => {
-    const targetNewestMessage = targetMessages.at(-1);
-
-    if (!targetNewestMessage || !newestHistoryCursor || compareMessageCursors(
-      newestHistoryCursor,
-      toMessageCursor(targetNewestMessage)
-    ) <= 0) {
-      return [];
-    }
-
-    const targetMessageIds = new Set(targetMessages.map((message) => message.id));
-    const bridgeMessages: Message[] = [];
-    let before = newestHistoryCursor;
-
-    for (let pageIndex = 0; pageIndex < messageBridgePageLimit; pageIndex += 1) {
-      const page = await service.listMessagePage(topicId, { before, limit: messagePageSize });
-
-      if (page.messages.length === 0) {
-        return bridgeMessages;
-      }
-
-      bridgeMessages.push(...page.messages);
-
-      if (page.messages.some((message) => targetMessageIds.has(message.id))) {
-        return bridgeMessages;
-      }
-
-      const oldestMessage = page.messages[0];
-
-      if (!oldestMessage || !page.hasOlderMessages) {
-        return bridgeMessages;
-      }
-
-      before = toMessageCursor(oldestMessage);
-    }
-
-    return bridgeMessages;
   }, [service]);
 
   const loadMessages = useCallback(
@@ -213,24 +196,25 @@ export function MessageProvider({ children, service = messageService }: MessageP
           const prioritySegments = await Promise.all(
             Array.from(priorityMessageIds).map((messageId) => loadMessageSegmentWindow(topicId, messageId))
           );
-          const priorityMessages = prioritySegments.reduce(
+          const cachedMessages = prioritySegments.reduce(
             (currentMessages, segment) => mergeMessages(currentMessages, segment),
-            [] as Message[]
+            page.messages
           );
           const oldestCursor = getOldestCursor(page.messages);
-          const bridgeMessages = await loadMessageBridge(topicId, priorityMessages, oldestCursor);
-          const initialMessages = mergeMessages(
-            mergeMessages(page.messages, priorityMessages),
-            bridgeMessages
-          );
 
-          setMessagesByTopicId((current) => ({ ...current, [topicId]: initialMessages }));
+          activeWindowGenerationByTopicId.current[topicId] = (
+            activeWindowGenerationByTopicId.current[topicId] ?? 0
+          ) + 1;
+          setMessagesByTopicId((current) => ({ ...current, [topicId]: cachedMessages }));
+          setVisibleMessagesByTopicId((current) => ({ ...current, [topicId]: page.messages }));
           setHistoryByTopicId((current) => ({
             ...current,
             [topicId]: {
               oldestCursor,
               hasOlderMessages: page.hasOlderMessages,
-              olderPreloadBoundaryId: null
+              olderPreloadBoundaryId: getOlderPreloadBoundaryId(page.messages),
+              hasNewerMessages: false,
+              newerPreloadBoundaryId: null
             }
           }));
           setLoadedTopicIds((current) => ({ ...current, [topicId]: true }));
@@ -255,7 +239,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       initialLoadPromises.current.set(topicId, load);
       return load;
     },
-    [loadedTopicIds, loadMessageBridge, loadMessageSegmentWindow, preloadOlderPage, service]
+    [loadedTopicIds, loadMessageSegmentWindow, preloadOlderPage, service]
   );
 
   const preloadOlderMessages = useCallback(async (topicId: string) => {
@@ -266,9 +250,89 @@ export function MessageProvider({ children, service = messageService }: MessageP
     }
   }, [historyByTopicId, preloadOlderPage]);
 
-  const ensureMessageSegmentLoaded = useCallback(async (topicId: string, messageId: string) => {
+  const preloadNewerMessages = useCallback(async (topicId: string) => {
+    const history = historyByTopicId[topicId];
+    const visibleMessages = visibleMessagesByTopicId[topicId] ?? [];
+    const newestVisibleMessage = visibleMessages.at(-1);
+
     if (
-      messagesByTopicId[topicId]?.some((message) => message.id === messageId) ||
+      !history?.hasNewerMessages ||
+      !newestVisibleMessage ||
+      newerLoadInFlightTopicIds.current.has(topicId)
+    ) {
+      return;
+    }
+
+    newerLoadInFlightTopicIds.current.add(topicId);
+    const activeWindowGeneration = activeWindowGenerationByTopicId.current[topicId] ?? 0;
+
+    try {
+      const segment = await service.listMessageSegment(
+        topicId,
+        newestVisibleMessage.id,
+        messagePageSize,
+        -1
+      );
+
+      if (activeWindowGenerationByTopicId.current[topicId] !== activeWindowGeneration) {
+        return;
+      }
+
+      const existingMessageIds = new Set(visibleMessages.map((message) => message.id));
+      const addedMessages = segment.filter((message) => !existingMessageIds.has(message.id));
+
+      if (addedMessages.length === 0) {
+        setHistoryByTopicId((current) => ({
+          ...current,
+          [topicId]: {
+            ...history,
+            hasNewerMessages: false,
+            newerPreloadBoundaryId: null
+          }
+        }));
+        return;
+      }
+
+      const nextVisibleMessages = mergeMessages(visibleMessages, addedMessages);
+      const newestCachedMessage = messagesByTopicId[topicId]?.at(-1);
+      const nextNewestVisibleMessage = nextVisibleMessages.at(-1);
+      const hasCachedNewerMessages = Boolean(
+        newestCachedMessage &&
+        nextNewestVisibleMessage &&
+        compareMessageCursors(
+          toMessageCursor(newestCachedMessage),
+          toMessageCursor(nextNewestVisibleMessage)
+        ) > 0
+      );
+
+      setMessagesByTopicId((current) => ({
+        ...current,
+        [topicId]: mergeMessages(current[topicId] ?? [], segment)
+      }));
+      setVisibleMessagesByTopicId((current) => ({
+        ...current,
+        [topicId]: nextVisibleMessages
+      }));
+      setHistoryByTopicId((current) => ({
+        ...current,
+        [topicId]: {
+          ...history,
+          hasNewerMessages: hasCachedNewerMessages || segment.length >= messagePageSize,
+          newerPreloadBoundaryId: getNewerPreloadBoundaryId(addedMessages)
+        }
+      }));
+    } finally {
+      newerLoadInFlightTopicIds.current.delete(topicId);
+    }
+  }, [historyByTopicId, messagesByTopicId, service, visibleMessagesByTopicId]);
+
+  const ensureMessageSegmentLoaded = useCallback(async (
+    topicId: string,
+    messageId: string,
+    options: MessageSegmentLoadOptions = {}
+  ) => {
+    if (
+      (!options.activate && messagesByTopicId[topicId]?.some((message) => message.id === messageId)) ||
       targetSegmentInFlightMessageIds.current.has(messageId)
     ) {
       return;
@@ -278,25 +342,34 @@ export function MessageProvider({ children, service = messageService }: MessageP
 
     try {
       const messages = await loadMessageSegmentWindow(topicId, messageId);
-      const bridgeMessages = await loadMessageBridge(
-        topicId,
-        messages,
-        historyByTopicId[topicId]?.oldestCursor
-      );
 
       if (messages.length > 0) {
         setMessagesByTopicId((current) => ({
           ...current,
-          [topicId]: mergeMessages(
-            mergeMessages(current[topicId] ?? [], messages),
-            bridgeMessages
-          )
+          [topicId]: mergeMessages(current[topicId] ?? [], messages)
         }));
+
+        if (options.activate) {
+          activeWindowGenerationByTopicId.current[topicId] = (
+            activeWindowGenerationByTopicId.current[topicId] ?? 0
+          ) + 1;
+          setVisibleMessagesByTopicId((current) => ({ ...current, [topicId]: messages }));
+          setHistoryByTopicId((current) => ({
+            ...current,
+            [topicId]: {
+              oldestCursor: getOldestCursor(messages),
+              hasOlderMessages: messages.length >= messagePageSize,
+              olderPreloadBoundaryId: getOlderPreloadBoundaryId(messages),
+              hasNewerMessages: true,
+              newerPreloadBoundaryId: getNewerPreloadBoundaryId(messages)
+            }
+          }));
+        }
       }
     } finally {
       targetSegmentInFlightMessageIds.current.delete(messageId);
     }
-  }, [historyByTopicId, loadMessageBridge, loadMessageSegmentWindow, messagesByTopicId]);
+  }, [loadMessageSegmentWindow, messagesByTopicId]);
 
   const refreshNewestMessages = useCallback(async (topicId: string) => {
     try {
@@ -305,10 +378,19 @@ export function MessageProvider({ children, service = messageService }: MessageP
         ...current,
         [topicId]: mergeMessages(current[topicId] ?? [], page.messages)
       }));
+      setVisibleMessagesByTopicId((current) => {
+        const visibleMessages = current[topicId] ?? [];
+        const cachedMessages = messagesByTopicId[topicId] ?? [];
+        const isShowingNewestMessages = visibleMessages.at(-1)?.id === cachedMessages.at(-1)?.id;
+
+        return isShowingNewestMessages
+          ? { ...current, [topicId]: mergeMessages(visibleMessages, page.messages) }
+          : current;
+      });
     } catch {
       // Realtime refresh failures should not replace already visible history.
     }
-  }, [service]);
+  }, [messagesByTopicId, service]);
 
   const sendMessage = useCallback(
     async (input: CreateMessageInput) => {
@@ -328,12 +410,27 @@ export function MessageProvider({ children, service = messageService }: MessageP
         ...current,
         [input.topicId]: [...(current[input.topicId] ?? []), optimisticMessage]
       }));
+      setVisibleMessagesByTopicId((current) => {
+        const visibleMessages = current[input.topicId] ?? [];
+        const cachedMessages = messagesByTopicId[input.topicId] ?? [];
+        const isShowingNewestMessages = visibleMessages.at(-1)?.id === cachedMessages.at(-1)?.id;
+
+        return isShowingNewestMessages
+          ? { ...current, [input.topicId]: [...visibleMessages, optimisticMessage] }
+          : current;
+      });
       setErrorsByTopicId((current) => ({ ...current, [input.topicId]: null }));
 
       try {
         const message = await service.createMessage(input);
         await clearDraft(input.topicId);
         setMessagesByTopicId((current) => ({
+          ...current,
+          [input.topicId]: (current[input.topicId] ?? []).map((currentMessage) =>
+            currentMessage.id === optimisticMessage.id ? message : currentMessage
+          )
+        }));
+        setVisibleMessagesByTopicId((current) => ({
           ...current,
           [input.topicId]: (current[input.topicId] ?? []).map((currentMessage) =>
             currentMessage.id === optimisticMessage.id ? message : currentMessage
@@ -347,6 +444,12 @@ export function MessageProvider({ children, service = messageService }: MessageP
             (currentMessage) => currentMessage.id !== optimisticMessage.id
           )
         }));
+        setVisibleMessagesByTopicId((current) => ({
+          ...current,
+          [input.topicId]: (current[input.topicId] ?? []).filter(
+            (currentMessage) => currentMessage.id !== optimisticMessage.id
+          )
+        }));
         setErrorsByTopicId((current) => ({
           ...current,
           [input.topicId]: error instanceof Error ? error.message : "Message could not be sent."
@@ -354,7 +457,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
         throw error;
       }
     },
-    [clearDraft, service]
+    [clearDraft, messagesByTopicId, service]
   );
 
   const updateMessage = useCallback(
@@ -362,6 +465,12 @@ export function MessageProvider({ children, service = messageService }: MessageP
       const message = await service.updateMessage(messageId, body);
 
       setMessagesByTopicId((current) => ({
+        ...current,
+        [message.topicId]: (current[message.topicId] ?? []).map((currentMessage) => (
+          currentMessage.id === message.id ? message : currentMessage
+        ))
+      }));
+      setVisibleMessagesByTopicId((current) => ({
         ...current,
         [message.topicId]: (current[message.topicId] ?? []).map((currentMessage) => (
           currentMessage.id === message.id ? message : currentMessage
@@ -383,6 +492,12 @@ export function MessageProvider({ children, service = messageService }: MessageP
           currentMessage.id === message.id ? message : currentMessage
         ))
       }));
+      setVisibleMessagesByTopicId((current) => ({
+        ...current,
+        [message.topicId]: (current[message.topicId] ?? []).map((currentMessage) => (
+          currentMessage.id === message.id ? message : currentMessage
+        ))
+      }));
 
       return message;
     },
@@ -399,10 +514,14 @@ export function MessageProvider({ children, service = messageService }: MessageP
   const value = useMemo<MessageContextValue>(
     () => ({
       getMessages(topicId) {
+        return visibleMessagesByTopicId[topicId] ?? [];
+      },
+      getCachedMessages(topicId) {
         return messagesByTopicId[topicId] ?? [];
       },
       loadMessages,
       preloadOlderMessages,
+      preloadNewerMessages,
       ensureMessageSegmentLoaded,
       subscribeToMessages,
       sendMessage,
@@ -422,9 +541,18 @@ export function MessageProvider({ children, service = messageService }: MessageP
             isUnread: false
           }))
         }));
+        setVisibleMessagesByTopicId((current) => ({
+          ...current,
+          [topicId]: (current[topicId] ?? []).map((message) => ({
+            ...message,
+            isUnread: false
+          }))
+        }));
       },
       clearLoadedMessages() {
+        activeWindowGenerationByTopicId.current = {};
         setMessagesByTopicId({});
+        setVisibleMessagesByTopicId({});
         setHistoryByTopicId({});
         setLoadedTopicIds({});
         setErrorsByTopicId({});
@@ -440,6 +568,9 @@ export function MessageProvider({ children, service = messageService }: MessageP
       },
       getOlderPreloadBoundary(topicId) {
         return historyByTopicId[topicId]?.olderPreloadBoundaryId ?? null;
+      },
+      getNewerPreloadBoundary(topicId) {
+        return historyByTopicId[topicId]?.newerPreloadBoundaryId ?? null;
       }
     }),
     [
@@ -449,10 +580,12 @@ export function MessageProvider({ children, service = messageService }: MessageP
       loadDraft,
       loadMessages,
       preloadOlderMessages,
+      preloadNewerMessages,
       ensureMessageSegmentLoaded,
       loadedDraftTopicIds,
       loadedTopicIds,
       messagesByTopicId,
+      visibleMessagesByTopicId,
       historyByTopicId,
       saveDraft,
       sendMessage,
@@ -504,5 +637,14 @@ function getOlderPreloadBoundaryId(messages: Message[]) {
   }
 
   // Start the following preload after entering the newest quarter of this older segment.
+  return messages[Math.floor(messages.length * 0.75)]?.id ?? messages.at(-1)?.id ?? null;
+}
+
+function getNewerPreloadBoundaryId(messages: Message[]) {
+  if (messages.length === 0) {
+    return null;
+  }
+
+  // Start the following preload after entering the newest quarter of this active window.
   return messages[Math.floor(messages.length * 0.75)]?.id ?? messages.at(-1)?.id ?? null;
 }

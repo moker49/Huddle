@@ -38,7 +38,9 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const { connections } = useConnections();
   const {
     getError,
+    getCachedMessages,
     getOlderPreloadBoundary,
+    getNewerPreloadBoundary,
     getDraft,
     getMessages,
     hasLoadedDraft,
@@ -48,6 +50,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
     markMessagesRead,
     ensureMessageSegmentLoaded,
     preloadOlderMessages,
+    preloadNewerMessages,
     saveDraft,
     sendMessage,
     deleteMessage,
@@ -59,11 +62,13 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const topic = topicId ? getTopic(topicId) : undefined;
   const topicIsAvailable = Boolean(topic);
   const messages = topicId ? getMessages(topicId) : [];
+  const cachedMessages = topicId ? getCachedMessages(topicId) : [];
   const draft = topicId ? getDraft(topicId) : "";
   const draftHasLoaded = topicId ? hasLoadedDraft(topicId) : false;
   const messagesHaveLoaded = topicId ? hasLoadedMessages(topicId) : false;
   const messageError = topicId ? getError(topicId) : null;
   const olderPreloadBoundaryMessageId = topicId ? getOlderPreloadBoundary(topicId) : null;
+  const newerPreloadBoundaryMessageId = topicId ? getNewerPreloadBoundary(topicId) : null;
   const hasDisplayName = Boolean(user?.displayName);
   const userId = user?.id;
   const userDisplayName = user?.displayName;
@@ -254,7 +259,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       return;
     }
 
-    await ensureMessageSegmentLoaded(topicId, messageId);
+    await ensureMessageSegmentLoaded(topicId, messageId, { activate: true });
     setMessageToFocus((current) => ({
       id: messageId,
       requestId: (current?.requestId ?? 0) + 1
@@ -262,7 +267,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   }, [ensureMessageSegmentLoaded, topicId]);
 
   const pinnedMessage = topic?.pinnedMessageId
-    ? messages.find((message) => message.id === topic.pinnedMessageId)
+    ? cachedMessages.find((message) => message.id === topic.pinnedMessageId)
     : undefined;
 
   const handlePressAuthor = useCallback((message: Message) => {
@@ -381,10 +386,9 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               <TouchableRipple
                 onLongPress={() => setPinnedMessageForActions(pinnedMessage)}
                 delayLongPress={messageContextMenuHoldDelay}
-                onPress={() => setMessageToFocus((current) => ({
-                  id: pinnedMessage.id,
-                  requestId: (current?.requestId ?? 0) + 1
-                }))}
+                onPress={() => {
+                  void handleRequestMessageFocus(pinnedMessage.id);
+                }}
                 accessibilityLabel="Pinned message"
                 accessibilityHint="Hold for pin options"
                 style={[styles.pinnedMessage, { backgroundColor: theme.colors.elevation.level1 }]}
@@ -414,6 +418,12 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               onDeleteMessage={deleteMessage}
               olderPreloadBoundaryMessageId={olderPreloadBoundaryMessageId}
               onReachOlderPreloadBoundary={handleReachOlderPreloadBoundary}
+              newerPreloadBoundaryMessageId={newerPreloadBoundaryMessageId}
+              onReachNewerPreloadBoundary={() => {
+                if (topicId) {
+                  void preloadNewerMessages(topicId);
+                }
+              }}
               onViewableReplySourceIds={handleViewableReplySourceIds}
               onRequestMessageFocus={handleRequestMessageFocus}
               onReachConversationBottom={handleReachConversationBottom}

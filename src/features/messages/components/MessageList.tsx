@@ -20,6 +20,8 @@ interface MessageListProps {
   onDeleteMessage?: (messageId: string) => Promise<Message>;
   olderPreloadBoundaryMessageId?: string | null;
   onReachOlderPreloadBoundary?: () => void;
+  newerPreloadBoundaryMessageId?: string | null;
+  onReachNewerPreloadBoundary?: () => void;
   onViewableReplySourceIds?: (messageIds: string[]) => void;
   onRequestMessageFocus?: (messageId: string) => void;
   onReachConversationBottom?: (unreadMarkerId: string) => void;
@@ -46,6 +48,8 @@ export function MessageList({
   onDeleteMessage,
   olderPreloadBoundaryMessageId,
   onReachOlderPreloadBoundary,
+  newerPreloadBoundaryMessageId,
+  onReachNewerPreloadBoundary,
   onViewableReplySourceIds,
   onRequestMessageFocus,
   onReachConversationBottom,
@@ -66,10 +70,12 @@ export function MessageList({
   const acknowledgedUnreadMarkerIdRef = useRef<string | null>(null);
   const olderPreloadBoundaryMessageIdRef = useRef(olderPreloadBoundaryMessageId);
   const onReachOlderPreloadBoundaryRef = useRef(onReachOlderPreloadBoundary);
+  const newerPreloadBoundaryMessageIdRef = useRef(newerPreloadBoundaryMessageId);
+  const onReachNewerPreloadBoundaryRef = useRef(onReachNewerPreloadBoundary);
   const onViewableReplySourceIdsRef = useRef(onViewableReplySourceIds);
   const onRequestMessageFocusRef = useRef(onRequestMessageFocus);
   const loadedMessageIdsRef = useRef(new Set<string>());
-  const newestMessageIdRef = useRef<string | undefined>(undefined);
+  const newestMessageRef = useRef<Message | undefined>(undefined);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useRef(({
@@ -86,6 +92,14 @@ export function MessageList({
       row.messages?.some((message) => message.id === boundaryMessageId)
     ))) {
       onReachOlderPreloadBoundaryRef.current?.();
+    }
+
+    const newerBoundaryMessageId = newerPreloadBoundaryMessageIdRef.current;
+
+    if (newerBoundaryMessageId && rows.some((row) => (
+      row.messages?.some((message) => message.id === newerBoundaryMessageId)
+    ))) {
+      onReachNewerPreloadBoundaryRef.current?.();
     }
 
     const missingReplySourceIds = new Set<string>();
@@ -118,6 +132,8 @@ export function MessageList({
   onReachConversationBottomRef.current = onReachConversationBottom;
   olderPreloadBoundaryMessageIdRef.current = olderPreloadBoundaryMessageId;
   onReachOlderPreloadBoundaryRef.current = onReachOlderPreloadBoundary;
+  newerPreloadBoundaryMessageIdRef.current = newerPreloadBoundaryMessageId;
+  onReachNewerPreloadBoundaryRef.current = onReachNewerPreloadBoundary;
   onViewableReplySourceIdsRef.current = onViewableReplySourceIds;
   onRequestMessageFocusRef.current = onRequestMessageFocus;
 
@@ -156,16 +172,31 @@ export function MessageList({
   }, [hasLoaded, isListReady, unreadMarkerId, unreadMarkerIndex]);
 
   useEffect(() => {
-    const previousNewestMessageId = newestMessageIdRef.current;
-    newestMessageIdRef.current = newestMessage?.id;
+    const previousNewestMessage = newestMessageRef.current;
+    newestMessageRef.current = newestMessage;
+    const activeWindowMovedBackward = Boolean(
+      previousNewestMessage &&
+      newestMessage &&
+      (
+        previousNewestMessage.createdAt.localeCompare(newestMessage.createdAt) > 0 ||
+        (
+          previousNewestMessage.createdAt === newestMessage.createdAt &&
+          previousNewestMessage.id.localeCompare(newestMessage.id) > 0
+        )
+      )
+    );
 
     if (
       !isListReady ||
-      !previousNewestMessageId ||
-      previousNewestMessageId === newestMessage?.id ||
+      !previousNewestMessage ||
+      previousNewestMessage.id === newestMessage?.id ||
       newestMessage?.kind !== "user" ||
-      !isAtConversationBottomRef.current
+      !isAtConversationBottomRef.current ||
+      activeWindowMovedBackward
     ) {
+      if (activeWindowMovedBackward) {
+        isAtConversationBottomRef.current = false;
+      }
       return;
     }
 
