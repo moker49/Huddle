@@ -88,6 +88,7 @@ export function MessageList({
   const newestMessageRef = useRef<Message | undefined>(undefined);
   const visibleRowIdsRef = useRef(new Set<string>());
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingScrollToConversationBottomRef = useRef(false);
   const onViewableItemsChanged = useRef(({
     viewableItems
   }: {
@@ -351,12 +352,13 @@ export function MessageList({
 
   async function scrollToConversationBottom() {
     setShowScrollToBottom(false);
+    pendingScrollToConversationBottomRef.current = true;
     await onRequestConversationBottom?.();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToEnd({ animated: false });
-      });
-    });
+
+    if (!onRequestConversationBottom) {
+      listRef.current?.scrollToEnd({ animated: false });
+      pendingScrollToConversationBottomRef.current = false;
+    }
   }
 
   focusMessageRef.current = handlePressReply;
@@ -452,6 +454,12 @@ export function MessageList({
       scrollEventThrottle={16}
       onViewableItemsChanged={onViewableItemsChanged}
       onLoad={() => setIsListReady(true)}
+      onCommitLayoutEffect={() => {
+        if (pendingScrollToConversationBottomRef.current) {
+          listRef.current?.scrollToEnd({ animated: false });
+          pendingScrollToConversationBottomRef.current = false;
+        }
+      }}
       style={StyleSheet.flatten([
         styles.list,
         unreadMarkerId && !unreadMarkerIsPositioned ? styles.hiddenList : undefined,
