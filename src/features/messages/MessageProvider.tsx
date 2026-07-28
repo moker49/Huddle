@@ -50,6 +50,7 @@ interface MessageLoadOptions {
 }
 
 const MessageContext = createContext<MessageContextValue | null>(null);
+const messageBridgePageLimit = 3;
 
 interface MessageProviderProps extends PropsWithChildren {
   service?: MessageService;
@@ -144,6 +145,49 @@ export function MessageProvider({ children, service = messageService }: MessageP
     );
   }, [service]);
 
+  const loadMessageBridge = useCallback(async (
+    topicId: string,
+    targetMessages: Message[],
+    newestHistoryCursor?: MessageCursor
+  ) => {
+    const targetNewestMessage = targetMessages.at(-1);
+
+    if (!targetNewestMessage || !newestHistoryCursor || compareMessageCursors(
+      newestHistoryCursor,
+      toMessageCursor(targetNewestMessage)
+    ) <= 0) {
+      return [];
+    }
+
+    const targetMessageIds = new Set(targetMessages.map((message) => message.id));
+    const bridgeMessages: Message[] = [];
+    let before = newestHistoryCursor;
+
+    for (let pageIndex = 0; pageIndex < messageBridgePageLimit; pageIndex += 1) {
+      const page = await service.listMessagePage(topicId, { before, limit: messagePageSize });
+
+      if (page.messages.length === 0) {
+        return bridgeMessages;
+      }
+
+      bridgeMessages.push(...page.messages);
+
+      if (page.messages.some((message) => targetMessageIds.has(message.id))) {
+        return bridgeMessages;
+      }
+
+      const oldestMessage = page.messages[0];
+
+      if (!oldestMessage || !page.hasOlderMessages) {
+        return bridgeMessages;
+      }
+
+      before = toMessageCursor(oldestMessage);
+    }
+
+    return bridgeMessages;
+  }, [service]);
+
   const loadMessages = useCallback(
     (topicId: string, options: MessageLoadOptions = {}) => {
       if (loadedTopicIds[topicId]) {
@@ -169,11 +213,16 @@ export function MessageProvider({ children, service = messageService }: MessageP
           const prioritySegments = await Promise.all(
             Array.from(priorityMessageIds).map((messageId) => loadMessageSegmentWindow(topicId, messageId))
           );
-          const initialMessages = prioritySegments.reduce(
+          const priorityMessages = prioritySegments.reduce(
             (currentMessages, segment) => mergeMessages(currentMessages, segment),
-            page.messages
+            [] as Message[]
           );
           const oldestCursor = getOldestCursor(page.messages);
+          const bridgeMessages = await loadMessageBridge(topicId, priorityMessages, oldestCursor);
+          const initialMessages = mergeMessages(
+            mergeMessages(page.messages, priorityMessages),
+            bridgeMessages
+          );
 
           setMessagesByTopicId((current) => ({ ...current, [topicId]: initialMessages }));
           setHistoryByTopicId((current) => ({
@@ -206,7 +255,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       initialLoadPromises.current.set(topicId, load);
       return load;
     },
-    [loadedTopicIds, loadMessageSegmentWindow, preloadOlderPage, service]
+    [loadedTopicIds, loadMessageBridge, loadMessageSegmentWindow, preloadOlderPage, service]
   );
 
   const preloadOlderMessages = useCallback(async (topicId: string) => {
@@ -229,17 +278,25 @@ export function MessageProvider({ children, service = messageService }: MessageP
 
     try {
       const messages = await loadMessageSegmentWindow(topicId, messageId);
+      const bridgeMessages = await loadMessageBridge(
+        topicId,
+        messages,
+        historyByTopicId[topicId]?.oldestCursor
+      );
 
       if (messages.length > 0) {
         setMessagesByTopicId((current) => ({
           ...current,
-          [topicId]: mergeMessages(current[topicId] ?? [], messages)
+          [topicId]: mergeMessages(
+            mergeMessages(current[topicId] ?? [], messages),
+            bridgeMessages
+          )
         }));
       }
     } finally {
       targetSegmentInFlightMessageIds.current.delete(messageId);
     }
-  }, [loadMessageSegmentWindow, messagesByTopicId]);
+  }, [historyByTopicId, loadMessageBridge, loadMessageSegmentWindow, messagesByTopicId]);
 
   const refreshNewestMessages = useCallback(async (topicId: string) => {
     try {
@@ -421,7 +478,15 @@ export function useMessages() {
 function getOldestCursor(messages: Message[]): MessageCursor | undefined {
   const oldestMessage = messages[0];
 
-  return oldestMessage ? { createdAt: oldestMessage.createdAt, id: oldestMessage.id } : undefined;
+  return oldestMessage ? toMessageCursor(oldestMessage) : undefined;
+}
+
+function toMessageCursor(message: Message): MessageCursor {
+  return { createdAt: message.createdAt, id: message.id };
+}
+
+function compareMessageCursors(first: MessageCursor, second: MessageCursor) {
+  return first.createdAt.localeCompare(second.createdAt) || first.id.localeCompare(second.id);
 }
 
 function mergeMessages(currentMessages: Message[], nextMessages: Message[]) {
