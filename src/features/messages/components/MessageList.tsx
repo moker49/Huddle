@@ -267,8 +267,18 @@ export function MessageList({
     viewportHeightRef.current = layoutMeasurement.height;
     const isAtBottom = scrollOffset + layoutMeasurement.height >= contentSize.height - spacing.sm;
     const isAtLeastOneViewportAway = contentSize.height - (scrollOffset + layoutMeasurement.height) > layoutMeasurement.height;
+    const isNearOlderBoundary = scrollOffset <= layoutMeasurement.height;
+    const isNearNewerBoundary = contentSize.height - (scrollOffset + layoutMeasurement.height) <= layoutMeasurement.height;
     const isScrollingAwayFromBottom = scrollOffset < previousScrollOffsetRef.current - 1;
     const isScrollingTowardBottom = scrollOffset > previousScrollOffsetRef.current + 1;
+
+    if (isNearOlderBoundary && olderPreloadBoundaryMessageIdRef.current) {
+      onReachOlderPreloadBoundaryRef.current?.();
+    }
+
+    if (isNearNewerBoundary && newerPreloadBoundaryMessageIdRef.current) {
+      onReachNewerPreloadBoundaryRef.current?.();
+    }
 
     if (isScrollingTowardBottom && isAtLeastOneViewportAway) {
       setShowScrollToBottom(true);
