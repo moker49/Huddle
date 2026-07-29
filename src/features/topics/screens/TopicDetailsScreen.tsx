@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -84,6 +84,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const [messageToFocus, setMessageToFocus] = useState<{ id: string; requestId: number } | null>(null);
   const [editBody, setEditBody] = useState("");
   const [editError, setEditError] = useState("");
+  const readStateRecordedTopicIdsRef = useRef(new Set<string>());
   const connectionAvatarUrlByAlias = useMemo(() => {
     return connections.reduce<Record<string, string>>((avatarUrlByAlias, connection) => {
       if (!connection.avatarUrl) {
@@ -117,6 +118,30 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       priorityMessageIds: topic?.pinnedMessageId ? [topic.pinnedMessageId] : []
     });
   }, [loadMessages, topic?.pinnedMessageId, topicId, topicIsAvailable]);
+
+  useEffect(() => {
+    if (
+      !topicId ||
+      !topicIsAvailable ||
+      !messagesHaveLoaded ||
+      readStateRecordedTopicIdsRef.current.has(topicId)
+    ) {
+      return;
+    }
+
+    readStateRecordedTopicIdsRef.current.add(topicId);
+    void markTopicRead(topicId).catch(() => undefined);
+  }, [markTopicRead, messagesHaveLoaded, topicId, topicIsAvailable]);
+
+  useEffect(() => {
+    if (!topicId) {
+      return;
+    }
+
+    return () => {
+      markMessagesRead(topicId);
+    };
+  }, [markMessagesRead, topicId]);
 
   useEffect(() => {
     if (!topicId || !messagesHaveLoaded || !topic?.pinnedMessageId) {
@@ -233,14 +258,6 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
       void setPinnedMessage(topicId);
     }
   }, [setPinnedMessage, topicId]);
-
-  const handleReachConversationBottom = useCallback((_unreadMarkerId: string) => {
-    if (topicId) {
-      void markTopicRead(topicId).then(() => {
-        markMessagesRead(topicId);
-      });
-    }
-  }, [markMessagesRead, markTopicRead, topicId]);
 
   const handleReachOlderPreloadBoundary = useCallback(() => {
     if (topicId) {
@@ -443,7 +460,6 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               }}
               onViewableReplySourceIds={handleViewableReplySourceIds}
               onRequestMessageFocus={handleRequestMessageFocus}
-              onReachConversationBottom={handleReachConversationBottom}
               onRequestConversationBottom={handleRequestConversationBottom}
               messageToFocus={messageToFocus}
               onPinMessage={handlePinMessage}
