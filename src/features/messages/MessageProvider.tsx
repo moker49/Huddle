@@ -120,6 +120,23 @@ export function MessageProvider({ children, service = messageService }: MessageP
     [service]
   );
 
+  const markMessagesRead = useCallback((topicId: string) => {
+    setMessagesByTopicId((current) => ({
+      ...current,
+      [topicId]: (current[topicId] ?? []).map((message) => ({
+        ...message,
+        isUnread: false
+      }))
+    }));
+    setVisibleMessagesByTopicId((current) => ({
+      ...current,
+      [topicId]: (current[topicId] ?? []).map((message) => ({
+        ...message,
+        isUnread: false
+      }))
+    }));
+  }, []);
+
   const preloadOlderPage = useCallback(async (
     topicId: string,
     before: MessageCursor,
@@ -571,22 +588,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       loadDraft,
       saveDraft,
       clearDraft,
-      markMessagesRead(topicId) {
-        setMessagesByTopicId((current) => ({
-          ...current,
-          [topicId]: (current[topicId] ?? []).map((message) => ({
-            ...message,
-            isUnread: false
-          }))
-        }));
-        setVisibleMessagesByTopicId((current) => ({
-          ...current,
-          [topicId]: (current[topicId] ?? []).map((message) => ({
-            ...message,
-            isUnread: false
-          }))
-        }));
-      },
+      markMessagesRead,
       clearLoadedMessages() {
         activeWindowGenerationByTopicId.current = {};
         messageViewportAnchorsByTopicId.current = {};
@@ -617,6 +619,7 @@ export function MessageProvider({ children, service = messageService }: MessageP
       draftsByTopicId,
       clearDraft,
       loadDraft,
+      markMessagesRead,
       loadMessages,
       preloadOlderMessages,
       preloadNewerMessages,
