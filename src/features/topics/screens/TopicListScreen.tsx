@@ -145,6 +145,9 @@ export function TopicListScreen() {
     );
   }, [connectionAliasesById, filteredTopics, selectedConnectionIds]);
   const impliedTopicTitle = trimmedQuery;
+  const createHuddleLabel = impliedTopicTitle
+    ? `Create “${impliedTopicTitle}”`
+    : "Create huddle";
   const createHasMembers = selectedConnectionIds.length > 0;
   const activeTopics = useMemo(
     () => visibleTopics.filter((topic) => !isTopicArchived(topic.autoArchiveAt, currentTime)),
@@ -448,7 +451,7 @@ export function TopicListScreen() {
             {canShowCreateOption ? (
               <Pressable
                 onPress={openCreateScreen}
-                accessibilityLabel="Create huddle"
+                accessibilityLabel={createHuddleLabel}
                 accessibilityRole="button"
                 style={[
                   styles.createCard,
@@ -476,7 +479,7 @@ export function TopicListScreen() {
                     numberOfLines={1}
                     style={{ color: theme.colors.onSurface }}
                   >
-                    Create huddle
+                    {createHuddleLabel}
                   </Text>
                   {createHasMembers ? (
                     <Text
