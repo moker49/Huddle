@@ -84,6 +84,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
   const [messageToFocus, setMessageToFocus] = useState<{ id: string; requestId: number } | null>(null);
   const [editBody, setEditBody] = useState("");
   const [editError, setEditError] = useState("");
+  const [composerIsFocused, setComposerIsFocused] = useState(false);
   const readStateRecordedTopicIdsRef = useRef(new Set<string>());
   const connectionAvatarUrlByAlias = useMemo(() => {
     return connections.reduce<Record<string, string>>((avatarUrlByAlias, connection) => {
@@ -447,6 +448,7 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
                   setMessageViewportAnchor(topicId, messageId);
                 }
               }}
+              composerIsFocused={composerIsFocused}
               currentUserId={userId}
               getAuthorAvatarUrl={getAuthorAvatarUrl}
               onDeleteMessage={deleteMessage}
@@ -505,6 +507,8 @@ export function TopicDetailsScreen({ topicId }: TopicDetailsScreenProps) {
               onDismiss: handleDismissReply
             } : undefined}
             disabled={!hasDisplayName || (!messageBeingEdited && !draftHasLoaded)}
+            onFocus={() => setComposerIsFocused(true)}
+            onBlur={() => setComposerIsFocused(false)}
             onChangeText={(body) => {
               if (messageBeingEdited) {
                 setEditBody(body);

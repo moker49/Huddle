@@ -7,6 +7,8 @@ import { layout, spacing } from "@/theme/tokens";
 interface MessageComposerProps {
   onSend: (body: string) => Promise<void>;
   onChangeText: (body: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   value: string;
   disabled?: boolean;
   context?: ComposerContext;
@@ -43,6 +45,8 @@ const keepTextInputFocusedProps =
 export const MessageComposer = memo(function MessageComposer({
   onSend,
   onChangeText,
+  onFocus,
+  onBlur,
   value,
   disabled = false,
   context
@@ -151,6 +155,8 @@ export const MessageComposer = memo(function MessageComposer({
             placeholder={context?.mode === "edit" ? "Edit message..." : "Message..."}
             value={value}
             onChangeText={onChangeText}
+            onFocus={onFocus}
+            onBlur={onBlur}
             disabled={disabled}
             multiline
             blurOnSubmit={false}

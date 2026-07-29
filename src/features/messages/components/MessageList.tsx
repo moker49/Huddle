@@ -18,6 +18,7 @@ interface MessageListProps {
   errorMessage: string | null;
   initialAnchorMessageId?: string;
   onVisibleMessageChange?: (messageId?: string) => void;
+  composerIsFocused?: boolean;
   currentUserId?: string;
   getAuthorAvatarUrl?: (message: Message) => string | undefined;
   onDeleteMessage?: (messageId: string) => Promise<Message>;
@@ -49,6 +50,7 @@ export function MessageList({
   errorMessage,
   initialAnchorMessageId,
   onVisibleMessageChange,
+  composerIsFocused = false,
   currentUserId,
   getAuthorAvatarUrl,
   onDeleteMessage,
@@ -71,6 +73,8 @@ export function MessageList({
   const positionedInitialAnchorMessageIdRef = useRef<string | undefined>(undefined);
   const positionedUnreadMarkerIdRef = useRef<string | null>(null);
   const isAtConversationBottomRef = useRef(true);
+  const isNearConversationBottomRef = useRef(true);
+  const shouldStickToConversationBottomRef = useRef(false);
   const previousScrollOffsetRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const olderPreloadBoundaryMessageIdRef = useRef(olderPreloadBoundaryMessageId);
@@ -164,6 +168,7 @@ export function MessageList({
     positionedUnreadMarkerIdRef.current = unreadMarkerId;
     setUnreadMarkerIsPositioned(false);
     isAtConversationBottomRef.current = false;
+    isNearConversationBottomRef.current = false;
 
     requestAnimationFrame(() => {
       const list = listRef.current;
@@ -202,6 +207,25 @@ export function MessageList({
     isAtConversationBottomRef.current = false;
     requestAnimationFrame(() => setInitialAnchorIsPositioned(true));
   }, [initialAnchorMessageId, initialAnchorRowIndex, isListReady]);
+
+  useEffect(() => {
+    if (!composerIsFocused) {
+      shouldStickToConversationBottomRef.current = false;
+      return;
+    }
+
+    if (!isListReady || !isNearConversationBottomRef.current) {
+      return;
+    }
+
+    shouldStickToConversationBottomRef.current = true;
+
+    const animationFrame = requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: false });
+    });
+
+    return () => cancelAnimationFrame(animationFrame);
+  }, [composerIsFocused, isListReady]);
 
   useEffect(() => {
     const previousNewestMessage = newestMessageRef.current;
@@ -292,6 +316,12 @@ export function MessageList({
     const isScrollingAwayFromBottom = scrollOffset < previousScrollOffsetRef.current - 1;
     const isScrollingTowardBottom = scrollOffset > previousScrollOffsetRef.current + 1;
 
+    isNearConversationBottomRef.current = !isAtLeastOneViewportAway;
+
+    if (!isNearConversationBottomRef.current) {
+      shouldStickToConversationBottomRef.current = false;
+    }
+
     if (isNearOlderBoundary && olderPreloadBoundaryMessageIdRef.current) {
       onReachOlderPreloadBoundaryRef.current?.();
     }
@@ -318,6 +348,14 @@ export function MessageList({
         onVisibleMessageChangeRef.current?.();
       }
 
+    }
+  }
+
+  function handleListLayout() {
+    if (composerIsFocused && shouldStickToConversationBottomRef.current) {
+      requestAnimationFrame(() => {
+        listRef.current?.scrollToEnd({ animated: false });
+      });
     }
   }
 
@@ -424,6 +462,7 @@ export function MessageList({
       scrollEventThrottle={16}
       onViewableItemsChanged={onViewableItemsChanged}
       onLoad={() => setIsListReady(true)}
+      onLayout={handleListLayout}
       style={StyleSheet.flatten([
         styles.list,
         unreadMarkerId && !unreadMarkerIsPositioned ? styles.hiddenList : undefined,
