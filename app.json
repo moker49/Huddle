@@ -4,6 +4,9 @@
     "slug": "huddle",
     "scheme": "huddle",
     "version": "0.1.0",
+    "android": {
+      "package": "org.efren.huddle"
+    },
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "web": {
@@ -13,6 +16,9 @@
     "extra": {
       "router": {
         "origin": "https://huddle.efren.org"
+      },
+      "eas": {
+        "projectId": "efec7c92-072c-4b52-be58-3b45a2244a44"
       }
     },
     "experiments": {
