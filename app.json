@@ -6,7 +6,6 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "web": {
       "bundler": "metro",
       "output": "single"
@@ -22,7 +21,9 @@
     "plugins": [
       "expo-sqlite",
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      "expo-router",
+      "expo-status-bar"
     ]
   }
 }
