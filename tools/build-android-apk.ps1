@@ -13,7 +13,10 @@ if (-not $androidSdkPath) {
     throw 'Android SDK not found. Install it with Android Studio, then set ANDROID_HOME or ANDROID_SDK_ROOT.'
 }
 
+$microsoftJdk17Paths = Get-ChildItem -LiteralPath 'C:\Program Files\Microsoft' -Directory -Filter 'jdk-17*' -ErrorAction SilentlyContinue |
+    Select-Object -ExpandProperty FullName
 $javaCandidates = @(@(
+    $microsoftJdk17Paths
     $env:JAVA_HOME,
     'C:\Program Files\Android Studio\jbr'
 ) | Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $_ 'bin\java.exe')) })
@@ -48,6 +51,7 @@ try {
     Write-Host 'Building debug APK...'
     Push-Location (Join-Path $projectRoot 'android')
     try {
+        & $gradleWrapper --stop | Out-Null
         & $gradleWrapper assembleDebug
     }
     finally {
@@ -63,6 +67,7 @@ try {
     }
 
     Write-Host "`nAPK created: $apkPath" -ForegroundColor Green
+    Invoke-Item (Split-Path -Parent $apkPath)
 }
 finally {
     Pop-Location
